@@ -11,6 +11,7 @@ import RomanceMoviesSection from '../components/RomanceMoviesSection'
 import SciFiMoviesSection from '../components/SciFiMoviesSection'
 import DramaMoviesSection from '../components/DramaMoviesSection'
 import MovieBookingSection from '../components/MovieBookingSection'
+import Footer from '../components/Footer'
 
 export default function Home() {
   return (
@@ -26,6 +27,7 @@ export default function Home() {
       <RomanceMoviesSection />
       <SciFiMoviesSection />
       <DramaMoviesSection />
+      <Footer />
     </div>
   )
 }
