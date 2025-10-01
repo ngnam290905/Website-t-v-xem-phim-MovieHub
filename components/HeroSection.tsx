@@ -88,10 +88,7 @@ const HeroSection = () => {
         </div>
       </div>
 
-      {/* Development URL indicator */}
-      <div className="absolute bottom-4 left-4 text-blue-400 text-sm font-mono">
-        localhost:3000/checkout
-      </div>
+     
     </div>
   )
 }
