@@ -11,6 +11,14 @@ interface Movie {
   viewCount: string;
   image: string;
   isHot: boolean;
+  isNew?: boolean;
+  isTrending?: boolean;
+  duration?: number;
+  price?: number;
+  originalPrice?: number;
+  discount?: number;
+  genres?: string[];
+  showtimes?: string[];
 }
 
 const HotMoviesSection = () => {
@@ -20,80 +28,96 @@ const HotMoviesSection = () => {
     {
       id: 1,
       title: "Red Vengeance",
-      description: "Một đặc vụ bí ẩn trở lại sau nhiều năm để phá một âm mưu đen tối đe doạ thành phố",
+      description: "Một đặc vụ bí ẩn trở lại sau nhiều năm để phá một âm mưu đen tối đe doạ thành phố. Cuộc chiến đấu đầy kịch tính với những pha hành động mãn nhãn và cốt truyện hấp dẫn.",
       rating: 8.5,
       language: "English",
       viewCount: "7.425",
       image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=400&fit=crop&crop=center",
       isHot: true,
+      isTrending: true,
       duration: 128,
       price: 90000,
-      genres: ["Hành động", "Kịch tính", "Tội phạm"]
+      originalPrice: 120000,
+      discount: 25,
+      genres: ["Hành động", "Kịch tính", "Tội phạm"],
+      showtimes: ["14:00", "16:30", "19:00", "21:30"]
     },
     {
       id: 2,
       title: "Haunted Mansion",
-      description: "Một gia đình chuyển đến ngôi nhà cổ và khám phá những bí mật đáng sợ ẩn giấu bên trong",
-      rating: 8.5,
+      description: "Một gia đình chuyển đến ngôi nhà cổ và khám phá những bí mật đáng sợ ẩn giấu bên trong. Bộ phim kinh dị đầy bất ngờ với hiệu ứng đặc biệt ấn tượng.",
+      rating: 7.8,
       language: "English",
       viewCount: "5.698",
       image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=400&fit=crop&crop=center",
       isHot: true,
       duration: 105,
       price: 85000,
-      genres: ["Kinh dị", "Bí ẩn", "Siêu nhiên"]
+      genres: ["Kinh dị", "Bí ẩn", "Siêu nhiên"],
+      showtimes: ["15:00", "17:30", "20:00"]
     },
     {
       id: 3,
       title: "The Mystery Detective",
-      description: "Thám tử tài ba phải giải quyết vụ án phức tạp nhất trong sự nghiệp của mình",
-      rating: 8.5,
+      description: "Thám tử tài ba phải giải quyết vụ án phức tạp nhất trong sự nghiệp của mình. Câu chuyện trinh thám đầy kịch tính với những tình tiết bất ngờ.",
+      rating: 8.2,
       language: "English",
       viewCount: "8.106",
       image: "https://images.unsplash.com/photo-1489599808418-75c8b0b0b8a0?w=300&h=400&fit=crop&crop=center",
       isHot: true,
+      isNew: true,
       duration: 115,
       price: 88000,
-      genres: ["Bí ẩn", "Tội phạm", "Kịch tính"]
+      genres: ["Bí ẩn", "Tội phạm", "Kịch tính"],
+      showtimes: ["13:30", "16:00", "18:30", "21:00"]
     },
     {
       id: 4,
       title: "Love & Laughter",
-      description: "Một câu chuyện tình yêu hài hước và cảm động giữa hai người hoàn toàn khác biệt",
-      rating: 8.5,
+      description: "Một câu chuyện tình yêu hài hước và cảm động giữa hai người hoàn toàn khác biệt. Bộ phim hài lãng mạn đầy cảm xúc và tiếng cười.",
+      rating: 7.5,
       language: "English",
       viewCount: "3.193",
       image: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&h=400&fit=crop&crop=center",
       isHot: true,
       duration: 95,
       price: 56000,
-      genres: ["Hài", "Lãng mạn", "Tình cảm"]
+      originalPrice: 70000,
+      discount: 20,
+      genres: ["Hài", "Lãng mạn", "Tình cảm"],
+      showtimes: ["14:30", "17:00", "19:30"]
     },
     {
       id: 5,
       title: "Action Hero",
-      description: "Cuộc phiêu lưu đầy kịch tính của một anh hùng hành động trong thế giới tương lai",
+      description: "Cuộc phiêu lưu đầy kịch tính của một anh hùng hành động trong thế giới tương lai. Phim hành động bom tấn với hiệu ứng đặc biệt đỉnh cao.",
       rating: 8.8,
       language: "English",
       viewCount: "9.234",
       image: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=400&fit=crop&crop=center",
       isHot: true,
+      isTrending: true,
       duration: 135,
       price: 95000,
-      genres: ["Hành động", "Khoa học viễn tưởng", "Phiêu lưu"]
+      genres: ["Hành động", "Khoa học viễn tưởng", "Phiêu lưu"],
+      showtimes: ["15:30", "18:00", "20:30", "23:00"]
     },
     {
       id: 6,
       title: "Sci-Fi Adventure",
-      description: "Hành trình khám phá vũ trụ của một nhóm phi hành gia dũng cảm",
+      description: "Hành trình khám phá vũ trụ của một nhóm phi hành gia dũng cảm. Bộ phim khoa học viễn tưởng đầy tham vọng với hình ảnh đẹp mắt.",
       rating: 8.7,
       language: "English",
       viewCount: "6.789",
       image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=400&fit=crop&crop=center",
       isHot: true,
+      isNew: true,
       duration: 142,
       price: 92000,
-      genres: ["Khoa học viễn tưởng", "Phiêu lưu", "Hành động"]
+      originalPrice: 110000,
+      discount: 16,
+      genres: ["Khoa học viễn tưởng", "Phiêu lưu", "Hành động"],
+      showtimes: ["16:00", "19:00", "22:00"]
     }
   ];
 

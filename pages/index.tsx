@@ -2,6 +2,7 @@
 import React from 'react'
 import Header from '../components/Header'
 import HeroSection from '../components/HeroSection'
+import FilterSection from '../components/FilterSection'
 import HotMoviesSection from '../components/HotMoviesSection'
 import ActionMoviesSection from '../components/ActionMoviesSection'
 import ComedyMoviesSection from '../components/ComedyMoviesSection'
@@ -17,6 +18,7 @@ export default function Home() {
       <Header />
       <HeroSection />
       <MovieBookingSection />
+      <FilterSection />
       <HotMoviesSection />
       <ActionMoviesSection />
       <ComedyMoviesSection />
