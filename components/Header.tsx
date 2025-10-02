@@ -2,7 +2,7 @@ import React from 'react'
 
 const Header = () => {
   return (
-    <header className="sticky top-0 z-50 bg-gray-800/95 backdrop-blur-lg w-full px-6 py-4 border-b border-gray-700/50 shadow-lg">
+      <header className="sticky top-0 z-50 bg-gray-800/95 backdrop-blur-lg w-full px-6 py-4 border-b border-gray-700/50 shadow-lg">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         {/* Logo */}
         <div className="flex items-center space-x-3">
