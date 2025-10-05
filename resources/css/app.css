@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Seat map custom styles */
+@layer utilities {
+    .seat {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #2a2d3a;
+        border: 1px solid #2f3240;
+        transition: all .15s ease;
+    }
+    .seat:hover { filter: brightness(1.2); }
+    .seat-vip { background: #3b2a1a; border-color: #5a3b22; }
+    .seat-booked { background: #3a3a3a; border-color: #555; cursor: not-allowed; opacity: .6; }
+    .seat-selected { background: #F53003; border-color: #F53003; box-shadow: 0 0 0 2px #2a2d3a inset; }
+}
