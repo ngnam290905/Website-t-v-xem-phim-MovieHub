@@ -1,7 +1,7 @@
 <header class="bg-[#1b1d24] border-b border-[#262833]">
   <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
     <a href="{{ route('home') }}" class="flex items-center gap-3 shrink-0">
-      <img src="/logo.png" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+      <img src="{{ asset('images/logo.jpg') }}" alt="MovieHub" class="h-16 w-16 object-contain rounded">
       <span class="text-2xl font-semibold">MovieHub</span>
     </a>
 
