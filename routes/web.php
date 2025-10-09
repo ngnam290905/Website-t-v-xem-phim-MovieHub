@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminKhuyenMaiController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
@@ -14,8 +15,9 @@ Route::get('/dat-ve/{id?}', function ($id = 1) {
 
 // Admin routes
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+    Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+        Route::resource('khuyenmai', AdminKhuyenMaiController::class);
     });
 });
 
