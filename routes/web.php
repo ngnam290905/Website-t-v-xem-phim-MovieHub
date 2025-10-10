@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MovieController;
 
 Route::get('/', function () {
     return view('home');
@@ -16,6 +17,20 @@ Route::get('/dat-ve/{id?}', function ($id = 1) {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'role:admin,staff'])->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+        
+        // Movie management routes
+        Route::get('/movies', [MovieController::class, 'index'])->name('movies.index');
+        Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
+    });
+    
+    // Admin-only movie management routes
+    Route::middleware(['auth', 'role:admin'])->group(function () {
+        Route::get('/movies/create', [MovieController::class, 'create'])->name('movies.create');
+        Route::post('/movies', [MovieController::class, 'store'])->name('movies.store');
+        Route::get('/movies/{movie}/edit', [MovieController::class, 'edit'])->name('movies.edit');
+        Route::put('/movies/{movie}', [MovieController::class, 'update'])->name('movies.update');
+        Route::delete('/movies/{movie}', [MovieController::class, 'destroy'])->name('movies.destroy');
+        Route::patch('/movies/{movie}/toggle-status', [MovieController::class, 'toggleStatus'])->name('movies.toggle-status');
     });
 });
 
