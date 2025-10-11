@@ -38,35 +38,63 @@ class MovieController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'ten_phim' => 'required|string|max:255',
-            'do_dai' => 'required|integer|min:1',
-            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'mo_ta' => 'required|string',
+            'do_dai' => 'required|integer|min:1|max:600',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'mo_ta' => 'required|string|min:10|max:2000',
             'dao_dien' => 'required|string|max:100',
-            'dien_vien' => 'required|string',
-            'trailer' => 'nullable|url',
+            'dien_vien' => 'required|string|max:500',
+            'trailer' => 'nullable|url|max:500',
             'trang_thai' => 'boolean',
+        ], [
+            'ten_phim.required' => 'Tên phim không được để trống.',
+            'ten_phim.max' => 'Tên phim không được vượt quá 255 ký tự.',
+            'do_dai.required' => 'Độ dài phim không được để trống.',
+            'do_dai.min' => 'Độ dài phim phải lớn hơn 0 phút.',
+            'do_dai.max' => 'Độ dài phim không được vượt quá 600 phút.',
+            'poster.image' => 'File poster phải là hình ảnh.',
+            'poster.mimes' => 'Poster phải có định dạng: jpeg, png, jpg, gif, webp.',
+            'poster.max' => 'Kích thước poster không được vượt quá 5MB.',
+            'mo_ta.required' => 'Mô tả không được để trống.',
+            'mo_ta.min' => 'Mô tả phải có ít nhất 10 ký tự.',
+            'mo_ta.max' => 'Mô tả không được vượt quá 2000 ký tự.',
+            'dao_dien.required' => 'Tên đạo diễn không được để trống.',
+            'dao_dien.max' => 'Tên đạo diễn không được vượt quá 100 ký tự.',
+            'dien_vien.required' => 'Danh sách diễn viên không được để trống.',
+            'dien_vien.max' => 'Danh sách diễn viên không được vượt quá 500 ký tự.',
+            'trailer.url' => 'Link trailer phải là URL hợp lệ.',
+            'trailer.max' => 'Link trailer không được vượt quá 500 ký tự.',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
-                ->withInput();
+                ->withInput()
+                ->with('error', 'Vui lòng kiểm tra lại thông tin nhập vào.');
         }
 
-        $data = $request->all();
-        
-        // Handle poster upload
-        if ($request->hasFile('poster')) {
-            $posterPath = $request->file('poster')->store('posters', 'public');
-            $data['poster'] = $posterPath;
+        try {
+            $data = $request->all();
+            
+            // Handle poster upload
+            if ($request->hasFile('poster')) {
+                $file = $request->file('poster');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $posterPath = $file->storeAs('posters', $filename, 'public');
+                $data['poster'] = $posterPath;
+            }
+
+            $data['trang_thai'] = $request->has('trang_thai') ? 1 : 0;
+
+            $movie = Phim::create($data);
+
+            return redirect()->route('admin.movies.index')
+                ->with('success', 'Thêm phim "' . $movie->ten_phim . '" thành công!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Có lỗi xảy ra khi thêm phim. Vui lòng thử lại.');
         }
-
-        $data['trang_thai'] = $request->has('trang_thai') ? 1 : 0;
-
-        Phim::create($data);
-
-        return redirect()->route('admin.movies.index')
-            ->with('success', 'Thêm phim thành công!');
     }
 
     /**
@@ -95,13 +123,31 @@ class MovieController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'ten_phim' => 'required|string|max:255',
-            'do_dai' => 'required|integer|min:1',
-            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'mo_ta' => 'required|string',
+            'do_dai' => 'required|integer|min:1|max:600',
+            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'mo_ta' => 'required|string|min:10|max:2000',
             'dao_dien' => 'required|string|max:100',
-            'dien_vien' => 'required|string',
-            'trailer' => 'nullable|url',
+            'dien_vien' => 'required|string|max:500',
+            'trailer' => 'nullable|url|max:500',
             'trang_thai' => 'boolean',
+        ], [
+            'ten_phim.required' => 'Tên phim không được để trống.',
+            'ten_phim.max' => 'Tên phim không được vượt quá 255 ký tự.',
+            'do_dai.required' => 'Độ dài phim không được để trống.',
+            'do_dai.min' => 'Độ dài phim phải lớn hơn 0 phút.',
+            'do_dai.max' => 'Độ dài phim không được vượt quá 600 phút.',
+            'poster.image' => 'File poster phải là hình ảnh.',
+            'poster.mimes' => 'Poster phải có định dạng: jpeg, png, jpg, gif, webp.',
+            'poster.max' => 'Kích thước poster không được vượt quá 5MB.',
+            'mo_ta.required' => 'Mô tả không được để trống.',
+            'mo_ta.min' => 'Mô tả phải có ít nhất 10 ký tự.',
+            'mo_ta.max' => 'Mô tả không được vượt quá 2000 ký tự.',
+            'dao_dien.required' => 'Tên đạo diễn không được để trống.',
+            'dao_dien.max' => 'Tên đạo diễn không được vượt quá 100 ký tự.',
+            'dien_vien.required' => 'Danh sách diễn viên không được để trống.',
+            'dien_vien.max' => 'Danh sách diễn viên không được vượt quá 500 ký tự.',
+            'trailer.url' => 'Link trailer phải là URL hợp lệ.',
+            'trailer.max' => 'Link trailer không được vượt quá 500 ký tự.',
         ]);
 
         if ($validator->fails()) {

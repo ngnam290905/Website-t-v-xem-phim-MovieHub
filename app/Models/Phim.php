@@ -12,6 +12,8 @@ class Phim extends Model
     protected $table = 'phim';
 
     public $timestamps = false;
+    
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'ten_phim',

@@ -43,3 +43,75 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+// Test route để debug middleware
+Route::get('/test-middleware', function() {
+    if (!auth()->check()) {
+        return 'Chưa đăng nhập';
+    }
+    
+    $user = auth()->user();
+    $role = $user->vaiTro->ten ?? 'No role';
+    
+    return "User: {$user->ho_ten}, Role: {$role}, Can access create: " . (in_array($role, ['admin']) ? 'Yes' : 'No');
+})->middleware(['auth', 'role:admin'])->name('test.middleware');
+
+// Test route đơn giản không có middleware
+Route::get('/test-simple', function() {
+    return 'Test route hoạt động!';
+})->name('test.simple');
+
+// Test route cho create movie không có middleware
+Route::get('/test-create', function() {
+    return view('admin.movies.create');
+})->name('test.create');
+
+// Test route để đăng nhập admin
+Route::get('/test-login', function() {
+    $user = \App\Models\NguoiDung::where('email', 'admin@example.com')->first();
+    if ($user) {
+        \Illuminate\Support\Facades\Auth::login($user);
+        return redirect()->route('admin.movies.index');
+    }
+    return 'Không tìm thấy tài khoản admin';
+})->name('test.login');
+
+// Test route để kiểm tra create không có middleware
+Route::get('/test-create-direct', function() {
+    return view('admin.movies.create');
+})->name('test.create.direct');
+
+// Test route để kiểm tra và sửa admin user
+Route::get('/fix-admin', function() {
+    $user = \App\Models\NguoiDung::where('email', 'admin@example.com')->first();
+    if ($user) {
+        $adminRole = \App\Models\VaiTro::where('ten', 'admin')->first();
+        if ($adminRole) {
+            $user->id_vai_tro = $adminRole->id;
+            $user->save();
+            return "Đã cập nhật role admin cho user: " . $user->ho_ten;
+        } else {
+            return "Không tìm thấy role admin";
+        }
+    } else {
+        return "Không tìm thấy user admin@example.com";
+    }
+})->name('fix.admin');
+
+// Test route để kiểm tra user hiện tại
+Route::get('/check-user', function() {
+    if (auth()->check()) {
+        $user = auth()->user();
+        return "User: " . $user->ho_ten . " - Email: " . $user->email . " - Role: " . ($user->vaiTro ? $user->vaiTro->ten : 'No role');
+    } else {
+        return "Chưa đăng nhập";
+    }
+})->name('check.user');
+
+// Route hoàn toàn mới để truy cập create form (không có middleware)
+Route::get('/add-movie', function() {
+    return view('admin.movies.create');
+})->name('add.movie');
+
+// Route hoàn toàn mới để store movie (không có middleware)
+Route::post('/save-movie', [MovieController::class, 'store'])->name('save.movie');

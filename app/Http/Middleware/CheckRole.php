@@ -21,10 +21,16 @@ class CheckRole
         }
 
         $user = Auth::user();
-        $userRole = $user->vaiTro->ten ?? null;
+        
+        // Kiểm tra nếu user có vai trò
+        if (!$user->vaiTro) {
+            abort(403, 'Người dùng chưa được phân quyền.');
+        }
+        
+        $userRole = $user->vaiTro->ten;
 
         if (!in_array($userRole, $roles)) {
-            abort(403, 'Bạn không có quyền truy cập trang này.');
+            abort(403, 'Bạn không có quyền truy cập trang này. Yêu cầu quyền: ' . implode(', ', $roles) . '. Bạn có quyền: ' . $userRole);
         }
 
         return $next($request);

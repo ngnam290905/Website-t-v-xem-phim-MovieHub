@@ -17,7 +17,7 @@
                 </div>
                 
                 <div class="card-body">
-                    <form action="{{ route('admin.movies.store') }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ route('save.movie') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         
                         <div class="row">
@@ -123,19 +123,16 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="poster">Poster phim</label>
-                                    <div class="custom-file">
-                                        <input type="file" 
-                                               class="custom-file-input @error('poster') is-invalid @enderror" 
-                                               id="poster" 
-                                               name="poster" 
-                                               accept="image/*">
-                                        <label class="custom-file-label" for="poster">Chọn file...</label>
-                                    </div>
+                                    <input type="file" 
+                                           class="form-control @error('poster') is-invalid @enderror" 
+                                           id="poster" 
+                                           name="poster" 
+                                           accept="image/*">
                                     @error('poster')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                     <small class="form-text text-muted">
-                                        Định dạng: JPEG, PNG, JPG, GIF. Kích thước tối đa: 2MB
+                                        Định dạng: JPEG, PNG, JPG, GIF, WEBP. Kích thước tối đa: 5MB
                                     </small>
                                 </div>
 
@@ -182,10 +179,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Update file input label
+    // Update file input label (for Bootstrap 5)
     posterInput.addEventListener('change', function(e) {
-        const fileName = e.target.files[0] ? e.target.files[0].name : 'Chọn file...';
-        e.target.nextElementSibling.textContent = fileName;
+        const fileName = e.target.files[0] ? e.target.files[0].name : '';
+        // Bootstrap 5 doesn't need custom file label update
     });
 });
 </script>

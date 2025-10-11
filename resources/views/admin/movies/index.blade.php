@@ -9,29 +9,23 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title">Danh sách phim</h3>
-                    @if(auth()->user()->vaiTro->ten === 'admin')
-                        <a href="{{ route('admin.movies.create') }}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Thêm phim mới
-                        </a>
-                    @endif
+                    <a href="{{ route('add.movie') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Thêm phim mới
+                    </a>
                 </div>
                 
                 <div class="card-body">
                     @if(session('success'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             {{ session('success') }}
-                            <button type="button" class="close" data-dismiss="alert">
-                                <span>&times;</span>
-                            </button>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
 
                     @if(session('error'))
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             {{ session('error') }}
-                            <button type="button" class="close" data-dismiss="alert">
-                                <span>&times;</span>
-                            </button>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
 
@@ -73,9 +67,9 @@
                                         <td>{{ $movie->do_dai }}</td>
                                         <td>
                                             @if($movie->trang_thai)
-                                                <span class="badge badge-success">Hoạt động</span>
+                                                <span class="badge bg-success">Hoạt động</span>
                                             @else
-                                                <span class="badge badge-secondary">Tạm dừng</span>
+                                                <span class="badge bg-secondary">Tạm dừng</span>
                                             @endif
                                         </td>
                                         <td>

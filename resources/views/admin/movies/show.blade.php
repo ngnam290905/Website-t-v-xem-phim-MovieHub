@@ -55,9 +55,9 @@
                                 <div class="col-sm-6">
                                     <h5><strong>Trạng thái:</strong></h5>
                                     @if($movie->trang_thai)
-                                        <span class="badge badge-success badge-lg">Hoạt động</span>
+                                        <span class="badge bg-success fs-6">Hoạt động</span>
                                     @else
-                                        <span class="badge badge-secondary badge-lg">Tạm dừng</span>
+                                        <span class="badge bg-secondary fs-6">Tạm dừng</span>
                                     @endif
                                 </div>
                             </div>
@@ -126,9 +126,9 @@
                                                     <td>{{ $showtime->thoi_gian_ket_thuc ? $showtime->thoi_gian_ket_thuc->format('d/m/Y H:i') : 'N/A' }}</td>
                                                     <td>
                                                         @if($showtime->trang_thai)
-                                                            <span class="badge badge-success">Hoạt động</span>
+                                                            <span class="badge bg-success">Hoạt động</span>
                                                         @else
-                                                            <span class="badge badge-secondary">Tạm dừng</span>
+                                                            <span class="badge bg-secondary">Tạm dừng</span>
                                                         @endif
                                                     </td>
                                                 </tr>
