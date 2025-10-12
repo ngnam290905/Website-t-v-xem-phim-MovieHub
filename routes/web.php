@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\AdminController;
 
 // Main routes
 Route::get('/', [MovieController::class, 'index'])->name('home');
@@ -27,3 +28,8 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
 Route::get('/mini-game', function () {
     return view('mini-game');
 })->name('mini-game');
+
+// Admin routes
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+});
