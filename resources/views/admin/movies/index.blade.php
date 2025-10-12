@@ -9,9 +9,32 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title">Danh sách phim</h3>
-                    <a href="{{ route('add.movie') }}" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Thêm phim mới
-                    </a>
+                    <div class="d-flex gap-2">
+                        <!-- Search Form -->
+                        <form action="{{ route('admin.movies.search') }}" method="GET" class="d-flex gap-2">
+                            <div class="input-group" style="width: 300px;">
+                                <input type="text" 
+                                       class="form-control" 
+                                       name="search" 
+                                       placeholder="Tìm kiếm theo tên, ID, đạo diễn..." 
+                                       value="{{ request('search') }}">
+                                <button class="btn btn-outline-secondary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                @if(request('search'))
+                                    <a href="{{ route('admin.movies.index') }}" class="btn btn-outline-danger">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        </form>
+                        
+                        @if(auth()->user()->vaiTro->ten === 'admin')
+                            <a href="{{ route('add.movie') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Thêm phim mới
+                            </a>
+                        @endif
+                    </div>
                 </div>
                 
                 <div class="card-body">
@@ -25,6 +48,15 @@
                     @if(session('error'))
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+
+                    @if(request('search'))
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            <i class="fas fa-search"></i>
+                            Kết quả tìm kiếm cho: <strong>"{{ request('search') }}"</strong>
+                            <span class="badge bg-primary ms-2">{{ $movies->total() }} phim</span>
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
@@ -113,9 +145,19 @@
                                 @empty
                                     <tr>
                                         <td colspan="7" class="text-center text-muted">
-                                            <i class="fas fa-film fa-2x mb-2"></i>
-                                            <br>
-                                            Chưa có phim nào
+                                            @if(request('search'))
+                                                <i class="fas fa-search fa-2x mb-2"></i>
+                                                <br>
+                                                Không tìm thấy phim nào với từ khóa: <strong>"{{ request('search') }}"</strong>
+                                                <br>
+                                                <a href="{{ route('admin.movies.index') }}" class="btn btn-outline-primary btn-sm mt-2">
+                                                    <i class="fas fa-list"></i> Xem tất cả phim
+                                                </a>
+                                            @else
+                                                <i class="fas fa-film fa-2x mb-2"></i>
+                                                <br>
+                                                Chưa có phim nào
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforelse

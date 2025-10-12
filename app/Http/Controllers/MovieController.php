@@ -22,6 +22,30 @@ class MovieController extends Controller
     }
 
     /**
+     * Search movies by name, ID, or director
+     * Admin and Staff can access
+     */
+    public function search(Request $request)
+    {
+        $searchTerm = $request->get('search');
+        
+        if (empty($searchTerm)) {
+            return redirect()->route('admin.movies.index');
+        }
+
+        $movies = Phim::where(function($query) use ($searchTerm) {
+            $query->where('ten_phim', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('dao_dien', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('id', 'LIKE', "%{$searchTerm}%");
+        })->orderBy('id', 'desc')->paginate(10);
+
+        // Keep search term in pagination links
+        $movies->appends(['search' => $searchTerm]);
+        
+        return view('admin.movies.index', compact('movies'));
+    }
+
+    /**
      * Show the form for creating a new movie
      * Only Admin can access
      */
