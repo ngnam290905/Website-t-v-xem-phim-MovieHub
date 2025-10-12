@@ -33,13 +33,13 @@
   </head>
   <body class="min-h-screen bg-[#0f0f12] text-white">
     @include('partials.header')
-    <div class="max-w-7xl mx-auto px-4 py-8 flex gap-6">
-      @include('partials.sidebar')
-      <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <main>
       @yield('content')
       </main>
     </div>
     @include('partials.footer')
+    @include('partials.animations')
   </body>
  </html>
 
