@@ -14,6 +14,13 @@ class AdminKhuyenMaiController extends Controller
         return view('admin.khuyenmai.index', compact('khuyenmai'));
     }
 
+    // Xem chi tiết khuyến mãi
+    public function show($id)
+    {
+        $khuyenmai = KhuyenMai::findOrFail($id);
+        return view('admin.khuyenmai.show', compact('khuyenmai'));
+    }
+
     // Form tạo mới
     public function create()
     {
