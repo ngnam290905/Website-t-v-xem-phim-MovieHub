@@ -3,8 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\AdminController;
+
 use App\Http\Controllers\SuatChieuController;
 use App\Http\Controllers\GheController;
+
+use App\Http\Controllers\AuthController;
+
 
 // Main routes
 Route::get('/', [MovieController::class, 'index'])->name('home');
@@ -45,4 +49,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::patch('ghe/{ghe}/status', [GheController::class, 'updateStatus'])->name('ghe.update-status');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
     Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
+
+    Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+        Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    });
+
 });
+
+// Auth routes
+Route::middleware('guest')->group(function () {
+    Route::get('/register', function () { return view('auth.register'); })->name('register.form');
+    Route::get('/login', function () { return view('auth.login'); })->name('login.form');
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/login', [AuthController::class, 'login'])->name('login');
+});
+
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
