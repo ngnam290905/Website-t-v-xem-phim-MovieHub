@@ -41,4 +41,10 @@ class SuatChieu extends Model
     {
         return $this->hasMany(DatVe::class, 'id_suat_chieu');
     }
+
+    // Relationship with Ghe through PhongChieu
+    public function ghe(): HasMany
+    {
+        return $this->hasManyThrough(Ghe::class, PhongChieu::class, 'id', 'id_phong', 'id_phong', 'id');
+    }
 }

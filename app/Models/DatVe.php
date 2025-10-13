@@ -14,10 +14,15 @@ class DatVe extends Model
         'id_nguoi_dung',
         'id_suat_chieu',
         'id_khuyen_mai',
+        'ten_khach_hang',
+        'so_dien_thoai',
+        'email',
+        'tong_tien',
         'trang_thai'
     ];
 
     protected $casts = [
+        'tong_tien' => 'decimal:2',
         'trang_thai' => 'boolean',
     ];
 

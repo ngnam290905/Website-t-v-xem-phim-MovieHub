@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.main')
 
 @section('title', 'MovieHub - Đặt vé xem phim')
 @section('meta')
@@ -373,7 +373,6 @@
   </section>
 
   <!-- Footer -->
-<!-- Footer -->
 <footer class="mt-20 border-t border-white/10 bg-gradient-to-b from-gray-900 via-black to-black">
   <div class="w-full px-4 py-16">
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">

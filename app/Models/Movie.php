@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Movie extends Model
 {
@@ -54,6 +55,12 @@ class Movie extends Model
     public function getActorsAttribute()
     {
         return $this->dien_vien;
+    }
+
+    // Relationship with SuatChieu
+    public function suatChieu(): HasMany
+    {
+        return $this->hasMany(SuatChieu::class, 'id_phim');
     }
 
     // Scope for active movies

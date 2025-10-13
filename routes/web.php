@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\SuatChieuController;
+use App\Http\Controllers\GheController;
 
 // Main routes
 Route::get('/', [MovieController::class, 'index'])->name('home');
@@ -32,4 +34,15 @@ Route::get('/mini-game', function () {
 // Admin routes
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    
+    // Suat chieu management
+    Route::resource('suat-chieu', SuatChieuController::class);
+    Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
+    Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
+    
+    // Ghe management
+    Route::resource('ghe', GheController::class);
+    Route::patch('ghe/{ghe}/status', [GheController::class, 'updateStatus'])->name('ghe.update-status');
+    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
+    Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
 });
