@@ -12,36 +12,23 @@ class NguoiDung extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $table = 'nguoi_dung';
-
+    protected $primaryKey = 'id';
     public $timestamps = false;
 
     protected $fillable = [
-        'ho_ten',
-        'email',
-        'mat_khau',
-        'ngay_sinh',
-        'gioi_tinh',
-        'sdt',
-        'dia_chi',
-        'hinh_anh',
-        'id_vai_tro',
-        'trang_thai',
+        'ho_ten', 'email', 'mat_khau', 'dien_thoai', 'dia_chi', 'id_vai_tro', 'trang_thai'
     ];
 
-    protected $hidden = [
-        'mat_khau',
-    ];
+    protected $hidden = ['mat_khau'];
+
+    public function getAuthPassword()
+    {
+        return $this->mat_khau; // Laravel cần hàm này để xác thực mật khẩu
+    }
 
     public function vaiTro()
     {
         return $this->belongsTo(VaiTro::class, 'id_vai_tro');
     }
-
-    public function getAuthPassword()
-    {
-        return $this->mat_khau;
-    }
-
 }
-
 
