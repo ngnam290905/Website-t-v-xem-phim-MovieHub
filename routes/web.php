@@ -35,25 +35,46 @@ Route::get('/mini-game', function () {
     return view('mini-game');
 })->name('mini-game');
 
-// Admin routes
-Route::prefix('admin')->name('admin.')->group(function () {
+// Admin routes - Only admin can access
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
     
-    // Suat chieu management
+    // Admin can manage everything
     Route::resource('suat-chieu', SuatChieuController::class);
     Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
     Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
     
-    // Ghe management
     Route::resource('ghe', GheController::class);
     Route::patch('ghe/{ghe}/status', [GheController::class, 'updateStatus'])->name('ghe.update-status');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
     Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
+});
 
-    Route::middleware(['auth', 'role:admin,staff'])->group(function () {
-        Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
-    });
+// Staff routes - Staff can only view suat chieu and ghe
+Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    
+    // Staff can only view (index, show) suat chieu
+    Route::get('suat-chieu', [SuatChieuController::class, 'index'])->name('suat-chieu.index');
+    Route::get('suat-chieu/{suatChieu}', [SuatChieuController::class, 'show'])->name('suat-chieu.show');
+    Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
+    
+    // Staff can only view (index, show) ghe
+    Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
+    Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
+    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
+});
 
+// Test route to check current URL
+Route::get('/test-current-url', function () {
+    return response()->json([
+        'current_url' => request()->url(),
+        'current_path' => request()->path(),
+        'is_staff' => request()->is('staff/*'),
+        'is_admin' => request()->is('admin/*'),
+        'route_name' => request()->route()->getName(),
+        'user_role' => auth()->check() ? optional(auth()->user()->vaiTro)->ten : 'Not authenticated'
+    ]);
 });
 
 // Auth routes

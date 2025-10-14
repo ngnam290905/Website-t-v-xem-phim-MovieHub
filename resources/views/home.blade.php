@@ -412,7 +412,7 @@
         <ul class="space-y-3">
           <li><a href="/movies" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Tất cả phim</a></li>
           <li><a href="/checkout" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Giỏ vé</a></li>
-          <li><a href="/login" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Đăng nhập</a></li>
+          <li><a href="{{ route('login.form') }}" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Đăng nhập</a></li>
           <li><a href="#" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Tin tức phim</a></li>
           <li><a href="#" class="text-white/70 hover:text-orange-400 transition-colors duration-300">Khuyến mãi</a></li>
         </ul>

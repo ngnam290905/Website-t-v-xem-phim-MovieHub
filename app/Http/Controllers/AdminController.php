@@ -11,6 +11,11 @@ class AdminController extends Controller
    */
   public function dashboard()
   {
+    // Check if this is staff route
+    if (request()->is('staff/*')) {
+      return view('staff.dashboard');
+    }
+    
     return view('admin.dashboard');
   }
 }

@@ -19,6 +19,11 @@ class SuatChieuController extends Controller
             ->orderBy('thoi_gian_bat_dau', 'desc')
             ->paginate(10);
         
+        // Check if this is staff route
+        if (request()->is('staff/*')) {
+            return view('staff.suat-chieu.index', compact('suatChieu'));
+        }
+        
         return view('admin.suat-chieu.index', compact('suatChieu'));
     }
 
@@ -73,6 +78,11 @@ class SuatChieuController extends Controller
     public function show(SuatChieu $suatChieu)
     {
         $suatChieu->load(['phim', 'phongChieu', 'phongChieu.ghe']);
+        
+        // Check if this is staff route
+        if (request()->is('staff/*')) {
+            return view('staff.suat-chieu.show', compact('suatChieu'));
+        }
         
         return view('admin.suat-chieu.show', compact('suatChieu'));
     }

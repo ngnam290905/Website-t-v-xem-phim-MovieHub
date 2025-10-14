@@ -61,13 +61,13 @@
         <div class="row">
             <div class="col-md-2 sidebar p-0">
                 <div class="list-group list-group-flush p-3">
-                    <a href="{{ route('admin.dashboard') }}" class="list-group-item list-group-item-action">
+                    <a href="{{ request()->is('staff/*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="list-group-item list-group-item-action">
                         <i class="fas fa-tachometer-alt me-2"></i>Bảng điều khiển
                     </a>
-                    <a href="{{ route('admin.suat-chieu.index') }}" class="list-group-item list-group-item-action">
+                    <a href="{{ request()->is('staff/*') ? route('staff.suat-chieu.index') : route('admin.suat-chieu.index') }}" class="list-group-item list-group-item-action">
                         <i class="fas fa-calendar-alt me-2"></i>Suất chiếu
                     </a>
-                    <a href="{{ route('admin.ghe.index') }}" class="list-group-item list-group-item-action">
+                    <a href="{{ request()->is('staff/*') ? route('staff.ghe.index') : route('admin.ghe.index') }}" class="list-group-item list-group-item-action">
                         <i class="fas fa-chair me-2"></i>Ghế
                     </a>
                 </div>

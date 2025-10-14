@@ -123,12 +123,29 @@
           <a href="{{ route('mini-game') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
             <i class="fas fa-gamepad text-lg"></i>
           </a>
-          <a href="{{ route('admin.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-            <i class="fas fa-cog text-lg"></i>
-          </a>
-          <button class="bg-[#F53003] hover:bg-[#e02a00] text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300">
-            Đăng nhập
-          </button>
+          
+          @auth
+            @if(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'admin')
+              <a href="{{ route('admin.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
+                <i class="fas fa-cog text-lg"></i>
+              </a>
+            @elseif(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'staff')
+              <a href="{{ route('staff.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
+                <i class="fas fa-user-tie text-lg"></i>
+              </a>
+            @endif
+            
+            <form method="POST" action="{{ route('logout') }}" class="inline">
+              @csrf
+              <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300">
+                Đăng xuất
+              </button>
+            </form>
+          @else
+            <a href="{{ route('login.form') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300">
+              Đăng nhập
+            </a>
+          @endauth
         </div>
         
         <!-- Mobile Menu Button -->

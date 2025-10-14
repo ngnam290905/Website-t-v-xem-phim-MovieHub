@@ -25,18 +25,18 @@
       <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40">
         <!-- Header -->
         <div class="p-6 border-b border-[#262833]">
-          <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3">
             <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
             <div>
               <span class="text-xl font-bold text-white">MovieHub</span>
-              <p class="text-xs text-[#a6a6b0]">Admin Panel</p>
+              <p class="text-xs text-[#a6a6b0]">{{ request()->routeIs('staff.*') ? 'Staff Panel' : 'Admin Panel' }}</p>
             </div>
           </a>
         </div>
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-2">
-          <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
             <i class="fas fa-tachometer-alt w-5"></i>
             Bảng điều khiển
           </a>
@@ -44,11 +44,11 @@
             <i class="fas fa-film w-5"></i>
             Phim
           </a>
-          <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.suat-chieu.index') : route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') || request()->routeIs('staff.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
             <i class="fas fa-calendar-alt w-5"></i>
             Suất chiếu
           </a>
-          <a href="{{ route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ghe.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.ghe.index') : route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ghe.*') || request()->routeIs('staff.ghe.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
             <i class="fas fa-chair w-5"></i>
             Ghế
           </a>

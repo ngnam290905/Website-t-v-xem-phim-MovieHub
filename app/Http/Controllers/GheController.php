@@ -20,6 +20,11 @@ class GheController extends Controller
             ->orderBy('so_ghe')
             ->paginate(20);
         
+        // Check if this is staff route
+        if (request()->is('staff/*')) {
+            return view('staff.ghe.index', compact('ghe'));
+        }
+        
         return view('admin.ghe.index', compact('ghe'));
     }
 
@@ -68,6 +73,11 @@ class GheController extends Controller
     public function show(Ghe $ghe)
     {
         $ghe->load(['phongChieu', 'loaiGhe']);
+        
+        // Check if this is staff route
+        if (request()->is('staff/*')) {
+            return view('staff.ghe.show', compact('ghe'));
+        }
         
         return view('admin.ghe.show', compact('ghe'));
     }

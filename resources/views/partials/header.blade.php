@@ -132,7 +132,7 @@
           <span class="text-lg">🎫</span>
           <span>Vé</span>
         </a>
-        <a href="#login" class="inline-flex items-center gap-2 hover:text-[#F53003] transition-colors px-3 py-2 rounded-lg hover:bg-[#2a2d3a]">
+        <a href="{{ route('login.form') }}" class="inline-flex items-center gap-2 hover:text-[#F53003] transition-colors px-3 py-2 rounded-lg hover:bg-[#2a2d3a]">
           <span class="text-lg">👤</span>
           <span>Đăng nhập</span>
         </a>
