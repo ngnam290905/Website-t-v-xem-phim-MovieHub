@@ -13,7 +13,9 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = NguoiDung::with('vaiTro')->paginate(10); // Phân trang 10 user/trang
+        $users = NguoiDung::with('vaiTro')
+        ->whereNull('deleted_at') // chỉ lấy user chưa bị xóa
+        ->paginate(10);
         return view('admin.users.index', compact('users'));
     }
 
@@ -92,4 +94,21 @@ class UserController extends Controller
         $user->delete();
         return redirect()->route('admin.users.index')->with('success', 'Xóa tài khoản thành công.');
     }
+
+    public function trash()
+    {
+        // Lấy danh sách user đã bị xóa mềm
+        $users = NguoiDung::onlyTrashed()->with('vaiTro')->paginate(10);
+        return view('admin.users.trash', compact('users'));
+    }
+
+    public function restore($id)
+    {
+        $user = NguoiDung::withTrashed()->findOrFail($id);
+        $user->restore();
+
+        return redirect()->route('admin.users.trash')->with('success', 'Khôi phục tài khoản thành công.');
+    }
+
+
 }

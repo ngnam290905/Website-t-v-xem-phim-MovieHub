@@ -7,7 +7,10 @@
     <div class="bg-[#151822] border border-[#262833] rounded-xl">
       <div class="px-5 py-4 border-b border-[#262833] flex items-center justify-between">
         <h2 class="font-semibold">Danh sách người dùng</h2>
-        <a href="{{ route('admin.users.create') }}" class="text-sm text-[#F53003] hover:underline">Tạo mới</a>
+        <div class="flex items-center gap-4">
+          <a href="{{ route('admin.users.trash') }}" class="text-sm text-gray-400 hover:underline">Thùng rác</a>
+          <a href="{{ route('admin.users.create') }}" class="text-sm text-[#F53003] hover:underline">Tạo mới</a>
+        </div>
       </div>
       <div class="p-5">
         @if (session('success'))
