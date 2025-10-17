@@ -1,4 +1,4 @@
-@extends('layouts.main')
+@extends('layouts.app')
 
 @section('title', 'MovieHub - Đặt vé xem phim')
 @section('meta')
@@ -258,117 +258,34 @@
     
 
     <div id="now" class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Phim đang chiếu</h2>
-      <a href="#coming" class="text-xs text-[#F53003] hover:underline">Xem phim sắp chiếu</a>
+      <h2 class="text-xl font-semibold">Phim đang chiếu</h2>
+      <a href="#coming" class="text-sm text-[#F53003] hover:underline">Xem phim sắp chiếu</a>
     </div>
 
-  <div id="movies-container" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-      @if(isset($movies) && $movies->count() > 0)
-        @foreach ($movies as $movie)
-        <div class="movie-card bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden flex flex-col relative group transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(245,48,3,0.15)] hover:scale-105">
-          <div class="relative">
-            <!-- Movie Badges -->
-            <div class="absolute top-2 left-2 z-20 flex flex-col gap-1">
-              @if($loop->first)
-                <span class="bg-gradient-to-r from-[#F53003] to-orange-400 text-white px-1.5 py-0.5 rounded-full text-xs font-bold animate-pulse">🔥 Phim hot</span>
-              @elseif($loop->index < 3)
-                <span class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-1.5 py-0.5 rounded-full text-xs font-bold">🎬 Mới chiếu</span>
-              @else
-                <span class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-1.5 py-0.5 rounded-full text-xs font-bold">💎 VIP Only</span>
-              @endif
-            </div>
-            
-            <!-- Rating Badge -->
-            <div class="absolute top-2 right-2 z-20">
-              <div class="bg-black/70 backdrop-blur-sm rounded-lg px-1.5 py-0.5 flex items-center gap-1">
-                <span class="text-yellow-400 text-xs">⭐</span>
-                <span class="text-white text-xs font-bold">{{ number_format(8 + ($movie->id % 10) / 10, 1) }}</span>
-              </div>
-            </div>
-            
-            <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="movie-img w-full aspect-[2/3] object-cover transition-all duration-300" loading="lazy" onerror="this.onerror=null;this.src='/images/coming-soon.png';">
-            
-            <!-- Hover Overlay với Trailer Preview -->
-            <div class="movie-overlay absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 flex flex-col justify-center items-center text-white transition-all duration-300">
-              <div class="text-center mb-3">
-                @if($movie->trailer)
-                <a href="{{ $movie->trailer }}" target="_blank" class="play-trailer-btn w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300 mb-2">
-                  <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </a>
-                @else
-                <button class="play-trailer-btn w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300 mb-2">
-                  <svg class="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </button>
-                @endif
-                <div class="text-xs text-white/80">Xem trailer</div>
-              </div>
-              <div class="space-y-1 text-xs">
-                <div class="flex items-center gap-1"><span>⭐</span> IMDb: {{ number_format(8 + ($movie->id % 10) / 10, 1) }}</div>
-                <div class="flex items-center gap-1"><span>🎭</span> Đạo diễn: {{ $movie->dao_dien }}</div>
-                <div class="flex items-center gap-1"><span>🕒</span> Thời lượng: {{ $movie->do_dai }} phút</div>
-                <div class="flex items-center gap-1"><span>👥</span> Diễn viên: {{ Str::limit($movie->dien_vien, 20) }}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="p-3 flex-1 flex flex-col gap-2">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      @php
+        $movies = [
+          ['id'=>1,'title'=>'Hành Tinh Bí Ẩn','poster'=>'https://image.tmdb.org/t/p/w342/2CAL2433ZeIihfX1Hb2139CX0pW.jpg','duration'=>128,'rating'=>'T13'],
+          ['id'=>2,'title'=>'Săn Lùng Siêu Trộm','poster'=>'https://image.tmdb.org/t/p/w342/62HCnUTziyWcpDaBO2i1DX17ljH.jpg','duration'=>115,'rating'=>'T16'],
+          ['id'=>3,'title'=>'Vùng Đất Linh Hồn','poster'=>'https://image.tmdb.org/t/p/w342/e1mjopzAS2KNsvpbpahQ1a6SkSn.jpg','duration'=>102,'rating'=>'P']
+        ];
+      @endphp
+
+      @foreach ($movies as $movie)
+        <div class="bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden flex flex-col">
+          <img src="{{ $movie['poster'] }}" alt="{{ $movie['title'] }}" class="w-full aspect-[2/3] object-cover">
+          <div class="p-4 flex-1 flex flex-col gap-3">
             <div>
-              <h3 class="font-semibold text-sm mb-1">{{ $movie->ten_phim }}</h3>
-              <div class="flex items-center gap-3 text-xs text-[#a6a6b0] mb-2">
-                <span class="flex items-center gap-1">
-                  <span>⏳</span>
-                  <span>{{ $movie->do_dai }} phút</span>
-                </span>
-                <span class="flex items-center gap-1">
-                  <span>🎬</span>
-                  <span>{{ $movie->created_at->format('Y') }}</span>
-                </span>
-                <span class="flex items-center gap-1">
-                  <span>⭐</span>
-                  <span>{{ number_format(8 + ($movie->id % 10) / 10, 1) }}</span>
-                </span>
-              </div>
-              <p class="text-xs text-[#a6a6b0] mb-2">{{ Str::limit($movie->mo_ta, 80) }}</p>
+              <h3 class="font-semibold">{{ $movie['title'] }}</h3>
+              <p class="text-xs text-[#a6a6b0]">{{ $movie['duration'] }} phút • {{ $movie['rating'] }}</p>
             </div>
-            
-            <div class="mt-auto flex gap-1">
-              <button type="button" class="btn-booking inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-[#F53003] text-white text-xs transition-all hover:scale-105" onclick="openBookingPopup({{ $movie->id }})">
-                <span>🎫</span>
-                <span>Đặt vé</span>
-              </button>
-              <a href="{{ route('movie-detail', $movie->id) }}" class="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-[#2f3240] text-xs hover:bg-[#222533] transition-all">
-                <span>📖</span>
-                <span>Chi tiết</span>
-              </a>
+            <div class="mt-auto flex gap-2">
+              <a href="{{ route('booking', ['id'=>$movie['id']]) }}" class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-[#F53003] hover:opacity-90 transition text-white text-sm">Đặt vé</a>
+              <a href="#" class="inline-flex items-center justify-center px-4 py-2 rounded-md border border-[#2f3240] text-sm hover:bg-[#222533]">Chi tiết</a>
             </div>
           </div>
         </div>
       @endforeach
-      @else
-        <div class="col-span-full text-center py-8">
-          <div class="text-white/60 text-sm mb-2">Không có phim nào đang chiếu</div>
-          <div class="text-white/40 text-xs">Vui lòng quay lại sau</div>
-        </div>
-      @endif
-    </div>
-    
-    <!-- Loading indicator for infinite scroll -->
-    <div id="loading-indicator" class="hidden flex justify-center items-center py-6">
-      <div class="flex items-center gap-2">
-        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#F53003]"></div>
-        <span class="text-white/70 text-sm">Đang tải thêm phim...</span>
-      </div>
-    </div>
-    
-    <!-- Load more button (fallback) -->
-    <div class="flex justify-center mt-6">
-      <button id="load-more-btn" class="bg-gradient-to-r from-[#F53003] to-orange-400 text-white px-6 py-2 rounded-lg font-semibold hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-[#F53003]/25 text-sm">
-        📽️ Xem thêm phim
-      </button>
     </div>
   </section>
 
@@ -515,7 +432,7 @@
 </footer>
 
   <!-- Popup đặt vé -->
-  <div id="booking-popup" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+  <div id="booking-popup" class="fixed inset-0 bg-black/40 items-center justify-center z-50 hidden">
     <div class="bg-[#1b1d24] rounded-xl p-6 w-full max-w-md relative">
       <button onclick="closeBookingPopup()" class="absolute top-2 right-2 text-white text-xl">&times;</button>
       <h3 class="font-semibold text-lg mb-4">Chọn rạp, giờ chiếu, ghế</h3>
@@ -1083,10 +1000,14 @@
     }
     
     function openBookingPopup(id) {
-      document.getElementById('booking-popup').style.display = 'flex';
+      const popup = document.getElementById('booking-popup');
+      popup.classList.remove('hidden');
+      popup.classList.add('flex');
     }
     function closeBookingPopup() {
-      document.getElementById('booking-popup').style.display = 'none';
+      const popup = document.getElementById('booking-popup');
+      popup.classList.add('hidden');
+      popup.classList.remove('flex');
     }
   </script>
 @endsection
