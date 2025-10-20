@@ -49,6 +49,7 @@ class GheController extends Controller
             'id_loai' => 'required|exists:loai_ghe,id',
             'so_ghe' => 'required|string|max:10',
             'so_hang' => 'required|integer|min:1',
+            'so_cot' => 'required|integer|min:1',
             'trang_thai' => 'boolean'
         ]);
 
@@ -103,6 +104,7 @@ class GheController extends Controller
             'id_loai' => 'required|exists:loai_ghe,id',
             'so_ghe' => 'required|string|max:10',
             'so_hang' => 'required|integer|min:1',
+            'so_cot' => 'required|integer|min:1',
             'trang_thai' => 'boolean'
         ]);
 
@@ -197,6 +199,7 @@ class GheController extends Controller
                     'id_loai' => $request->id_loai,
                     'so_ghe' => $hang . chr(64 + $cot), // A, B, C, etc.
                     'so_hang' => $hang,
+                    'so_cot' => $cot,
                     'trang_thai' => true
                 ]);
             }

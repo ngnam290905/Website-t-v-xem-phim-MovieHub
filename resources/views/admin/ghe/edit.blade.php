@@ -47,7 +47,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label for="so_ghe" class="block text-sm font-medium text-white mb-2">Số Ghế <span class="text-red-500">*</span></label>
             <input type="text" name="so_ghe" id="so_ghe" 
@@ -64,6 +64,16 @@
                    class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] @error('so_hang') border-red-500 @enderror" 
                    value="{{ old('so_hang', $ghe->so_hang) }}" min="1" required>
             @error('so_hang')
+              <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+            @enderror
+          </div>
+
+          <div>
+            <label for="so_cot" class="block text-sm font-medium text-white mb-2">Số Cột <span class="text-red-500">*</span></label>
+            <input type="number" name="so_cot" id="so_cot" 
+                   class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] @error('so_cot') border-red-500 @enderror" 
+                   value="{{ old('so_cot', $ghe->so_cot) }}" min="1" required>
+            @error('so_cot')
               <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
             @enderror
           </div>

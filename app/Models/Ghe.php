@@ -14,6 +14,7 @@ class Ghe extends Model
         'id_phong',
         'so_ghe',
         'so_hang',
+        'so_cot',
         'id_loai',
         'trang_thai'
     ];
