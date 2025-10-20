@@ -9,6 +9,11 @@
     @else
       <script src="https://cdn.tailwindcss.com"></script>
     @endif
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   </head>
   <body class="min-h-screen bg-[#0d0f14] text-white">
     <header class="bg-[#151822] border-b border-[#262833]">
@@ -27,6 +32,7 @@
           <h3 class="font-semibold mb-3">Quản trị</h3>
           <nav class="flex flex-col gap-1 text-sm">
             <a href="{{ route('admin.dashboard') }}" class="px-3 py-2 rounded hover:bg-[#222533]">Bảng điều khiển</a>
+            <a href="{{ route('admin.reports.dashboard') }}" class="px-3 py-2 rounded hover:bg-[#222533]">Báo cáo & Thống kê</a>
             <a href="#movies" class="px-3 py-2 rounded hover:bg-[#222533]">Phim</a>
             <a href="#showtimes" class="px-3 py-2 rounded hover:bg-[#222533]">Suất chiếu</a>
             <a href="#tickets" class="px-3 py-2 rounded hover:bg-[#222533]">Vé</a>

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ReportController;
 
 Route::get('/', function () {
     return view('home');
@@ -16,6 +17,15 @@ Route::get('/dat-ve/{id?}', function ($id = 1) {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'role:admin,staff'])->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+        
+        // Reports routes
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');
+            Route::get('/revenue', [ReportController::class, 'revenue'])->name('revenue');
+            Route::get('/top-movies', [ReportController::class, 'topMovies'])->name('top-movies');
+            Route::get('/top-customers', [ReportController::class, 'topCustomers'])->name('top-customers');
+        });
     });
 });
 
