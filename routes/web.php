@@ -17,8 +17,10 @@ Route::get('/dat-ve/{id?}', function ($id = 1) {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'role:admin,staff'])->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
-        
-        // Reports routes
+    });
+    
+    // Reports routes - only for admin
+    Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');
