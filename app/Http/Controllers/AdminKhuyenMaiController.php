@@ -4,14 +4,55 @@ namespace App\Http\Controllers;
 
 use App\Models\KhuyenMai;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class AdminKhuyenMaiController extends Controller
 {
     // Danh sách khuyến mãi
-    public function index()
+    public function index(Request $request)
     {
-        $khuyenmai = KhuyenMai::orderByDesc('id')->paginate(10);
-        return view('admin.khuyenmai.index', compact('khuyenmai'));
+        $query = KhuyenMai::query();
+        
+        // Tìm kiếm
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('ma_km', 'like', "%{$search}%")
+                  ->orWhere('mo_ta', 'like', "%{$search}%")
+                  ->orWhere('dieu_kien', 'like', "%{$search}%");
+            });
+        }
+        
+        // Lọc theo trạng thái thời gian
+        if ($request->filled('status')) {
+            $now = Carbon::now();
+            if ($request->status === 'active') {
+                // Còn hạn sử dụng
+                $query->where('ngay_bat_dau', '<=', $now)
+                      ->where('ngay_ket_thuc', '>=', $now);
+            } elseif ($request->status === 'expired') {
+                // Hết hạn
+                $query->where('ngay_ket_thuc', '<', $now);
+            } elseif ($request->status === 'upcoming') {
+                // Chưa bắt đầu
+                $query->where('ngay_bat_dau', '>', $now);
+            }
+        }
+        
+        $khuyenmai = $query->orderByDesc('id')->paginate(10)->withQueryString();
+        
+        // Thống kê
+        $now = Carbon::now();
+        $stats = [
+            'total' => KhuyenMai::count(),
+            'active' => KhuyenMai::where('ngay_bat_dau', '<=', $now)
+                                 ->where('ngay_ket_thuc', '>=', $now)
+                                 ->count(),
+            'expired' => KhuyenMai::where('ngay_ket_thuc', '<', $now)->count(),
+            'upcoming' => KhuyenMai::where('ngay_bat_dau', '>', $now)->count(),
+        ];
+        
+        return view('admin.khuyenmai.index', compact('khuyenmai', 'stats'));
     }
 
     // Xem chi tiết khuyến mãi

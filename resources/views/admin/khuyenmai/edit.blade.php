@@ -37,13 +37,25 @@
             <h2 class="text-lg font-semibold mb-4 text-green-400 border-b border-[#262833] pb-2">Thời gian hiệu lực</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block mb-2 font-semibold text-gray-300">Ngày bắt đầu <span class="text-red-500">*</span></label>
-                    <input type="date" name="ngay_bat_dau" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors" value="{{ old('ngay_bat_dau', $khuyenmai->ngay_bat_dau) }}">
+                    <label class="block mb-2 font-semibold text-gray-300">Ngày giờ bắt đầu <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <input type="date" name="ngay_bat_dau_date" id="ngay_bat_dau_date" class="col-span-3 px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors" value="{{ old('ngay_bat_dau') ? date('Y-m-d', strtotime(old('ngay_bat_dau'))) : \Carbon\Carbon::parse($khuyenmai->ngay_bat_dau)->format('Y-m-d') }}">
+                        <input type="number" name="ngay_bat_dau_hour" id="ngay_bat_dau_hour" min="0" max="23" placeholder="Giờ" class="px-3 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors text-center" value="{{ old('ngay_bat_dau') ? date('H', strtotime(old('ngay_bat_dau'))) : \Carbon\Carbon::parse($khuyenmai->ngay_bat_dau)->format('H') }}">
+                        <input type="number" name="ngay_bat_dau_minute" id="ngay_bat_dau_minute" min="0" max="59" placeholder="Phút" class="px-3 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors text-center" value="{{ old('ngay_bat_dau') ? date('i', strtotime(old('ngay_bat_dau'))) : \Carbon\Carbon::parse($khuyenmai->ngay_bat_dau)->format('i') }}">
+                    </div>
+                    <input type="hidden" name="ngay_bat_dau" id="ngay_bat_dau_hidden" value="{{ old('ngay_bat_dau', $khuyenmai->ngay_bat_dau) }}">
+                    <small class="text-gray-400 text-xs mt-1 block">Chọn ngày, giờ (0-23) và phút (0-59)</small>
                     @error('ngay_bat_dau')<div class="text-red-500 text-sm mt-1">{{ $message }}</div>@enderror
                 </div>
                 <div>
-                    <label class="block mb-2 font-semibold text-gray-300">Ngày kết thúc <span class="text-red-500">*</span></label>
-                    <input type="date" name="ngay_ket_thuc" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors" value="{{ old('ngay_ket_thuc', $khuyenmai->ngay_ket_thuc) }}">
+                    <label class="block mb-2 font-semibold text-gray-300">Ngày giờ kết thúc <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <input type="date" name="ngay_ket_thuc_date" id="ngay_ket_thuc_date" class="col-span-3 px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors" value="{{ old('ngay_ket_thuc') ? date('Y-m-d', strtotime(old('ngay_ket_thuc'))) : \Carbon\Carbon::parse($khuyenmai->ngay_ket_thuc)->format('Y-m-d') }}">
+                        <input type="number" name="ngay_ket_thuc_hour" id="ngay_ket_thuc_hour" min="0" max="23" placeholder="Giờ" class="px-3 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors text-center" value="{{ old('ngay_ket_thuc') ? date('H', strtotime(old('ngay_ket_thuc'))) : \Carbon\Carbon::parse($khuyenmai->ngay_ket_thuc)->format('H') }}">
+                        <input type="number" name="ngay_ket_thuc_minute" id="ngay_ket_thuc_minute" min="0" max="59" placeholder="Phút" class="px-3 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-green-500 transition-colors text-center" value="{{ old('ngay_ket_thuc') ? date('i', strtotime(old('ngay_ket_thuc'))) : \Carbon\Carbon::parse($khuyenmai->ngay_ket_thuc)->format('i') }}">
+                    </div>
+                    <input type="hidden" name="ngay_ket_thuc" id="ngay_ket_thuc_hidden" value="{{ old('ngay_ket_thuc', $khuyenmai->ngay_ket_thuc) }}">
+                    <small class="text-gray-400 text-xs mt-1 block">Chọn ngày, giờ (0-23) và phút (0-59)</small>
                     @error('ngay_ket_thuc')<div class="text-red-500 text-sm mt-1">{{ $message }}</div>@enderror
                 </div>
             </div>
@@ -65,7 +77,7 @@
                     <label class="block mb-2 font-semibold text-gray-300" id="label_gia_tri_giam">
                         {{ old('loai_giam', $khuyenmai->loai_giam) == 'codinh' ? 'Giá trị giảm (VNĐ)' : 'Giá trị giảm (%)' }} <span class="text-red-500">*</span>
                     </label>
-                    <input type="number" step="0.01" name="gia_tri_giam" id="gia_tri_giam" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-yellow-500 transition-colors" placeholder="0" value="{{ old('gia_tri_giam', $khuyenmai->gia_tri_giam) }}">
+                    <input type="number" step="1" min="0" name="gia_tri_giam" id="gia_tri_giam" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-yellow-500 transition-colors" placeholder="0" value="{{ old('gia_tri_giam', $khuyenmai->gia_tri_giam) }}">
                     <small class="text-gray-400 text-xs mt-1 block" id="hint_gia_tri_giam">{{ $khuyenmai->loai_giam == 'phantram' ? 'Tối đa 40% cho giảm theo phần trăm' : 'Nhập số tiền giảm cố định' }}</small>
                     @error('gia_tri_giam')<div class="text-red-500 text-sm mt-1">{{ $message }}</div>@enderror
                 </div>
@@ -119,7 +131,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Hàm kiểm tra giá trị
     function validateGiaTriGiam() {
-        if (select.value === 'phantram' && parseFloat(input.value) > 40) {
+        const value = parseFloat(input.value);
+        
+        // Kiểm tra số âm
+        if (value < 0) {
+            input.setCustomValidity('Giá trị không được là số âm');
+            return;
+        }
+        
+        // Kiểm tra phần trăm
+        if (select.value === 'phantram' && value > 40) {
             input.setCustomValidity('Giá trị giảm theo phần trăm không được lớn hơn 40%');
         } else {
             input.setCustomValidity('');
@@ -149,6 +170,74 @@ document.addEventListener('DOMContentLoaded', function() {
     if (select.value === 'phantram') {
         input.setAttribute('max', '40');
     }
+
+    // Xử lý datetime picker
+    function updateHiddenDateTime(dateId, hourId, minuteId, hiddenId) {
+        const dateInput = document.getElementById(dateId);
+        const hourInput = document.getElementById(hourId);
+        const minuteInput = document.getElementById(minuteId);
+        const hiddenInput = document.getElementById(hiddenId);
+        
+        if (dateInput.value && hourInput.value !== '' && minuteInput.value !== '') {
+            const hour = String(hourInput.value).padStart(2, '0');
+            const minute = String(minuteInput.value).padStart(2, '0');
+            hiddenInput.value = dateInput.value + ' ' + hour + ':' + minute + ':00';
+        } else {
+            hiddenInput.value = '';
+        }
+    }
+
+    // Validate giờ và phút
+    function validateTime(input, max) {
+        let value = parseInt(input.value);
+        if (isNaN(value) || value < 0) {
+            input.value = 0;
+        } else if (value > max) {
+            input.value = max;
+        }
+        // Pad với 0 nếu là số đơn
+        if (input.value !== '' && input.value.length === 1) {
+            input.value = String(input.value).padStart(2, '0');
+        }
+    }
+
+    // Lắng nghe sự kiện cho ngày bắt đầu
+    document.getElementById('ngay_bat_dau_date').addEventListener('change', function() {
+        updateHiddenDateTime('ngay_bat_dau_date', 'ngay_bat_dau_hour', 'ngay_bat_dau_minute', 'ngay_bat_dau_hidden');
+    });
+    document.getElementById('ngay_bat_dau_hour').addEventListener('input', function() {
+        updateHiddenDateTime('ngay_bat_dau_date', 'ngay_bat_dau_hour', 'ngay_bat_dau_minute', 'ngay_bat_dau_hidden');
+    });
+    document.getElementById('ngay_bat_dau_hour').addEventListener('blur', function() {
+        validateTime(this, 23);
+        updateHiddenDateTime('ngay_bat_dau_date', 'ngay_bat_dau_hour', 'ngay_bat_dau_minute', 'ngay_bat_dau_hidden');
+    });
+    document.getElementById('ngay_bat_dau_minute').addEventListener('input', function() {
+        updateHiddenDateTime('ngay_bat_dau_date', 'ngay_bat_dau_hour', 'ngay_bat_dau_minute', 'ngay_bat_dau_hidden');
+    });
+    document.getElementById('ngay_bat_dau_minute').addEventListener('blur', function() {
+        validateTime(this, 59);
+        updateHiddenDateTime('ngay_bat_dau_date', 'ngay_bat_dau_hour', 'ngay_bat_dau_minute', 'ngay_bat_dau_hidden');
+    });
+
+    // Lắng nghe sự kiện cho ngày kết thúc
+    document.getElementById('ngay_ket_thuc_date').addEventListener('change', function() {
+        updateHiddenDateTime('ngay_ket_thuc_date', 'ngay_ket_thuc_hour', 'ngay_ket_thuc_minute', 'ngay_ket_thuc_hidden');
+    });
+    document.getElementById('ngay_ket_thuc_hour').addEventListener('input', function() {
+        updateHiddenDateTime('ngay_ket_thuc_date', 'ngay_ket_thuc_hour', 'ngay_ket_thuc_minute', 'ngay_ket_thuc_hidden');
+    });
+    document.getElementById('ngay_ket_thuc_hour').addEventListener('blur', function() {
+        validateTime(this, 23);
+        updateHiddenDateTime('ngay_ket_thuc_date', 'ngay_ket_thuc_hour', 'ngay_ket_thuc_minute', 'ngay_ket_thuc_hidden');
+    });
+    document.getElementById('ngay_ket_thuc_minute').addEventListener('input', function() {
+        updateHiddenDateTime('ngay_ket_thuc_date', 'ngay_ket_thuc_hour', 'ngay_ket_thuc_minute', 'ngay_ket_thuc_hidden');
+    });
+    document.getElementById('ngay_ket_thuc_minute').addEventListener('blur', function() {
+        validateTime(this, 59);
+        updateHiddenDateTime('ngay_ket_thuc_date', 'ngay_ket_thuc_hour', 'ngay_ket_thuc_minute', 'ngay_ket_thuc_hidden');
+    });
 });
 </script>
 @endsection
