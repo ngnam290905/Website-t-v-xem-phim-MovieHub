@@ -19,12 +19,12 @@
 	<table class="min-w-full bg-[#151822] border border-[#262833] rounded-xl">
 		<thead>
 			<tr class="bg-[#222533]">
+				<th class="px-4 py-2">Tên KM</th>
 				<th class="px-4 py-2">Mã KM</th>
-				<th class="px-4 py-2">Mô tả</th>
 				<th class="px-4 py-2">Ngày bắt đầu</th>
 				<th class="px-4 py-2">Ngày kết thúc</th>
 				<th class="px-4 py-2">Giá trị giảm</th>
-				<th class="px-4 py-2">Điều kiện</th>
+				<th class="px-4 py-2">Điều kiện áp dụng</th>
 				<th class="px-4 py-2">Trạng thái</th>
 				<th class="px-4 py-2">Hành động</th>
 			</tr>
@@ -32,8 +32,8 @@
 		<tbody>
 		@forelse($khuyenmai as $km)
 			<tr class="border-t border-[#262833]">
-				<td class="px-4 py-2">{{ $km->ma_km }}</td>
 				<td class="px-4 py-2">{{ $km->mo_ta }}</td>
+				<td class="px-4 py-2">{{ $km->ma_km }}</td>
 				<td class="px-4 py-2">{{ $km->ngay_bat_dau }}</td>
 				<td class="px-4 py-2">{{ $km->ngay_ket_thuc }}</td>
 				<td class="px-4 py-2">{{ $km->gia_tri_giam }}</td>

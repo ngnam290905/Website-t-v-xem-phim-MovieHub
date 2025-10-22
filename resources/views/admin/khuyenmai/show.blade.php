@@ -14,15 +14,15 @@
 			<h3 class="text-lg font-semibold mb-2 text-blue-400">Thông tin cơ bản</h3>
 			<div class="space-y-3">
 				<div>
+					<label class="text-gray-300 font-medium">Tên khuyến mãi:</label>
+					<p class="text-white mt-1">{{ $khuyenmai->mo_ta ?? 'Không có tên' }}</p>
+				</div>
+				<div>
 					<label class="text-gray-300 font-medium">Mã khuyến mãi:</label>
 					<p class="text-white mt-1">{{ $khuyenmai->ma_km }}</p>
 				</div>
 				<div>
-					<label class="text-gray-300 font-medium">Mô tả:</label>
-					<p class="text-white mt-1">{{ $khuyenmai->mo_ta ?? 'Không có mô tả' }}</p>
-				</div>
-				<div>
-					<label class="text-gray-300 font-medium">Điều kiện áp dụng:</label>
+					<label class="text-gray-300 font-medium">Điều kiện được áp dụng mã giảm giá:</label>
 					<p class="text-white mt-1">{{ $khuyenmai->dieu_kien ?? 'Không có điều kiện đặc biệt' }}</p>
 				</div>
 			</div>

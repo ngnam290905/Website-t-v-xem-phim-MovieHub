@@ -35,7 +35,16 @@ class AdminKhuyenMaiController extends Controller
             'mo_ta' => 'nullable|string',
             'ngay_bat_dau' => 'required|date',
             'ngay_ket_thuc' => 'required|date|after_or_equal:ngay_bat_dau',
-            'gia_tri_giam' => 'required|numeric|min:0',
+            'gia_tri_giam' => [
+                'required',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->loai_giam === 'phantram' && $value > 40) {
+                        $fail('Giá trị giảm theo phần trăm không được lớn hơn 40%.');
+                    }
+                },
+            ],
             'loai_giam' => 'required|in:phantram,codinh',
             'dieu_kien' => 'nullable|string',
             'trang_thai' => 'required|boolean',
@@ -60,7 +69,16 @@ class AdminKhuyenMaiController extends Controller
             'mo_ta' => 'nullable|string',
             'ngay_bat_dau' => 'required|date',
             'ngay_ket_thuc' => 'required|date|after_or_equal:ngay_bat_dau',
-            'gia_tri_giam' => 'required|numeric|min:0',
+            'gia_tri_giam' => [
+                'required',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->loai_giam === 'phantram' && $value > 40) {
+                        $fail('Giá trị giảm theo phần trăm không được lớn hơn 40%.');
+                    }
+                },
+            ],
             'loai_giam' => 'required|in:phantram,codinh',
             'dieu_kien' => 'nullable|string',
             'trang_thai' => 'required|boolean',
