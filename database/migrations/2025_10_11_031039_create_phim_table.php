@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('phim', function (Blueprint $table) {
-            $table->id();
-            $table->string('ten_phim')->nullable();
-            $table->integer('do_dai')->nullable();
-            $table->string('poster')->nullable();
-            $table->text('mo_ta')->nullable();
-            $table->string('dao_dien', 100)->nullable();
-            $table->text('dien_vien')->nullable();
-            $table->string('trailer')->nullable();
-            $table->boolean('trang_thai')->default(true);
-        });
+        if (!Schema::hasTable('phim')) {
+            Schema::create('phim', function (Blueprint $table) {
+                $table->id();
+                $table->string('ten_phim')->nullable();
+                $table->integer('do_dai')->nullable();
+                $table->string('poster')->nullable();
+                $table->text('mo_ta')->nullable();
+                $table->string('dao_dien', 100)->nullable();
+                $table->text('dien_vien')->nullable();
+                $table->string('trailer')->nullable();
+                $table->boolean('trang_thai')->default(true);
+            });
+        }
     }
 
     /**

@@ -16,8 +16,15 @@ class MovieController extends Controller
      */
     public function index()
     {
-        $movies = Phim::orderBy('id', 'desc')->paginate(10);
-        
+        $query = Phim::query();
+
+        $status = request('status');
+        if (in_array($status, ['sap_chieu','dang_chieu','ngung_chieu'])) {
+            $query->where('trang_thai', $status);
+        }
+
+        $movies = $query->orderBy('created_at', 'desc')->paginate(8);
+
         return view('admin.movies.index', compact('movies'));
     }
 
@@ -35,9 +42,12 @@ class MovieController extends Controller
 
         $movies = Phim::where(function($query) use ($searchTerm) {
             $query->where('ten_phim', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('ten_goc', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('dao_dien', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('the_loai', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('quoc_gia', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('id', 'LIKE', "%{$searchTerm}%");
-        })->orderBy('id', 'desc')->paginate(10);
+        })->orderBy('created_at', 'desc')->paginate(8);
 
         // Keep search term in pagination links
         $movies->appends(['search' => $searchTerm]);
@@ -62,13 +72,20 @@ class MovieController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'ten_phim' => 'required|string|max:255',
+            'ten_goc' => 'nullable|string|max:255',
             'do_dai' => 'required|integer|min:1|max:600',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'mo_ta' => 'required|string|min:10|max:2000',
             'dao_dien' => 'required|string|max:100',
             'dien_vien' => 'required|string|max:500',
+            'the_loai' => 'nullable|string|max:255',
+            'quoc_gia' => 'nullable|string|max:100',
+            'ngon_ngu' => 'nullable|string|max:100',
+            'do_tuoi' => 'nullable|string|max:10',
+            'ngay_khoi_chieu' => 'nullable|date',
+            'ngay_ket_thuc' => 'nullable|date|after_or_equal:ngay_khoi_chieu',
             'trailer' => 'nullable|url|max:500',
-            'trang_thai' => 'boolean',
+            'trang_thai' => 'required|in:sap_chieu,dang_chieu,ngung_chieu',
         ], [
             'ten_phim.required' => 'Tên phim không được để trống.',
             'ten_phim.max' => 'Tên phim không được vượt quá 255 ký tự.',
@@ -87,6 +104,9 @@ class MovieController extends Controller
             'dien_vien.max' => 'Danh sách diễn viên không được vượt quá 500 ký tự.',
             'trailer.url' => 'Link trailer phải là URL hợp lệ.',
             'trailer.max' => 'Link trailer không được vượt quá 500 ký tự.',
+            'trang_thai.required' => 'Trạng thái phim không được để trống.',
+            'trang_thai.in' => 'Trạng thái phim không hợp lệ.',
+            'ngay_ket_thuc.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày khởi chiếu.',
         ]);
 
         if ($validator->fails()) {
@@ -107,7 +127,9 @@ class MovieController extends Controller
                 $data['poster'] = $posterPath;
             }
 
-            $data['trang_thai'] = $request->has('trang_thai') ? 1 : 0;
+            // Set default values
+            $data['diem_danh_gia'] = 0;
+            $data['so_luot_danh_gia'] = 0;
 
             $movie = Phim::create($data);
 
@@ -127,6 +149,7 @@ class MovieController extends Controller
      */
     public function show(Phim $movie)
     {
+        $movie->load(['suatChieu.phongChieu']);
         return view('admin.movies.show', compact('movie'));
     }
 
@@ -147,13 +170,20 @@ class MovieController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'ten_phim' => 'required|string|max:255',
+            'ten_goc' => 'nullable|string|max:255',
             'do_dai' => 'required|integer|min:1|max:600',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'mo_ta' => 'required|string|min:10|max:2000',
             'dao_dien' => 'required|string|max:100',
             'dien_vien' => 'required|string|max:500',
+            'the_loai' => 'nullable|string|max:255',
+            'quoc_gia' => 'nullable|string|max:100',
+            'ngon_ngu' => 'nullable|string|max:100',
+            'do_tuoi' => 'nullable|string|max:10',
+            'ngay_khoi_chieu' => 'nullable|date',
+            'ngay_ket_thuc' => 'nullable|date|after_or_equal:ngay_khoi_chieu',
             'trailer' => 'nullable|url|max:500',
-            'trang_thai' => 'boolean',
+            'trang_thai' => 'required|in:sap_chieu,dang_chieu,ngung_chieu',
         ], [
             'ten_phim.required' => 'Tên phim không được để trống.',
             'ten_phim.max' => 'Tên phim không được vượt quá 255 ký tự.',
@@ -172,6 +202,9 @@ class MovieController extends Controller
             'dien_vien.max' => 'Danh sách diễn viên không được vượt quá 500 ký tự.',
             'trailer.url' => 'Link trailer phải là URL hợp lệ.',
             'trailer.max' => 'Link trailer không được vượt quá 500 ký tự.',
+            'trang_thai.required' => 'Trạng thái phim không được để trống.',
+            'trang_thai.in' => 'Trạng thái phim không hợp lệ.',
+            'ngay_ket_thuc.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày khởi chiếu.',
         ]);
 
         if ($validator->fails()) {
@@ -189,11 +222,11 @@ class MovieController extends Controller
                 Storage::disk('public')->delete($movie->poster);
             }
             
-            $posterPath = $request->file('poster')->store('posters', 'public');
+            $file = $request->file('poster');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $posterPath = $file->storeAs('posters', $filename, 'public');
             $data['poster'] = $posterPath;
         }
-
-        $data['trang_thai'] = $request->has('trang_thai') ? 1 : 0;
 
         $movie->update($data);
 
@@ -224,11 +257,22 @@ class MovieController extends Controller
      */
     public function toggleStatus(Phim $movie)
     {
-        $movie->update(['trang_thai' => !$movie->trang_thai]);
+        $statusMap = [
+            'sap_chieu' => 'dang_chieu',
+            'dang_chieu' => 'ngung_chieu',
+            'ngung_chieu' => 'sap_chieu'
+        ];
         
-        $status = $movie->trang_thai ? 'kích hoạt' : 'vô hiệu hóa';
+        $newStatus = $statusMap[$movie->trang_thai] ?? 'sap_chieu';
+        $movie->update(['trang_thai' => $newStatus]);
+        
+        $statusText = [
+            'sap_chieu' => 'sắp chiếu',
+            'dang_chieu' => 'đang chiếu',
+            'ngung_chieu' => 'ngừng chiếu'
+        ];
         
         return redirect()->back()
-            ->with('success', "Đã {$status} phim thành công!");
+            ->with('success', "Đã cập nhật trạng thái phim thành '{$statusText[$newStatus]}'!");
     }
 }

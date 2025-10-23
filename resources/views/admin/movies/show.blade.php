@@ -26,7 +26,7 @@
                         <div class="col-md-4">
                             @if($movie->poster)
                                 <div class="text-center mb-4">
-                                    <img src="{{ asset('storage/' . $movie->poster) }}" 
+                                    <img src="{{ $movie->poster_url }}" 
                                          alt="{{ $movie->ten_phim }}" 
                                          class="img-fluid rounded shadow" 
                                          style="max-height: 400px;">
@@ -50,15 +50,26 @@
                                 <div class="col-sm-6">
                                     <h5><strong>Tên phim:</strong></h5>
                                     <p class="text-muted">{{ $movie->ten_phim }}</p>
+                                    @if($movie->ten_goc)
+                                        <small class="text-muted">({{ $movie->ten_goc }})</small>
+                                    @endif
                                 </div>
                                 
                                 <div class="col-sm-6">
                                     <h5><strong>Trạng thái:</strong></h5>
-                                    @if($movie->trang_thai)
-                                        <span class="badge bg-success fs-6">Hoạt động</span>
-                                    @else
-                                        <span class="badge bg-secondary fs-6">Tạm dừng</span>
-                                    @endif
+                                    @switch($movie->trang_thai)
+                                        @case('dang_chieu')
+                                            <span class="badge bg-success fs-6">Đang chiếu</span>
+                                            @break
+                                        @case('sap_chieu')
+                                            <span class="badge bg-warning fs-6">Sắp chiếu</span>
+                                            @break
+                                        @case('ngung_chieu')
+                                            <span class="badge bg-secondary fs-6">Ngừng chiếu</span>
+                                            @break
+                                        @default
+                                            <span class="badge bg-light text-dark fs-6">Không xác định</span>
+                                    @endswitch
                                 </div>
                             </div>
                             
@@ -70,9 +81,56 @@
                                 
                                 <div class="col-sm-6">
                                     <h5><strong>Độ dài:</strong></h5>
-                                    <p class="text-muted">{{ $movie->do_dai }} phút</p>
+                                    <p class="text-muted">{{ $movie->formatted_duration }}</p>
                                 </div>
                             </div>
+
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <h5><strong>Thể loại:</strong></h5>
+                                    <p class="text-muted">{{ $movie->the_loai ?: 'Chưa phân loại' }}</p>
+                                </div>
+                                
+                                <div class="col-sm-6">
+                                    <h5><strong>Quốc gia:</strong></h5>
+                                    <p class="text-muted">{{ $movie->quoc_gia ?: 'Chưa xác định' }}</p>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <h5><strong>Ngôn ngữ:</strong></h5>
+                                    <p class="text-muted">{{ $movie->ngon_ngu ?: 'Chưa xác định' }}</p>
+                                </div>
+                                
+                                <div class="col-sm-6">
+                                    <h5><strong>Độ tuổi:</strong></h5>
+                                    <p class="text-muted">{{ $movie->do_tuoi ?: 'Chưa xác định' }}</p>
+                                </div>
+                            </div>
+
+                            @if($movie->ngay_khoi_chieu || $movie->ngay_ket_thuc)
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <h5><strong>Ngày khởi chiếu:</strong></h5>
+                                        <p class="text-muted">{{ $movie->ngay_khoi_chieu ? $movie->ngay_khoi_chieu->format('d/m/Y') : 'Chưa xác định' }}</p>
+                                    </div>
+                                    
+                                    <div class="col-sm-6">
+                                        <h5><strong>Ngày kết thúc:</strong></h5>
+                                        <p class="text-muted">{{ $movie->ngay_ket_thuc ? $movie->ngay_ket_thuc->format('d/m/Y') : 'Chưa xác định' }}</p>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if($movie->diem_danh_gia > 0)
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <h5><strong>Đánh giá:</strong></h5>
+                                        <p class="text-muted">{{ $movie->formatted_rating }} ({{ $movie->so_luot_danh_gia }} lượt đánh giá)</p>
+                                    </div>
+                                </div>
+                            @endif
                             
                             <div class="row">
                                 <div class="col-12">
