@@ -11,20 +11,39 @@ use Illuminate\Support\Facades\Auth;
 
 class QuanLyDatVeController extends Controller
 {
-    // ✅ 1. Danh sách vé
-    public function index()
+    public function index(Request $request)
     {
-        $bookings = DatVe::with(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo.combo', 'thanhToan'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $query = DatVe::with(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo.combo', 'thanhToan'])
+            ->orderBy('created_at', 'desc');
+
+        // 🔹 Lọc theo trạng thái
+        if ($request->filled('status')) {
+            $query->where('trang_thai', $request->status);
+        }
+
+        // 🔹 Lọc theo tên phim
+        if ($request->filled('phim')) {
+            $query->whereHas('suatChieu.phim', function ($q) use ($request) {
+                $q->where('ten_phim', 'like', '%' . $request->phim . '%');
+            });
+        }
+
+        // 🔹 Lọc theo người dùng
+        if ($request->filled('nguoi_dung')) {
+            $query->whereHas('nguoiDung', function ($q) use ($request) {
+                $q->where('ho_ten', 'like', '%' . $request->nguoi_dung . '%');
+            });
+        }
+
+        $bookings = $query->paginate(10)->appends($request->query());
 
         return view('admin.bookings.index', compact('bookings'));
     }
 
-    // ✅ 2. Xem chi tiết vé
     public function show($id)
     {
         $booking = DatVe::with([
+            'nguoiDung.diemThanhVien',
             'nguoiDung',
             'suatChieu.phim',
             'suatChieu.phongChieu',
@@ -107,5 +126,26 @@ class QuanLyDatVeController extends Controller
         }
 
         return redirect()->route('admin.bookings.index')->with('success', 'Vé đã được điều chỉnh thành công.');
+    }
+    public function confirm($id)
+    {
+        $userRole = optional(Auth::user()->vaiTro)->ten;
+
+        if ($userRole !== 'admin') {
+            abort(403, 'Bạn không có quyền xác nhận vé.');
+        }
+
+        $booking = DatVe::findOrFail($id);
+
+        if ($booking->trang_thai == 0) {
+            $booking->trang_thai = 1; // 1 = Đã xác nhận
+            $booking->save();
+
+            return redirect()->route('admin.bookings.index')
+                ->with('success', 'Vé đã được xác nhận thành công.');
+        }
+
+        return redirect()->route('admin.bookings.index')
+            ->with('error', 'Chỉ có thể xác nhận vé đang chờ.');
     }
 }

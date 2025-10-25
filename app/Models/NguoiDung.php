@@ -43,4 +43,8 @@ class NguoiDung extends Authenticatable
     {
         return $this->mat_khau;
     }
+    public function diemThanhVien()
+    {
+        return $this->hasOne(DiemThanhVien::class, 'id_nguoi_dung');
+    }
 }

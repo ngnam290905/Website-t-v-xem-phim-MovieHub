@@ -67,6 +67,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
             Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
             Route::post('/{id}/update', [QuanLyDatVeController::class, 'update'])->name('update');
             Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
+            Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
         });
     });
 });
