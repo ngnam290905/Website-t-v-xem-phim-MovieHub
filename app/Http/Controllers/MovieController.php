@@ -267,12 +267,14 @@ class MovieController extends Controller
         $movie->update(['trang_thai' => $newStatus]);
         
         $statusText = [
-            'sap_chieu' => 'sắp chiếu',
-            'dang_chieu' => 'đang chiếu',
-            'ngung_chieu' => 'ngừng chiếu'
-        ];
-        
-        return redirect()->back()
-            ->with('success', "Đã cập nhật trạng thái phim thành '{$statusText[$newStatus]}'!");
+    'sap_chieu' => 'sắp chiếu',
+    'dang_chieu' => 'đang chiếu',
+    'ngung_chieu' => 'ngừng chiếu'
+];
+
+$displayText = $statusText[$newStatus] ?? 'không xác định';
+
+return redirect()->back()
+    ->with('success', "Đã cập nhật trạng thái phim thành '{$displayText}'!");
     }
 }
