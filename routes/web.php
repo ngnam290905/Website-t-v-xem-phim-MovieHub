@@ -24,7 +24,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'role:admin,staff'])->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
         Route::get('/khuyenmai', [AdminKhuyenMaiController::class, 'index'])->name('khuyenmai.index');
+        // Route::get('/khuyenmai/{khuyenmai}', [AdminKhuyenMaiController::class, 'show'])->name('khuyenmai.show')
         Route::get('/khuyenmai/{khuyenmai}', [AdminKhuyenMaiController::class, 'show'])->name('khuyenmai.show');
+        ;
     });
 });
 
