@@ -31,6 +31,7 @@
             <a href="{{ route('admin.suat-chieu.index') }}" class="px-3 py-2 rounded hover:bg-[#222533]">Suất chiếu</a>
             <a href="{{ route('admin.ghe.index') }}" class="px-3 py-2 rounded hover:bg-[#222533]">Ghế</a>
             <a href="#tickets" class="px-3 py-2 rounded hover:bg-[#222533]">Vé</a>
+            <a href="{{ route('admin.khuyenmai.index') }}" class="px-3 py-2 rounded hover:bg-[#222533]">Khuyến mãi</a>
             <a href="#users" class="px-3 py-2 rounded hover:bg-[#222533]">Người dùng</a>
           </nav>
         </div>
