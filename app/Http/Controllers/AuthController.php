@@ -46,8 +46,10 @@ class AuthController extends Controller
             $user = Auth::user();
             $userRole = optional($user->vaiTro)->ten;
             
-            if (in_array($userRole, ['admin', 'staff'])) {
+            if ($userRole === 'admin') {
                 return redirect()->intended(route('admin.dashboard'));
+            } elseif ($userRole === 'staff') {
+                return redirect()->intended(route('staff.dashboard'));
             } else {
                 return redirect()->intended(route('home'));
             }
