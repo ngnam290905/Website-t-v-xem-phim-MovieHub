@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use App\Models\Movie;
+use App\Models\Phim;
 
 class MovieSeeder extends Seeder
 {
@@ -14,6 +15,7 @@ class MovieSeeder extends Seeder
     {
         $movies = [
             [
+// ...existing code...
                 'ten_phim' => 'Hành Tinh Bí Ẩn',
                 'do_dai' => 128,
                 'poster' => 'https://image.tmdb.org/t/p/w342/2CAL2433ZeIihfX1Hb2139CX0pW.jpg',
@@ -136,10 +138,8 @@ class MovieSeeder extends Seeder
         ];
 
         foreach ($movies as $movie) {
-            Movie::create(array_merge($movie, [
-                'created_at' => now()->subDays(rand(1, 30)),
-                'updated_at' => now()
-            ]));
+            Phim::create($movie);
         }
     }
 }
+// ...existing code...
