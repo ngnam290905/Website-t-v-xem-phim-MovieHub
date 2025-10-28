@@ -17,14 +17,7 @@ Route::get('/dat-ve/{id?}', function ($id = 1) {
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(['auth', 'role:admin'])->group(function () {
         // Admin có toàn quyền: tạo, sửa, xóa khuyến mãi
-        Route::resource('khuyenmai', AdminKhuyenMaiController::class)->except(['index', 'show']);
-    });
-    
-    // Staff và Admin đều có thể xem danh sách và chi tiết khuyến mãi
-    Route::middleware(['auth', 'role:admin,staff'])->group(function () {
-        Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
-        Route::get('/khuyenmai', [AdminKhuyenMaiController::class, 'index'])->name('khuyenmai.index');
-        Route::get('/khuyenmai/{khuyenmai}', [AdminKhuyenMaiController::class, 'show'])->name('khuyenmai.show');
+        
     });
 });
 
