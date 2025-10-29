@@ -10,19 +10,20 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-    {
-        Schema::table('ghe', function (Blueprint $table) {
-            $table->decimal('price', 10, 2)->nullable()->after('status');
-        });
-    }
+{
+    Schema::table('suat_chieu', function (Blueprint $table) {
+        $table->dateTime('start_time')->nullable();
+    });
+}
+
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('ghe', function (Blueprint $table) {
-            $table->dropColumn('price');
+        Schema::table('suat_chieu', function (Blueprint $table) {
+            //
         });
     }
 };

@@ -5,32 +5,42 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 
 class NguoiDung extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'nguoi_dung';
-
+    protected $primaryKey = 'id';
+    protected $dates = ['deleted_at'];
     public $timestamps = false;
 
     protected $fillable = [
         'ho_ten',
         'email',
-        'password',   // ✅ Đổi từ mat_khau sang password
-        'ngay_sinh',
-        'gioi_tinh',
-        'sdt',
+        'mat_khau',
+        'dien_thoai',
         'dia_chi',
-        'hinh_anh',
         'id_vai_tro',
         'trang_thai',
     ];
 
-    protected $hidden = [
-        'password',   // ✅ Cũng đổi ở đây
-    ];
+    // Ẩn mật khẩu khi trả về JSON
+    protected $hidden = ['mat_khau'];
 
+    /**
+     * Dùng cho Laravel Auth để biết cột nào là mật khẩu
+     */
+    public function getAuthPassword()
+    {
+        return $this->mat_khau;
+    }
+
+    /**
+     * Quan hệ: 1 người dùng thuộc về 1 vai trò
+     */
     public function vaiTro()
     {
         return $this->belongsTo(VaiTro::class, 'id_vai_tro');
