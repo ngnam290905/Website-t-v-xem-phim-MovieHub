@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminController;
 
 use App\Http\Controllers\SuatChieuController;
 use App\Http\Controllers\GheController;
+use App\Http\Controllers\PhongChieuController;
 
 use App\Http\Controllers\AuthController;
 
@@ -42,24 +43,42 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Admin can manage everything
     Route::resource('suat-chieu', SuatChieuController::class);
     Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
+    Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
     
+    // Room management (replaces seat management)
+    Route::resource('phong-chieu', PhongChieuController::class);
+    Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
+    Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
+    Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
+    Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
+    Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
+    Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
+    Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
+    Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
+    Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
+    
+    // Legacy seat routes (for backward compatibility)
     Route::resource('ghe', GheController::class);
     Route::patch('ghe/{ghe}/status', [GheController::class, 'updateStatus'])->name('ghe.update-status');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
     Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
 });
 
-// Staff routes - Staff can only view suat chieu and ghe
+// Staff routes - Staff can only view suat chieu and manage rooms/seats
 Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
     
-    // Staff can only view (index, show) suat chieu
+    // Staff can only view suat chieu (read-only)
     Route::get('suat-chieu', [SuatChieuController::class, 'index'])->name('suat-chieu.index');
     Route::get('suat-chieu/{suatChieu}', [SuatChieuController::class, 'show'])->name('suat-chieu.show');
-    Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
     
-    // Staff can only view (index, show) ghe
+    // Staff can view rooms
+    Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
+    Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->name('phong-chieu.show');
+    Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
+    
+    // Legacy seat routes (for backward compatibility)
     Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
     Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');

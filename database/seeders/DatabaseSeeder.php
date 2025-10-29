@@ -21,12 +21,9 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             MovieSeeder::class,
-            PhongChieuSeeder::class,
-            LoaiGheSeeder::class,
-            SuatChieuSeeder::class,
+            RoleSeeder::class,
+            CinemaDataSeeder::class, // New comprehensive seeder
         ]);
-
-        $this->call(RoleSeeder::class);
 
     }
 }

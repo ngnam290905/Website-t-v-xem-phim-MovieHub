@@ -13,18 +13,70 @@ class SuatChieuController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $suatChieu = SuatChieu::with(['phim', 'phongChieu'])
-            ->orderBy('thoi_gian_bat_dau', 'desc')
-            ->paginate(10);
+        $query = SuatChieu::with(['phim', 'phongChieu'])
+            ->whereHas('phongChieu', function($q) {
+                $q->where('status', 'active');
+            });
+        
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('phim', function($q) use ($search) {
+                $q->where('ten_phim', 'like', "%{$search}%");
+            })->orWhereHas('phongChieu', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filter by movie
+        if ($request->filled('phim_id')) {
+            $query->where('movie_id', $request->phim_id);
+        }
+        
+        // Filter by room
+        if ($request->filled('phong_id')) {
+            $query->where('room_id', $request->phong_id);
+        }
+        
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        
+        // Filter by date range
+        if ($request->filled('tu_ngay')) {
+            $query->whereDate('start_time', '>=', $request->tu_ngay);
+        }
+        
+        if ($request->filled('den_ngay')) {
+            $query->whereDate('start_time', '<=', $request->den_ngay);
+        }
+        
+        // Sort functionality
+        $sortBy = $request->get('sort_by', 'start_time');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        if (in_array($sortBy, ['start_time', 'end_time', 'status'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('start_time', 'desc');
+        }
+        
+        $perPage = $request->get('per_page', 10);
+        $suatChieu = $query->paginate($perPage)->appends($request->query());
+        
+        // Get filter options
+        $phim = Movie::where('trang_thai', 1)->get();
+        $phongChieu = PhongChieu::where('status', 'active')->get();
         
         // Check if this is staff route
         if (request()->is('staff/*')) {
-            return view('staff.suat-chieu.index', compact('suatChieu'));
+            return view('staff.suat-chieu.index', compact('suatChieu', 'phim', 'phongChieu'));
         }
         
-        return view('admin.suat-chieu.index', compact('suatChieu'));
+        return view('admin.suat-chieu.index', compact('suatChieu', 'phim', 'phongChieu'));
     }
 
     /**
@@ -33,7 +85,7 @@ class SuatChieuController extends Controller
     public function create()
     {
         $phim = Movie::where('trang_thai', 1)->get();
-        $phongChieu = PhongChieu::where('trang_thai', 1)->get();
+        $phongChieu = PhongChieu::where('status', 'active')->get();
         
         return view('admin.suat-chieu.create', compact('phim', 'phongChieu'));
     }
@@ -44,26 +96,26 @@ class SuatChieuController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'id_phim' => 'required|exists:phim,id',
-            'id_phong' => 'required|exists:phong_chieu,id',
-            'thoi_gian_bat_dau' => 'required|date|after:now',
-            'thoi_gian_ket_thuc' => 'required|date|after:thoi_gian_bat_dau',
+            'movie_id' => 'required|exists:phim,id',
+            'room_id' => 'required|exists:phong_chieu,id',
+            'start_time' => 'required|date|after:now',
+            'end_time' => 'required|date|after:start_time',
         ]);
 
         // Check for time conflicts
-        $conflict = SuatChieu::where('id_phong', $request->id_phong)
+        $conflict = SuatChieu::where('room_id', $request->room_id)
             ->where(function($query) use ($request) {
-                $query->whereBetween('thoi_gian_bat_dau', [$request->thoi_gian_bat_dau, $request->thoi_gian_ket_thuc])
-                      ->orWhereBetween('thoi_gian_ket_thuc', [$request->thoi_gian_bat_dau, $request->thoi_gian_ket_thuc])
+                $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                      ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
                       ->orWhere(function($q) use ($request) {
-                          $q->where('thoi_gian_bat_dau', '<=', $request->thoi_gian_bat_dau)
-                            ->where('thoi_gian_ket_thuc', '>=', $request->thoi_gian_ket_thuc);
+                          $q->where('start_time', '<=', $request->start_time)
+                            ->where('end_time', '>=', $request->end_time);
                       });
             })
             ->exists();
 
         if ($conflict) {
-            return back()->withErrors(['thoi_gian_bat_dau' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng.']);
+            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng.']);
         }
 
         SuatChieu::create($request->all());
@@ -77,7 +129,7 @@ class SuatChieuController extends Controller
      */
     public function show(SuatChieu $suatChieu)
     {
-        $suatChieu->load(['phim', 'phongChieu', 'phongChieu.ghe']);
+        $suatChieu->load(['movie', 'room', 'room.seats']);
         
         // Check if this is staff route
         if (request()->is('staff/*')) {
@@ -93,7 +145,7 @@ class SuatChieuController extends Controller
     public function edit(SuatChieu $suatChieu)
     {
         $phim = Movie::where('trang_thai', 1)->get();
-        $phongChieu = PhongChieu::where('trang_thai', 1)->get();
+        $phongChieu = PhongChieu::where('status', 'active')->get();
         
         return view('admin.suat-chieu.edit', compact('suatChieu', 'phim', 'phongChieu'));
     }
@@ -104,28 +156,28 @@ class SuatChieuController extends Controller
     public function update(Request $request, SuatChieu $suatChieu)
     {
         $request->validate([
-            'id_phim' => 'required|exists:phim,id',
-            'id_phong' => 'required|exists:phong_chieu,id',
-            'thoi_gian_bat_dau' => 'required|date',
-            'thoi_gian_ket_thuc' => 'required|date|after:thoi_gian_bat_dau',
-            'trang_thai' => 'boolean'
+            'movie_id' => 'required|exists:phim,id',
+            'room_id' => 'required|exists:phong_chieu,id',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+            'status' => 'string|in:coming,ongoing,finished'
         ]);
 
         // Check for time conflicts (excluding current suat chieu)
-        $conflict = SuatChieu::where('id_phong', $request->id_phong)
+        $conflict = SuatChieu::where('room_id', $request->room_id)
             ->where('id', '!=', $suatChieu->id)
             ->where(function($query) use ($request) {
-                $query->whereBetween('thoi_gian_bat_dau', [$request->thoi_gian_bat_dau, $request->thoi_gian_ket_thuc])
-                      ->orWhereBetween('thoi_gian_ket_thuc', [$request->thoi_gian_bat_dau, $request->thoi_gian_ket_thuc])
+                $query->whereBetween('start_time', [$request->start_time, $request->end_time])
+                      ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
                       ->orWhere(function($q) use ($request) {
-                          $q->where('thoi_gian_bat_dau', '<=', $request->thoi_gian_bat_dau)
-                            ->where('thoi_gian_ket_thuc', '>=', $request->thoi_gian_ket_thuc);
+                          $q->where('start_time', '<=', $request->start_time)
+                            ->where('end_time', '>=', $request->end_time);
                       });
             })
             ->exists();
 
         if ($conflict) {
-            return back()->withErrors(['thoi_gian_bat_dau' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng.']);
+            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng.']);
         }
 
         $suatChieu->update($request->all());
@@ -156,10 +208,10 @@ class SuatChieuController extends Controller
     public function updateStatus(Request $request, SuatChieu $suatChieu)
     {
         $request->validate([
-            'trang_thai' => 'required|boolean'
+            'status' => 'required|string|in:coming,ongoing,finished'
         ]);
 
-        $suatChieu->update(['trang_thai' => $request->trang_thai]);
+        $suatChieu->update(['status' => $request->status]);
 
         return response()->json([
             'success' => true,
@@ -179,11 +231,36 @@ class SuatChieuController extends Controller
 
         $suatChieu = SuatChieu::with(['phongChieu'])
             ->where('id_phim', $request->id_phim)
-            ->whereDate('thoi_gian_bat_dau', $request->ngay)
-            ->where('trang_thai', 1)
-            ->orderBy('thoi_gian_bat_dau')
+            ->whereDate('start_time', $request->ngay)
+            ->where('status', 'coming')
+            ->orderBy('start_time')
             ->get();
 
         return response()->json($suatChieu);
+    }
+
+    /**
+     * Duplicate a suat chieu
+     */
+    public function duplicate(SuatChieu $suatChieu)
+    {
+        try {
+            $newSuatChieu = $suatChieu->replicate();
+            $newSuatChieu->start_time = now()->addDay(); // Set to tomorrow
+            $newSuatChieu->end_time = now()->addDay()->addMinutes($suatChieu->phim->thoi_luong ?? 120);
+            $newSuatChieu->status = 'coming';
+            $newSuatChieu->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Suất chiếu đã được nhân bản thành công',
+                'data' => $newSuatChieu
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi nhân bản suất chiếu: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -66,9 +66,16 @@
         </div>
         <div class="flex justify-between py-3">
           <span class="font-medium text-[#a6a6b0]">Trạng Thái:</span>
-          <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full {{ $suatChieu->trang_thai ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-            <i class="fas fa-{{ $suatChieu->trang_thai ? 'check-circle' : 'times-circle' }} mr-1"></i>
-            {{ $suatChieu->trang_thai ? 'Hoạt động' : 'Tạm dừng' }}
+          <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full 
+            @if($suatChieu->status === 'coming') bg-blue-100 text-blue-800
+            @elseif($suatChieu->status === 'ongoing') bg-green-100 text-green-800
+            @else bg-gray-100 text-gray-800
+            @endif">
+            <i class="fas fa-{{ $suatChieu->status === 'coming' ? 'clock' : ($suatChieu->status === 'ongoing' ? 'play-circle' : 'check-circle') }} mr-1"></i>
+            @if($suatChieu->status === 'coming') Sắp chiếu
+            @elseif($suatChieu->status === 'ongoing') Đang chiếu
+            @else Đã kết thúc
+            @endif
           </span>
         </div>
       </div>
@@ -82,22 +89,22 @@
       <div class="space-y-4">
         <div class="flex justify-between py-3 border-b border-[#262833]">
           <span class="font-medium text-[#a6a6b0]">Bắt Đầu:</span>
-          <span class="text-white">{{ $suatChieu->thoi_gian_bat_dau->format('d/m/Y H:i') }}</span>
+          <span class="text-white">{{ $suatChieu->start_time->format('d/m/Y H:i') }}</span>
         </div>
         <div class="flex justify-between py-3 border-b border-[#262833]">
           <span class="font-medium text-[#a6a6b0]">Kết Thúc:</span>
-          <span class="text-white">{{ $suatChieu->thoi_gian_ket_thuc->format('d/m/Y H:i') }}</span>
+          <span class="text-white">{{ $suatChieu->end_time->format('d/m/Y H:i') }}</span>
         </div>
         <div class="flex justify-between py-3 border-b border-[#262833]">
           <span class="font-medium text-[#a6a6b0]">Thời Lượng:</span>
-          <span class="text-white">{{ $suatChieu->thoi_gian_bat_dau->diffInHours($suatChieu->thoi_gian_ket_thuc) }} giờ</span>
+          <span class="text-white">{{ $suatChieu->start_time->diffInHours($suatChieu->end_time) }} giờ</span>
         </div>
         <div class="flex justify-between py-3">
           <span class="font-medium text-[#a6a6b0]">Trạng Thái:</span>
           <span class="text-white">
-            @if($suatChieu->thoi_gian_bat_dau > now())
+            @if($suatChieu->start_time > now())
               <span class="text-blue-400">Sắp chiếu</span>
-            @elseif($suatChieu->thoi_gian_ket_thuc < now())
+            @elseif($suatChieu->end_time < now())
               <span class="text-gray-400">Đã kết thúc</span>
             @else
               <span class="text-green-400">Đang chiếu</span>

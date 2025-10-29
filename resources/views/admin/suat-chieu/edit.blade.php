@@ -85,13 +85,13 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <!-- Thời Gian Bắt Đầu -->
         <div class="space-y-2">
-          <label for="thoi_gian_bat_dau" class="block text-sm font-medium text-gray-300">
+          <label for="start_time" class="block text-sm font-medium text-gray-300">
             <i class="fas fa-play mr-2 text-[#F53003]"></i>Thời Gian Bắt Đầu <span class="text-red-500">*</span>
           </label>
-          <input type="datetime-local" name="thoi_gian_bat_dau" id="thoi_gian_bat_dau" 
-                 class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('thoi_gian_bat_dau') border-red-500 @enderror" 
-                 value="{{ old('thoi_gian_bat_dau', $suatChieu->thoi_gian_bat_dau->format('Y-m-d\TH:i')) }}" required>
-          @error('thoi_gian_bat_dau')
+          <input type="datetime-local" name="start_time" id="start_time" 
+                 class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('start_time') border-red-500 @enderror" 
+                 value="{{ old('start_time', $suatChieu->start_time->format('Y-m-d\TH:i')) }}" required>
+          @error('start_time')
             <p class="mt-1 text-sm text-red-500 flex items-center">
               <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
             </p>
@@ -100,13 +100,13 @@
 
         <!-- Thời Gian Kết Thúc -->
         <div class="space-y-2">
-          <label for="thoi_gian_ket_thuc" class="block text-sm font-medium text-gray-300">
+          <label for="end_time" class="block text-sm font-medium text-gray-300">
             <i class="fas fa-stop mr-2 text-[#F53003]"></i>Thời Gian Kết Thúc <span class="text-red-500">*</span>
           </label>
-          <input type="datetime-local" name="thoi_gian_ket_thuc" id="thoi_gian_ket_thuc" 
-                 class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('thoi_gian_ket_thuc') border-red-500 @enderror" 
-                 value="{{ old('thoi_gian_ket_thuc', $suatChieu->thoi_gian_ket_thuc->format('Y-m-d\TH:i')) }}" required>
-          @error('thoi_gian_ket_thuc')
+          <input type="datetime-local" name="end_time" id="end_time" 
+                 class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('end_time') border-red-500 @enderror" 
+                 value="{{ old('end_time', $suatChieu->end_time->format('Y-m-d\TH:i')) }}" required>
+          @error('end_time')
             <p class="mt-1 text-sm text-red-500 flex items-center">
               <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
             </p>
@@ -117,12 +117,13 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <!-- Trạng Thái -->
         <div class="space-y-2">
-          <label for="trang_thai" class="block text-sm font-medium text-gray-300">
+          <label for="status" class="block text-sm font-medium text-gray-300">
             <i class="fas fa-toggle-on mr-2 text-[#F53003]"></i>Trạng Thái
           </label>
-          <select name="trang_thai" id="trang_thai" class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200">
-            <option value="1" {{ old('trang_thai', $suatChieu->trang_thai) == 1 ? 'selected' : '' }}>Hoạt động</option>
-            <option value="0" {{ old('trang_thai', $suatChieu->trang_thai) == 0 ? 'selected' : '' }}>Tạm dừng</option>
+          <select name="status" id="status" class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200">
+            <option value="coming" {{ old('status', $suatChieu->status) == 'coming' ? 'selected' : '' }}>Sắp chiếu</option>
+            <option value="ongoing" {{ old('status', $suatChieu->status) == 'ongoing' ? 'selected' : '' }}>Đang chiếu</option>
+            <option value="finished" {{ old('status', $suatChieu->status) == 'finished' ? 'selected' : '' }}>Đã kết thúc</option>
           </select>
         </div>
       </div>
@@ -143,8 +144,8 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const startTimeInput = document.getElementById('thoi_gian_bat_dau');
-      const endTimeInput = document.getElementById('thoi_gian_ket_thuc');
+      const startTimeInput = document.getElementById('start_time');
+      const endTimeInput = document.getElementById('end_time');
       
       // Set minimum date to today
       const today = new Date().toISOString().slice(0, 16);

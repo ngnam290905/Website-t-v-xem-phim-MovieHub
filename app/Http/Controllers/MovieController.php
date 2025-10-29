@@ -46,8 +46,8 @@ class MovieController extends Controller
         $suatChieu = SuatChieu::with(['phongChieu'])
             ->where('id_phim', $id)
             ->where('trang_thai', true)
-            ->where('thoi_gian_bat_dau', '>=', now())
-            ->orderBy('thoi_gian_bat_dau')
+            ->where('start_time', '>=', now())
+            ->orderBy('start_time')
             ->get();
         
         // Get related movies (same genre or director)
@@ -123,8 +123,8 @@ class MovieController extends Controller
         $suatChieu = SuatChieu::with(['phongChieu'])
             ->where('id_phim', $movieId)
             ->where('trang_thai', true)
-            ->where('thoi_gian_bat_dau', '>=', now())
-            ->orderBy('thoi_gian_bat_dau')
+            ->where('start_time', '>=', now())
+            ->orderBy('start_time')
             ->get();
 
         return response()->json([

@@ -322,9 +322,9 @@
               <div class="bg-[#222533] rounded-lg p-4 hover:bg-[#2a2d3a] transition-colors cursor-pointer">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="font-semibold text-lg">{{ $suat->thoi_gian_bat_dau->format('H:i') }}</p>
+                    <p class="font-semibold text-lg">{{ $suat->start_time->format('H:i') }}</p>
                     <p class="text-sm text-[#a6a6b0]">{{ $suat->phongChieu->ten_phong }}</p>
-                    <p class="text-xs text-[#a6a6b0]">{{ $suat->thoi_gian_bat_dau->format('d/m/Y') }}</p>
+                    <p class="text-xs text-[#a6a6b0]">{{ $suat->start_time->format('d/m/Y') }}</p>
                   </div>
                   <div class="text-right">
                     <p class="font-bold text-[#F53003]">{{ number_format(80000) }}đ</p>
