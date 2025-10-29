@@ -1,40 +1,15 @@
 @extends('layouts.admin')
 
-@section('title', 'Xem Suất Chiếu - Staff')
-@section('page-title', 'Xem Suất Chiếu')
-@section('page-description', 'Xem danh sách các suất chiếu trong hệ thống')
+@section('title', 'Quản lý Suất Chiếu')
+@section('page-title', 'Quản lý Suất Chiếu')
+@section('page-description', 'Danh sách và quản lý các suất chiếu')
 
 @section('content')
-  <!-- Additional CSS for better styling -->
-  <style>
-    /* Enhanced dropdown styling */
-    select:focus {
-      box-shadow: 0 0 0 2px rgba(245, 48, 3, 0.2) !important;
-      border-color: #F53003 !important;
-    }
-    
-    select option:checked {
-      background-color: #F53003 !important;
-      color: white !important;
-    }
-    
-    /* Better hover effects */
-    .hover\:border-\[\#F53003\]:hover {
-      border-color: #F53003 !important;
-    }
-    
-    /* Chỉ giới hạn z-index cho các dropdown trong filter bar */
-    .filter-bar .relative {
-      z-index: 10;
-      overflow: visible;
-    }
-  </style>
-
   <!-- Breadcrumb -->
   <nav class="flex mb-6" aria-label="Breadcrumb">
     <ol class="inline-flex items-center space-x-1 md:space-x-3">
       <li class="inline-flex items-center">
-        <a href="{{ route('staff.dashboard') }}" class="inline-flex items-center text-sm font-medium text-[#a6a6b0] hover:text-white">
+        <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center text-sm font-medium text-[#a6a6b0] hover:text-white">
           <i class="fas fa-home mr-2"></i>
           Trang chủ
         </a>
@@ -52,8 +27,11 @@
     <div class="flex justify-between items-center">
       <div>
         <h1 class="text-2xl font-bold text-white">Danh sách Suất Chiếu</h1>
-        <p class="text-[#a6a6b0] mt-1">Xem tất cả các suất chiếu trong hệ thống</p>
+        <p class="text-[#a6a6b0] mt-1">Quản lý tất cả các suất chiếu trong hệ thống</p>
       </div>
+      <a href="{{ route('admin.suat-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
+        <i class="fas fa-plus mr-2"></i>Tạo Suất Chiếu Mới
+      </a>
     </div>
 
     @if(session('success'))
@@ -80,9 +58,9 @@
       </div>
     @endif
 
-    <!-- Filter Bar -->
-    <div class="bg-[#151822] border border-[#262833] rounded-xl p-4 mb-6 filter-bar">
-      <form method="GET" action="{{ route('staff.suat-chieu.index') }}" class="space-y-4">
+    <!-- Sticky Filter Bar -->
+    <div class="sticky top-0 z-30 bg-[#151822] border-b border-[#262833] p-4 mb-6">
+      <form method="GET" action="{{ route('admin.suat-chieu.index') }}" class="space-y-4">
         <!-- Main Filters Row -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
           <!-- Date Range -->
@@ -111,10 +89,11 @@
             <div class="relative">
               <select id="phim_id" 
                       name="phim_id" 
-                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer hover:border-[#F53003] transition-colors">
-                <option value="" class="bg-[#1a1d24] text-white">Tất cả phim</option>
+                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer"
+                      style="color: white !important; background-color: #1a1d24 !important;">
+                <option value="" style="background-color: #1a1d24 !important; color: white !important;">Tất cả phim</option>
                 @foreach($phim as $movie)
-                  <option value="{{ $movie->id }}" {{ request('phim_id') == $movie->id ? 'selected' : '' }} class="bg-[#1a1d24] text-white">
+                  <option value="{{ $movie->id }}" {{ request('phim_id') == $movie->id ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">
                     {{ $movie->ten_phim }}
                   </option>
                 @endforeach
@@ -131,13 +110,14 @@
             <div class="relative">
               <select id="phong_id" 
                       name="phong_id" 
-                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer hover:border-[#F53003] transition-colors">
-                <option value="" class="bg-[#1a1d24] text-white">Tất cả phòng</option>
-                  @foreach($phongChieu as $room)
-                    <option value="{{ $room->id }}" {{ request('phong_id') == $room->id ? 'selected' : '' }} class="bg-[#1a1d24] text-white">
-                      {{ $room->name }} ({{ $room->type }})
-                    </option>
-                  @endforeach
+                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer"
+                      style="color: white !important; background-color: #1a1d24 !important;">
+                <option value="" style="background-color: #1a1d24 !important; color: white !important;">Tất cả phòng</option>
+                @foreach($phongChieu as $room)
+                  <option value="{{ $room->id }}" {{ request('phong_id') == $room->id ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">
+                    {{ $room->name }} ({{ $room->type }})
+                  </option>
+                @endforeach
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <i class="fas fa-chevron-down text-[#a6a6b0] text-xs"></i>
@@ -151,11 +131,12 @@
             <div class="relative">
               <select id="status" 
                       name="status" 
-                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer hover:border-[#F53003] transition-colors">
-                <option value="" class="bg-[#1a1d24] text-white">Tất cả</option>
-                <option value="coming" {{ request('status') === 'coming' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Sắp chiếu</option>
-                <option value="ongoing" {{ request('status') === 'ongoing' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Đang chiếu</option>
-                <option value="finished" {{ request('status') === 'finished' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Đã kết thúc</option>
+                      class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent appearance-none cursor-pointer"
+                      style="color: white !important; background-color: #1a1d24 !important;">
+                <option value="" style="background-color: #1a1d24 !important; color: white !important;">Tất cả</option>
+                <option value="coming" {{ request('status') === 'coming' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Sắp chiếu</option>
+                <option value="ongoing" {{ request('status') === 'ongoing' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Đang chiếu</option>
+                <option value="finished" {{ request('status') === 'finished' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Đã kết thúc</option>
               </select>
               <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <i class="fas fa-chevron-down text-[#a6a6b0] text-xs"></i>
@@ -191,25 +172,27 @@
             <label for="sort_by" class="text-xs font-medium text-[#a6a6b0]">Sắp xếp:</label>
             <select id="sort_by" 
                     name="sort_by" 
-                    class="px-3 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F53003] hover:border-[#F53003] transition-colors">
-              <option value="start_time" {{ request('sort_by') == 'start_time' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Thời gian</option>
-              <option value="room_id" {{ request('sort_by') == 'room_id' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Phòng</option>
-              <option value="status" {{ request('sort_by') == 'status' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Trạng thái</option>
+                    class="px-3 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F53003]"
+                    style="color: white !important; background-color: #1a1d24 !important;">
+              <option value="start_time" {{ request('sort_by') == 'start_time' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Thời gian</option>
+              <option value="room_id" {{ request('sort_by') == 'room_id' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Phòng</option>
+              <option value="status" {{ request('sort_by') == 'status' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Trạng thái</option>
             </select>
             <select name="sort_order" 
-                    class="px-3 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F53003] hover:border-[#F53003] transition-colors">
-              <option value="asc" {{ request('sort_order') == 'asc' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Tăng dần</option>
-              <option value="desc" {{ request('sort_order') == 'desc' ? 'selected' : '' }} class="bg-[#1a1d24] text-white">Giảm dần</option>
+                    class="px-3 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#F53003]"
+                    style="color: white !important; background-color: #1a1d24 !important;">
+              <option value="asc" {{ request('sort_order') == 'asc' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Tăng dần</option>
+              <option value="desc" {{ request('sort_order') == 'desc' ? 'selected' : '' }} style="background-color: #1a1d24 !important; color: white !important;">Giảm dần</option>
             </select>
           </div>
           
-        @if(request()->hasAny(['phim_id', 'phong_id', 'status', 'tu_ngay', 'den_ngay']))
+          @if(request()->hasAny(['phim_id', 'phong_id', 'status', 'tu_ngay', 'den_ngay']))
             <span class="text-xs text-[#a6a6b0] flex items-center">
               <i class="fas fa-filter mr-1"></i>
               {{ collect(request()->only(['phim_id', 'phong_id', 'status', 'tu_ngay', 'den_ngay']))->filter()->count() }} bộ lọc
             </span>
           @endif
-          </div>
+        </div>
       </form>
     </div>
 
@@ -220,10 +203,10 @@
       </div>
       <div class="flex items-center gap-2">
         <label class="text-xs text-[#a6a6b0]">Hiển thị:</label>
-        <select onchange="changePageSize(this.value)" class="px-2 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white hover:border-[#F53003] transition-colors">
-          <option value="10" {{ request('per_page', 10) == 10 ? 'selected' : '' }} class="bg-[#1a1d24] text-white">10</option>
-          <option value="25" {{ request('per_page', 10) == 25 ? 'selected' : '' }} class="bg-[#1a1d24] text-white">25</option>
-          <option value="50" {{ request('per_page', 10) == 50 ? 'selected' : '' }} class="bg-[#1a1d24] text-white">50</option>
+        <select onchange="changePageSize(this.value)" class="px-2 py-1 bg-[#1a1d24] border border-[#262833] rounded text-xs text-white">
+          <option value="10" {{ request('per_page', 10) == 10 ? 'selected' : '' }}>10</option>
+          <option value="25" {{ request('per_page', 10) == 25 ? 'selected' : '' }}>25</option>
+          <option value="50" {{ request('per_page', 10) == 50 ? 'selected' : '' }}>50</option>
         </select>
       </div>
     </div>
@@ -235,6 +218,9 @@
           <!-- Sticky Header -->
           <thead class="bg-[#1a1d24] sticky top-0 z-20">
             <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">
+                <input type="checkbox" id="select-all" class="rounded border-[#262833] bg-[#1a1d24] text-[#F53003] focus:ring-[#F53003]">
+              </th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Phim</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Phòng</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thời gian</th>
@@ -246,6 +232,9 @@
           <tbody class="bg-[#151822] divide-y divide-[#262833]">
             @forelse($suatChieu as $suat)
             <tr class="hover:bg-[#1a1d24] transition-colors duration-150 border-l-2 border-transparent hover:border-[#F53003]">
+              <td class="px-4 py-3">
+                <input type="checkbox" class="row-checkbox rounded border-[#262833] bg-[#1a1d24] text-[#F53003] focus:ring-[#F53003]" value="{{ $suat->id }}">
+              </td>
               <td class="px-4 py-3">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-8 bg-[#262833] rounded flex items-center justify-center">
@@ -260,8 +249,8 @@
                 </div>
               </td>
               <td class="px-4 py-3">
-                <div class="text-sm text-white">{{ $suat->phongChieu->name ?? 'N/A' }}</div>
-                <div class="text-xs text-[#a6a6b0]">{{ $suat->phongChieu->type ?? 'N/A' }} • {{ $suat->phongChieu->capacity ?? 'N/A' }} ghế</div>
+                <div class="text-sm text-white">{{ $suat->room->name ?? 'N/A' }}</div>
+                <div class="text-xs text-[#a6a6b0]">{{ $suat->room->type ?? 'N/A' }} • {{ $suat->room->capacity ?? 'N/A' }} ghế</div>
               </td>
               <td class="px-4 py-3">
                 <div class="text-sm text-white">{{ \Carbon\Carbon::parse($suat->start_time)->format('d/m/Y • H:i') }}</div>
@@ -286,17 +275,17 @@
               </td>
               <td class="px-4 py-3">
                 @if($suat->status === 'coming')
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
                     <i class="fas fa-clock mr-1"></i>
                     Sắp chiếu
                   </span>
                 @elseif($suat->status === 'ongoing')
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                     <i class="fas fa-play-circle mr-1"></i>
                     Đang chiếu
                   </span>
                 @else
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                     <i class="fas fa-check-circle mr-1"></i>
                     Đã kết thúc
                   </span>
@@ -304,34 +293,60 @@
               </td>
               <td class="px-4 py-3">
                 @php
-                  $totalSeats = $suat->phongChieu->capacity ?? 0;
+                  $totalSeats = $suat->room->capacity ?? 0;
                   $soldSeats = rand(0, $totalSeats); // Mock data - replace with actual booking count
                   $percentage = $totalSeats > 0 ? round(($soldSeats / $totalSeats) * 100) : 0;
                 @endphp
                 <div class="text-sm text-white">{{ $soldSeats }}/{{ $totalSeats }}</div>
-                <div class="w-full bg-gray-700 rounded-full h-1.5 mt-1">
-                  <div class="bg-[#F53003] h-1.5 rounded-full transition-all duration-300" style="width: {{ $percentage }}%"></div>
+                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                  <div class="bg-[#F53003] h-1.5 rounded-full" style="width: {{ $percentage }}%"></div>
                 </div>
                 <div class="text-xs text-[#a6a6b0]">{{ $percentage }}%</div>
               </td>
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2">
-                  <a href="{{ route('staff.suat-chieu.show', $suat) }}" 
+                  <a href="{{ route('admin.suat-chieu.show', $suat) }}" 
                      class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
                      title="Xem chi tiết">
                     <i class="fas fa-eye mr-1"></i>
-                    Xem chi tiết
+                    Xem
                   </a>
+                  <div class="relative">
+                    <button type="button" class="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                            onclick="toggleDropdown({{ $suat->id }})" title="Thêm hành động">
+                      <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div id="dropdown-{{ $suat->id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                      <div class="py-1">
+                        <a href="{{ route('admin.suat-chieu.edit', $suat) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                          <i class="fas fa-edit mr-2"></i>Sửa lịch
+                        </a>
+                        <button onclick="duplicateShowtime({{ $suat->id }})" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                          <i class="fas fa-copy mr-2"></i>Nhân bản
+                        </button>
+                        <button onclick="updateStatus({{ $suat->id }}, '{{ $suat->status === 'coming' ? 'ongoing' : ($suat->status === 'ongoing' ? 'finished' : 'coming') }}')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                          <i class="fas fa-arrow-right mr-2"></i>Cập nhật trạng thái
+                        </button>
+                        <hr class="my-1">
+                        <button onclick="confirmDelete({{ $suat->id }})" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                          <i class="fas fa-trash mr-2"></i>Xóa
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </td>
             </tr>
             @empty
             <tr>
-              <td colspan="6" class="px-6 py-12 text-center">
+              <td colspan="7" class="px-6 py-12 text-center">
                 <div class="flex flex-col items-center">
                   <i class="fas fa-calendar-times text-4xl text-[#a6a6b0] mb-4"></i>
                   <h3 class="text-lg font-medium text-white mb-2">Không có suất chiếu nào</h3>
                   <p class="text-sm text-[#a6a6b0] mb-4">Chưa có suất chiếu nào được tạo hoặc không khớp với bộ lọc</p>
+                  <a href="{{ route('admin.suat-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center">
+                    <i class="fas fa-plus mr-2"></i>Tạo Suất Chiếu Mới
+                  </a>
                 </div>
               </td>
             </tr>
@@ -340,7 +355,6 @@
         </table>
       </div>
     </div>
-
     <!-- Pagination -->
     @if($suatChieu->hasPages())
     <div class="mt-6 flex items-center justify-between">
@@ -355,6 +369,39 @@
   </div>
 
 <script>
+// Dropdown toggle
+function toggleDropdown(id) {
+    const dropdown = document.getElementById(`dropdown-${id}`);
+    const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
+    
+    // Close all other dropdowns
+    allDropdowns.forEach(d => {
+        if (d.id !== `dropdown-${id}`) {
+            d.classList.add('hidden');
+        }
+    });
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('hidden');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.relative')) {
+        document.querySelectorAll('[id^="dropdown-"]').forEach(dropdown => {
+            dropdown.classList.add('hidden');
+        });
+    }
+});
+
+// Select all checkbox
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
 // Page size change
 function changePageSize(size) {
     const url = new URL(window.location);
@@ -362,11 +409,90 @@ function changePageSize(size) {
     window.location.href = url.toString();
 }
 
+// Duplicate showtime
+function duplicateShowtime(id) {
+    if (confirm('Bạn có muốn nhân bản suất chiếu này?')) {
+        fetch(`/admin/suat-chieu/${id}/duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Có lỗi xảy ra: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Có lỗi xảy ra khi nhân bản suất chiếu');
+        });
+    }
+}
+
+// Confirm delete
+function confirmDelete(id) {
+    if (confirm('Bạn có chắc chắn muốn xóa suất chiếu này?\n\nHành động này không thể hoàn tác!')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/suat-chieu/${id}`;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = '_token';
+        csrfToken.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        const methodField = document.createElement('input');
+        methodField.type = 'hidden';
+        methodField.name = '_method';
+        methodField.value = 'DELETE';
+        
+        form.appendChild(csrfToken);
+        form.appendChild(methodField);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Update status
+function updateStatus(id, status) {
+    if (confirm('Bạn có chắc chắn muốn thay đổi trạng thái suất chiếu?')) {
+        fetch(`/admin/suat-chieu/${id}/status`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                status: status
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Có lỗi xảy ra khi cập nhật trạng thái');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Có lỗi xảy ra khi cập nhật trạng thái');
+        });
+    }
+}
+
 // Auto-submit form when filters change
 document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.querySelector('form[method="GET"]');
     const filterInputs = filterForm.querySelectorAll('select, input[type="date"]');
     
+    // Auto-submit when filter values change
     filterInputs.forEach(input => {
         input.addEventListener('change', function() {
             setTimeout(() => {

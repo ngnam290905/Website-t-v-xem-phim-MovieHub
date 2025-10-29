@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Staff Suat Chieu Debug</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-8">
+        <h1 class="text-2xl font-bold mb-4">Staff Suat Chieu Debug</h1>
+        
+        <div class="bg-gray-800 p-4 rounded mb-4">
+            <h2 class="text-lg font-semibold mb-2">Test JavaScript Functions</h2>
+            <button onclick="testToggleDropdown()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded mr-2">
+                Test Toggle Dropdown
+            </button>
+            <button onclick="testChangePageSize()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded mr-2">
+                Test Change Page Size
+            </button>
+            <button onclick="testDuplicateShowtime()" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded">
+                Test Duplicate Showtime
+            </button>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded mb-4">
+            <h2 class="text-lg font-semibold mb-2">Test Dropdown</h2>
+            <div class="relative inline-block text-left">
+                <button type="button" 
+                        class="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md transition-colors duration-200"
+                        onclick="toggleDropdown('test-dropdown')">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                
+                <div id="test-dropdown" 
+                     class="hidden absolute right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-50">
+                    <div class="py-1">
+                        <a href="#" class="block px-4 py-2 text-sm text-white hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>Test Action 1
+                        </a>
+                        <a href="#" class="block px-4 py-2 text-sm text-white hover:bg-gray-600 transition-colors">
+                            <i class="fas fa-copy mr-2"></i>Test Action 2
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gray-800 p-4 rounded">
+            <h2 class="text-lg font-semibold mb-2">Console Output</h2>
+            <div id="console-output" class="bg-black p-4 rounded text-green-400 font-mono text-sm">
+                Ready for testing...
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Page size change
+    function changePageSize(size) {
+        log('changePageSize called with: ' + size);
+        const url = new URL(window.location);
+        url.searchParams.set('per_page', size);
+        log('URL updated: ' + url.toString());
+        // window.location.href = url.toString();
+    }
+
+    // Toggle dropdown
+    function toggleDropdown(dropdownId) {
+        log('toggleDropdown called with: ' + dropdownId);
+        const dropdown = document.getElementById(dropdownId);
+        const isHidden = dropdown.classList.contains('hidden');
+        
+        // Close all other dropdowns
+        document.querySelectorAll('[id^="dropdown-"], #test-dropdown').forEach(dd => {
+            dd.classList.add('hidden');
+        });
+        
+        // Toggle current dropdown
+        if (isHidden) {
+            dropdown.classList.remove('hidden');
+            log('Dropdown opened: ' + dropdownId);
+        } else {
+            log('Dropdown closed: ' + dropdownId);
+        }
+    }
+
+    // Duplicate showtime
+    function duplicateShowtime(id) {
+        log('duplicateShowtime called with: ' + id);
+        if (confirm('Bạn có chắc chắn muốn nhân bản suat chiếu này?')) {
+            log('User confirmed duplicate');
+            // Simulate API call
+            setTimeout(() => {
+                log('Duplicate completed successfully');
+            }, 1000);
+        } else {
+            log('User cancelled duplicate');
+        }
+    }
+
+    // Test functions
+    function testToggleDropdown() {
+        log('Testing toggleDropdown...');
+        toggleDropdown('test-dropdown');
+    }
+
+    function testChangePageSize() {
+        log('Testing changePageSize...');
+        changePageSize(25);
+    }
+
+    function testDuplicateShowtime() {
+        log('Testing duplicateShowtime...');
+        duplicateShowtime(123);
+    }
+
+    // Logging function
+    function log(message) {
+        const output = document.getElementById('console-output');
+        const timestamp = new Date().toLocaleTimeString();
+        output.innerHTML += '[' + timestamp + '] ' + message + '<br>';
+        output.scrollTop = output.scrollHeight;
+        console.log(message);
+    }
+
+    // Auto-submit form when filters change
+    document.addEventListener('DOMContentLoaded', function() {
+        log('DOM loaded, initializing...');
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('[id^="dropdown-"]') && !event.target.closest('button[onclick*="toggleDropdown"]')) {
+                document.querySelectorAll('[id^="dropdown-"], #test-dropdown').forEach(dropdown => {
+                    dropdown.classList.add('hidden');
+                });
+            }
+        });
+        
+        log('Event listeners attached');
+    });
+    </script>
+</body>
+</html>

@@ -14,46 +14,7 @@ class MovieController extends Controller
      * Admin: Can see all movies with CRUD actions
      * Staff: Can only view movies (read-only)
      */
-    public function index()
-    {
-        $query = Phim::query();
-
-        $status = request('status');
-        if (in_array($status, ['sap_chieu','dang_chieu','ngung_chieu'])) {
-            $query->where('trang_thai', $status);
-        }
-
-        $movies = $query->orderBy('created_at', 'desc')->paginate(8);
-
-        return view('admin.movies.index', compact('movies'));
-    }
-
-    /**
-     * Search movies by name, ID, or director
-     * Admin and Staff can access
-     */
-    public function search(Request $request)
-    {
-        $searchTerm = $request->get('search');
-        
-        if (empty($searchTerm)) {
-            return redirect()->route('admin.movies.index');
-        }
-
-        $movies = Phim::where(function($query) use ($searchTerm) {
-            $query->where('ten_phim', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('ten_goc', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('dao_dien', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('the_loai', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('quoc_gia', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('id', 'LIKE', "%{$searchTerm}%");
-        })->orderBy('created_at', 'desc')->paginate(8);
-
-        // Keep search term in pagination links
-        $movies->appends(['search' => $searchTerm]);
-        
-        return view('admin.movies.index', compact('movies'));
-    }
+    // ...existing code...
 
     /**
      * Show the form for creating a new movie

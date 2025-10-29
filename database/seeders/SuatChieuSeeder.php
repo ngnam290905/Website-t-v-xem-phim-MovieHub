@@ -37,9 +37,9 @@ class SuatChieuSeeder extends Seeder
                     $suatChieu[] = [
                         'id_phim' => $movie->id,
                         'id_phong' => $phong->id,
-                        'thoi_gian_bat_dau' => $startTime,
-                        'thoi_gian_ket_thuc' => $endTime,
-                        'trang_thai' => true,
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                        'status' => 'coming',
                         'created_at' => now(),
                         'updated_at' => now()
                     ];

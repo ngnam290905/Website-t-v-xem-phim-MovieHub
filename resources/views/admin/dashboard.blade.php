@@ -41,7 +41,7 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Suất chiếu hôm nay</div>
-            <div class="text-3xl font-bold text-white">{{ \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', today())->count() }}</div>
+            <div class="text-3xl font-bold text-white">{{ \App\Models\SuatChieu::whereDate('start_time', today())->count() }}</div>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <i class="fas fa-calendar-alt text-green-400 text-xl"></i>
@@ -95,17 +95,17 @@
           Thao tác nhanh
         </h3>
         <div class="grid grid-cols-2 gap-4">
-          <a href="{{ route('admin.ghe.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
+          <a href="{{ route('admin.phong-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
             <i class="fas fa-plus text-2xl mb-2 block"></i>
-            <div class="font-medium">Tạo ghế mới</div>
+            <div class="font-medium">Tạo phòng mới</div>
           </a>
           <a href="{{ route('admin.suat-chieu.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
             <i class="fas fa-calendar-plus text-2xl mb-2 block"></i>
             <div class="font-medium">Tạo suất chiếu</div>
           </a>
-          <a href="{{ route('admin.ghe.index') }}" class="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
-            <i class="fas fa-chair text-2xl mb-2 block"></i>
-            <div class="font-medium">Quản lý ghế</div>
+          <a href="{{ route('admin.phong-chieu.index') }}" class="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
+            <i class="fas fa-video text-2xl mb-2 block"></i>
+            <div class="font-medium">Quản lý phòng</div>
           </a>
           <a href="{{ route('admin.suat-chieu.index') }}" class="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg text-center transition-all duration-300 hover:scale-105">
             <i class="fas fa-calendar-alt text-2xl mb-2 block"></i>

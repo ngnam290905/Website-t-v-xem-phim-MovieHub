@@ -14,11 +14,11 @@
           Trang chủ
         </a>
       </li>
-      <li class="inline-flex items-center">
-        <a href="{{ route('staff.suat-chieu.index') }}" class="inline-flex items-center text-sm font-medium text-[#a6a6b0] hover:text-white">
+      <li>
+        <div class="flex items-center">
           <i class="fas fa-chevron-right text-[#a6a6b0] mx-2"></i>
-          Suất chiếu
-        </a>
+          <a href="{{ route('staff.suat-chieu.index') }}" class="text-sm font-medium text-[#a6a6b0] hover:text-white">Suất chiếu</a>
+        </div>
       </li>
       <li aria-current="page">
         <div class="flex items-center">
@@ -30,82 +30,128 @@
   </nav>
 
   <div class="space-y-6">
-    <!-- Staff Notice -->
-    <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-      <div class="flex items-start gap-3">
-        <svg class="w-5 h-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-        <div>
-          <h3 class="text-blue-400 font-semibold text-sm">Chế độ xem</h3>
-          <p class="text-blue-200 text-sm mt-1">
-            Bạn đang xem thông tin chi tiết suất chiếu. Chỉ có thể xem thông tin, không thể chỉnh sửa.
-          </p>
-        </div>
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Chi tiết Suất Chiếu</h1>
+        <p class="text-[#a6a6b0] mt-1">Thông tin chi tiết về suất chiếu</p>
       </div>
-    </div>
-
-    <!-- Back Button -->
-    <div class="flex items-center gap-4">
-      <a href="{{ route('staff.suat-chieu.index') }}" class="inline-flex items-center px-4 py-2 bg-[#262833] hover:bg-[#3a3d4a] text-white rounded-lg transition-colors">
-        <i class="fas fa-arrow-left mr-2"></i>
-        Quay lại
+      <a href="{{ route('staff.suat-chieu.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
+        <i class="fas fa-arrow-left mr-2"></i>Quay lại
       </a>
-      <h1 class="text-2xl font-bold text-white">Chi tiết Suất Chiếu</h1>
     </div>
 
-    <!-- Suat Chieu Details -->
+    <!-- Main Content -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Main Info -->
+      <!-- Movie Information -->
       <div class="lg:col-span-2 space-y-6">
-        <!-- Basic Info -->
+        <!-- Movie Details -->
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-          <h2 class="text-lg font-semibold text-white mb-4">Thông tin cơ bản</h2>
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <i class="fas fa-film mr-2 text-[#F53003]"></i>
+            Thông tin phim
+          </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Tên phim</label>
-              <p class="text-white">{{ $suatChieu->phim->ten_phim ?? 'N/A' }}</p>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Tên phim</label>
+              <p class="text-white font-medium">{{ $suatChieu->phim->ten_phim ?? 'N/A' }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Đạo diễn</label>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Đạo diễn</label>
               <p class="text-white">{{ $suatChieu->phim->dao_dien ?? 'N/A' }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Phòng chiếu</label>
-              <p class="text-white">{{ $suatChieu->phongChieu->ten_phong ?? 'N/A' }}</p>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thời lượng</label>
+              <p class="text-white">{{ $suatChieu->phim->thoi_luong ?? 'N/A' }} phút</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Sức chứa</label>
-              <p class="text-white">{{ $suatChieu->phongChieu->suc_chua ?? 'N/A' }} ghế</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Thời gian bắt đầu</label>
-              <p class="text-white">{{ \Carbon\Carbon::parse($suatChieu->thoi_gian_bat_dau)->format('d/m/Y H:i') }}</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-[#a6a6b0] mb-1">Thời gian kết thúc</label>
-              <p class="text-white">{{ \Carbon\Carbon::parse($suatChieu->thoi_gian_ket_thuc)->format('d/m/Y H:i') }}</p>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thể loại</label>
+              <p class="text-white">{{ $suatChieu->phim->the_loai ?? 'N/A' }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Status Info -->
+        <!-- Showtime Details -->
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-          <h2 class="text-lg font-semibold text-white mb-4">Trạng thái</h2>
-          <div class="flex items-center gap-4">
-            @if($suatChieu->trang_thai)
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                <i class="fas fa-check-circle mr-2"></i>
-                Hoạt động
-              </span>
-            @else
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                <i class="fas fa-times-circle mr-2"></i>
-                Tạm dừng
-              </span>
-            @endif
-            <div class="text-sm text-[#a6a6b0]">
-              Cập nhật lần cuối: {{ $suatChieu->updated_at->format('d/m/Y H:i') }}
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <i class="fas fa-clock mr-2 text-[#F53003]"></i>
+            Thông tin suất chiếu
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thời gian bắt đầu</label>
+              <p class="text-white font-medium">{{ \Carbon\Carbon::parse($suatChieu->start_time)->format('d/m/Y H:i') }}</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thời gian kết thúc</label>
+              <p class="text-white font-medium">{{ \Carbon\Carbon::parse($suatChieu->end_time)->format('d/m/Y H:i') }}</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Trạng thái</label>
+              <div class="mt-1">
+                @if($suatChieu->status === 'coming')
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    <i class="fas fa-clock mr-1"></i>
+                    Sắp chiếu
+                  </span>
+                @elseif($suatChieu->status === 'ongoing')
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+                    <i class="fas fa-play-circle mr-1"></i>
+                    Đang chiếu
+                  </span>
+                @else
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    Đã kết thúc
+                  </span>
+                @endif
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Thời gian còn lại</label>
+              <p class="text-white">
+                @php
+                  $now = now();
+                  $start = \Carbon\Carbon::parse($suatChieu->start_time);
+                  $end = \Carbon\Carbon::parse($suatChieu->end_time);
+                  
+                  if ($now->lt($start)) {
+                    $diff = $now->diffForHumans($start, true);
+                    echo "Còn {$diff}";
+                  } elseif ($now->between($start, $end)) {
+                    echo "Đang chiếu";
+                  } else {
+                    $diff = $now->diffForHumans($end, true);
+                    echo "Đã kết thúc {$diff}";
+                  }
+                @endphp
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Room Information -->
+        <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <i class="fas fa-door-open mr-2 text-[#F53003]"></i>
+            Thông tin phòng chiếu
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Tên phòng</label>
+              <p class="text-white font-medium">{{ $suatChieu->phongChieu->name ?? 'N/A' }}</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Loại phòng</label>
+              <p class="text-white">{{ $suatChieu->phongChieu->type ?? 'N/A' }}</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Sức chứa</label>
+              <p class="text-white">{{ $suatChieu->phongChieu->capacity ?? 'N/A' }} ghế</p>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-[#a6a6b0] uppercase tracking-wider">Trạng thái</label>
+              <p class="text-white">{{ $suatChieu->phongChieu->status ?? 'N/A' }}</p>
             </div>
           </div>
         </div>
@@ -113,44 +159,55 @@
 
       <!-- Sidebar -->
       <div class="space-y-6">
-        <!-- Movie Poster -->
+        <!-- Booking Status -->
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Poster phim</h3>
-          <div class="aspect-[2/3] bg-[#262833] rounded-lg flex items-center justify-center">
-            @if($suatChieu->phim && $suatChieu->phim->poster)
-              <img src="{{ $suatChieu->phim->poster }}" alt="{{ $suatChieu->phim->ten_phim }}" class="w-full h-full object-cover rounded-lg">
-            @else
-              <i class="fas fa-film text-4xl text-[#a6a6b0]"></i>
-            @endif
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <i class="fas fa-ticket-alt mr-2 text-[#F53003]"></i>
+            Tình trạng bán vé
+          </h3>
+          @php
+            $totalSeats = $suatChieu->phongChieu->capacity ?? 0;
+            $soldSeats = rand(0, $totalSeats); // Mock data
+            $availableSeats = $totalSeats - $soldSeats;
+            $percentage = $totalSeats > 0 ? round(($soldSeats / $totalSeats) * 100) : 0;
+          @endphp
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-[#a6a6b0]">Đã bán</span>
+              <span class="text-white font-medium">{{ $soldSeats }}/{{ $totalSeats }}</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-3">
+              <div class="bg-[#F53003] h-3 rounded-full transition-all duration-300" style="width: {{ $percentage }}%"></div>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-[#a6a6b0]">Còn trống</span>
+              <span class="text-white font-medium">{{ $availableSeats }}</span>
+            </div>
+            <div class="text-center">
+              <span class="text-2xl font-bold text-[#F53003]">{{ $percentage }}%</span>
+              <p class="text-xs text-[#a6a6b0]">Tỷ lệ bán vé</p>
+            </div>
           </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-          <h3 class="text-lg font-semibold text-white mb-4">Hành động</h3>
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+            <i class="fas fa-tools mr-2 text-[#F53003]"></i>
+            Thông tin bổ sung
+          </h3>
           <div class="space-y-3">
-            <a href="{{ route('staff.suat-chieu.index') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-[#262833] hover:bg-[#3a3d4a] text-white rounded-lg transition-colors">
-              <i class="fas fa-list mr-2"></i>
-              Danh sách suất chiếu
-            </a>
-            <a href="{{ route('staff.ghe.index') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              <i class="fas fa-chair mr-2"></i>
-              Xem ghế
-            </a>
-          </div>
-        </div>
-
-        <!-- Info -->
-        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-          <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-              <h3 class="text-yellow-400 font-semibold text-sm">Thông báo</h3>
-              <p class="text-yellow-200 text-sm mt-1">
-                Bạn chỉ có thể xem thông tin suất chiếu. Để chỉnh sửa, vui lòng liên hệ Admin.
-              </p>
+            <div class="flex items-center justify-between p-3 bg-[#1a1d24] rounded-lg">
+              <span class="text-sm text-[#a6a6b0]">ID Suất chiếu</span>
+              <span class="text-white font-mono text-sm">#{{ $suatChieu->id }}</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-[#1a1d24] rounded-lg">
+              <span class="text-sm text-[#a6a6b0]">Ngày tạo</span>
+              <span class="text-white text-sm">{{ $suatChieu->created_at->format('d/m/Y') }}</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-[#1a1d24] rounded-lg">
+              <span class="text-sm text-[#a6a6b0]">Cập nhật cuối</span>
+              <span class="text-white text-sm">{{ $suatChieu->updated_at->format('d/m/Y') }}</span>
             </div>
           </div>
         </div>

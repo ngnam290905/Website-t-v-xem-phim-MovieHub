@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use App\Models\Movie;
+use Carbon\Carbon;
 
 class SuatChieu extends Model
 {
@@ -17,48 +20,54 @@ class SuatChieu extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'id_phim',
-        'id_phong',
-        'thoi_gian_bat_dau',
-        'thoi_gian_ket_thuc',
-        'trang_thai',
+    'movie_id',
+    'room_id',
+    'start_time',
+    'end_time',
+    'status'
     ];
 
     protected $casts = [
-        'thoi_gian_bat_dau' => 'datetime',
-        'thoi_gian_ket_thuc' => 'datetime',
-        'trang_thai' => 'boolean',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+        'status' => 'string',
     ];
 
-    /**
-     * Get the movie for this showtime
-     */
-    public function phim(): BelongsTo
+
+    // Relationship with Movie
+    public function movie(): BelongsTo
     {
-        return $this->belongsTo(Phim::class, 'id_phim');
+    return $this->belongsTo(Phim::class, 'movie_id');
     }
 
-    /**
-     * Get the cinema room for this showtime
-     */
-    public function phongChieu(): BelongsTo
+    // Get total seats count
+    public function getTotalSeatsCountAttribute()
     {
-        return $this->belongsTo(PhongChieu::class, 'id_phong');
+        return $this->seats()->count();
     }
 
-    /**
-     * Relationship with DatVe
-     */
-    public function datVe(): HasMany
+    // Get occupancy percentage
+    public function getOccupancyPercentageAttribute()
     {
-        return $this->hasMany(DatVe::class, 'id_suat_chieu');
+        $total = $this->total_seats_count;
+        if ($total === 0) return 0;
+        
+        return round(($this->booked_seats_count / $total) * 100, 2);
     }
 
-    /**
-     * Relationship with Ghe through PhongChieu
-     */
-    public function ghe(): HasMany
+    // Update status based on current time
+    public function updateStatus()
     {
-    return $this->hasMany(Ghe::class, 'id_phong', 'id_phong');
+        $now = Carbon::now();
+        
+        if ($now->lt($this->start_time)) {
+            $this->status = 'coming';
+        } elseif ($now->between($this->start_time, $this->end_time)) {
+            $this->status = 'ongoing';
+        } else {
+            $this->status = 'finished';
+        }
+        
+    $this->save();
     }
 }
