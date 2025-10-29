@@ -7,14 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
+
 class MovieController extends Controller
 {
     /**
-     * Display a listing of movies
-     * Admin: Can see all movies with CRUD actions
-     * Staff: Can only view movies (read-only)
+     * Hiển thị danh sách phim (trang chủ)
      */
-    // ...existing code...
+    public function index()
+    {
+        $movies = Phim::orderByDesc('ngay_khoi_chieu')->get();
+        return view('home', compact('movies'));
+    }
 
     /**
      * Show the form for creating a new movie
