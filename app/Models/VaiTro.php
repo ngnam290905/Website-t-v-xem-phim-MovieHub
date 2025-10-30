@@ -10,13 +10,10 @@ class VaiTro extends Model
     use HasFactory;
 
     protected $table = 'vai_tro';
-
+    protected $primaryKey = 'id';
     public $timestamps = false;
 
-    protected $fillable = [
-        'ten',
-        'mo_ta',
-    ];
+    protected $fillable = ['ten', 'mo_ta'];
 }
 
 

@@ -3,124 +3,248 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin - MovieHub')</title>
+    @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+      @vite(['resources/css/app.css','resources/js/app.js'])
+    @else
+      <script src="https://cdn.tailwindcss.com"></script>
+    @endif
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
+    <!-- Global Dark Mode CSS Fixes -->
     <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .sidebar {
-            background-color: #343a40;
-            min-height: calc(100vh - 56px);
-        }
-        .sidebar .nav-link {
-            color: #adb5bd;
-            padding: 0.75rem 1rem;
-        }
-        .sidebar .nav-link:hover {
-            color: #fff;
-            background-color: #495057;
-        }
-        .sidebar .nav-link.active {
-            color: #fff;
-            background-color: #007bff;
-        }
-        .navbar-brand {
-            font-weight: bold;
+    /* Fix dark mode dropdown options visibility - More aggressive approach */
+    select {
+        color: white !important;
+        background-color: #1a1d24 !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+    }
+
+    select option {
+        background-color: #1a1d24 !important;
+        color: white !important;
+        padding: 8px 12px !important;
+    }
+
+    select option:hover {
+        background-color: #262833 !important;
+        color: white !important;
+    }
+
+    select option:focus {
+        background-color: #262833 !important;
+        color: white !important;
+    }
+
+    select option:checked,
+    select option:selected {
+        background-color: #F53003 !important;
+        color: white !important;
+    }
+
+    /* Force override for all browsers */
+    select option[selected] {
+        background-color: #F53003 !important;
+        color ojos white !important;
+    }
+
+    /* Additional dark mode fixes */
+    input[type="date"] {
+        color-scheme: dark;
+        background-color: #1a1d24 !important;
+        color: white !important;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+
+    /* Force dark color scheme for all form elements */
+    select {
+        color-scheme: dark !important;
+    }
+
+    select option {
+        color-scheme: dark !important;
         }
     </style>
     
     @stack('styles')
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ route('admin.dashboard') }}">
-                <i class="fas fa-film me-2"></i>MovieHub Admin
-            </a>
-            
-            <div class="navbar-nav ms-auto">
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user me-1"></i>{{ auth()->user()->ho_ten }}
-                        <span class="badge bg-secondary ms-1">{{ auth()->user()->vaiTro->ten }}</span>
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ route('home') }}">
-                            <i class="fas fa-home me-2"></i>Về trang chủ
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form action="{{ route('logout') }}" method="POST" class="d-inline">
-                                @csrf
-                                <button type="submit" class="dropdown-item">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </nav>
+                            </head>
+                            <body class="min-h-screen bg-[#0d0f14] text-white">
+    <div class="flex h-screen">
+      <!-- Mobile menu button -->
+      <button id="mobile-menu-button" class="lg:hidden fixed top-4 left-4 z-50 p-3 bg-[#151822] border border-[#262833] rounded-lg text-white hover:bg-[#222533] transition-colors duration-200 shadow-lg">
+        <i class="fas fa-bars text-lg"></i>
+      </button>
 
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" 
-                               href="{{ route('admin.dashboard') }}">
-                                <i class="fas fa-tachometer-alt me-2"></i>Bảng điều khiển
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('admin.movies.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.movies.index') }}">
-                                <i class="fas fa-film me-2"></i>Quản lý phim
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="fas fa-calendar-alt me-2"></i>Suất chiếu
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="fas fa-ticket-alt me-2"></i>Vé
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="fas fa-users me-2"></i>Người dùng
-                            </a>
-                        </li>
-                    </ul>
+      <!-- Sidebar cố định -->
+      <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40 lg:z-auto">
+        <!-- Header -->
+        <div class="p-6 border-b border-[#262833]">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3">
+            <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+            <div>
+              <span class="text-xl font-bold text-white">MovieHub</span>
+              <p class="text-xs text-[#a6a6b0]">{{ request()->routeIs('staff.*') ? 'Staff Panel' : 'Admin Panel' }}</p>
+            </div>
+          </a>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-4 space-y-2">
+          <!-- Dashboard -->
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+            <i class="fas fa-tachometer-alt w-5"></i>
+            <span>Bảng điều khiển</span>
+          </a>
+          
+          @if(request()->routeIs('admin.*'))
+            <!-- Admin only menu items -->
+            <div class="space-y-1">
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Quản lý</div>
+              <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-video w-5"></i>
+                <span>Phòng chiếu</span>
+              </a>
+              <a href="{{ route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.manage-seats') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-chair w-5"></i>
+                <span>Quản lý ghế</span>
+              </a>
+              <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-calendar-alt w-5"></i>
+                <span>Suất chiếu</span>
+              </a>
+              <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-film w-5"></i>
+                <span>Phim</span>
+              </a>
+              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-ticket-alt w-5"></i>
+                <span>Đặt vé</span>
+              </a>
+              <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-users w-5"></i>
+                <span>Người dùng</span>
+              </a>
+              <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.reports.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-chart-bar w-5"></i>
+                <span>Báo cáo</span>
+              </a>
+              <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyenmai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-gift w-5"></i>
+                <span>Khuyến mãi</span>
+              </a>
+              <a href="{{ route('admin.combos.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.combos.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-box-open w-5"></i>
+                <span>Combo</span>
+              </a>
+            </div>
+          @else
+            <!-- Staff only menu items -->
+            <div class="space-y-1">
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Xem thông tin</div>
+              <a href="{{ route('staff.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-calendar-alt w-5"></i>
+                <span>Suất chiếu</span>
+              </a>
+              <a href="{{ route('staff.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-video w-5"></i>
+                <span>Phòng chiếu</span>
+              </a>
                 </div>
+          @endif
             </nav>
 
+        <!-- Footer -->
+        <div class="p-4 border-t border-[#262833] space-y-2">
+          <div class="space-y-1">
+            <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Hệ thống</div>
+            <a href="{{ route('home') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition-colors duration-200">
+              <i class="fas fa-home w-5"></i>
+              <span>Về trang chủ</span>
+            </a>
+            <form action="{{ route('logout') }}" method="POST" class="w-full">
+              @csrf
+              <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition-colors duration-200">
+                <i class="fas fa-sign-out-alt w-5"></i>
+                <span>Đăng xuất</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Mobile overlay -->
+      <div id="mobile-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
+
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="pt-3 pb-2 mb-3">
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Top bar -->
+        <header class="bg-[#1a1d24] border-b border-[#262833] px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-white">@yield('page-title', 'Admin')</h1>
+              <p class="text-sm text-[#a6a6b0]">@yield('page-description', 'Quản lý hệ thống')</p>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="text-sm text-[#a6a6b0]">
+                {{ date('d/m/Y H:i') }}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Content area -->
+        <main class="flex-1 overflow-y-auto bg-[#0d0f14]">
+          <div class="max-w-6xl mx-auto p-6">
                     @yield('content')
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Mobile menu toggle
+      document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobile-overlay');
+
+        function toggleMobileMenu() {
+          sidebar.classList.toggle('-translate-x-full');
+          mobileOverlay.classList.toggle('hidden');
+        }
+
+        function closeMobileMenu() {
+          sidebar.classList.add('-translate-x-full');
+          mobileOverlay.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', toggleMobileMenu);
+        mobileOverlay.addEventListener('click', closeMobileMenu);
+
+        // Close mobile menu when clicking on a link
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+          link.addEventListener('click', closeMobileMenu);
+        });
+
+        // Close mobile menu on escape key
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            closeMobileMenu();
+          }
+        });
+      });
+    </script>
     
     @stack('scripts')
 </body>
 </html>
-
-
