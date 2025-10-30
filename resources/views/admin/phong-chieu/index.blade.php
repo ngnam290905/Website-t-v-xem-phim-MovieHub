@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Quản lý phòng chiếu - Admin')
 @section('page-title', 'Quản lý phòng chiếu')
@@ -17,6 +17,26 @@
         <i class="fas fa-plus mr-2"></i>
         Thêm phòng mới
       </a>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Tổng số phòng</div>
+        <div class="text-2xl font-bold text-white mt-1">{{ $totalRooms ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Đang hoạt động</div>
+        <div class="text-2xl font-bold text-green-400 mt-1">{{ $activeRooms ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Tạm dừng</div>
+        <div class="text-2xl font-bold text-yellow-400 mt-1">{{ $pausedRooms ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Suất chiếu hôm nay</div>
+        <div class="text-2xl font-bold text-blue-400 mt-1">{{ $showtimesToday ?? 0 }}</div>
+      </div>
     </div>
 
     <!-- Filters -->

@@ -8,15 +8,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ChiTietDatVe extends Model
 {
     protected $table = 'chi_tiet_dat_ve';
+    public $timestamps = false;
     
     protected $fillable = [
         'id_dat_ve',
         'id_ghe',
-        'gia_ve'
+        'gia'
     ];
 
     protected $casts = [
-        'gia_ve' => 'decimal:2',
+        'gia' => 'decimal:2',
     ];
 
     // Relationship with DatVe

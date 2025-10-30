@@ -135,4 +135,33 @@ class AdminKhuyenMaiController extends Controller
         $km->delete();
         return redirect()->route('admin.khuyenmai.index')->with('success', 'Đã xóa mã khuyến mãi!');
     }
+
+    // Tạo nhanh các KM theo hạng thành viên
+    public function seedTiers(Request $request)
+    {
+        $now = Carbon::now();
+        $items = [
+            ['ma_km' => 'TIER_DONG', 'mo_ta' => 'Giảm theo hạng Đồng', 'gia_tri_giam' => 10000],
+            ['ma_km' => 'TIER_BAC', 'mo_ta' => 'Giảm theo hạng Bạc', 'gia_tri_giam' => 15000],
+            ['ma_km' => 'TIER_VANG', 'mo_ta' => 'Giảm theo hạng Vàng', 'gia_tri_giam' => 20000],
+            ['ma_km' => 'TIER_KIMCUONG', 'mo_ta' => 'Giảm theo hạng Kim cương', 'gia_tri_giam' => 25000],
+        ];
+
+        foreach ($items as $it) {
+            KhuyenMai::updateOrCreate(
+                ['ma_km' => $it['ma_km']],
+                [
+                    'mo_ta' => $it['mo_ta'],
+                    'ngay_bat_dau' => $now->copy()->startOfDay(),
+                    'ngay_ket_thuc' => $now->copy()->addYears(10),
+                    'gia_tri_giam' => $it['gia_tri_giam'],
+                    'loai_giam' => 'codinh',
+                    'dieu_kien' => 'Áp dụng tự động theo hạng thành viên',
+                    'trang_thai' => 1,
+                ]
+            );
+        }
+
+        return redirect()->route('admin.khuyenmai.index')->with('success', 'Đã tạo/cập nhật các KM theo hạng thành viên.');
+    }
 }

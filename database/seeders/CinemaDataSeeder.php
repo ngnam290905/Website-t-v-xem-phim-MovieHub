@@ -6,7 +6,8 @@ use Illuminate\Database\Seeder;
 use App\Models\PhongChieu;
 use App\Models\Ghe;
 use App\Models\SuatChieu;
-use App\Models\Movie;
+use App\Models\Phim;
+use App\Models\LoaiGhe;
 use Carbon\Carbon;
 
 class CinemaDataSeeder extends Seeder
@@ -16,50 +17,16 @@ class CinemaDataSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create sample rooms
+        // Create sample rooms (legacy columns via model mutators)
         $rooms = [
-            [
-                'name' => 'Phòng 1 - Standard',
-                'rows' => 8,
-                'cols' => 12,
-                'suc_chua' => 96,
-                'description' => 'Phòng chiếu tiêu chuẩn với 96 ghế',
-                'type' => 'normal',
-                'status' => 'active',
-            ],
-            [
-                'name' => 'Phòng 2 - VIP',
-                'rows' => 6,
-                'cols' => 8,
-                'suc_chua' => 48,
-                'description' => 'Phòng chiếu VIP với 48 ghế cao cấp',
-                'type' => 'vip',
-                'status' => 'active',
-            ],
-            [
-                'name' => 'Phòng 3 - IMAX',
-                'rows' => 10,
-                'cols' => 15,
-                'suc_chua' => 150,
-                'description' => 'Phòng chiếu IMAX với 150 ghế',
-                'type' => 'imax',
-                'status' => 'active',
-            ],
-            [
-                'name' => 'Phòng 4 - 3D',
-                'rows' => 7,
-                'cols' => 10,
-                'suc_chua' => 70,
-                'description' => 'Phòng chiếu 3D với 70 ghế',
-                'type' => '3d',
-                'status' => 'active',
-            ],
+            ['ten_phong' => 'Phòng 1 - Standard', 'so_hang' => 8,  'so_cot' => 12, 'suc_chua' => 96,  'mo_ta' => 'Phòng chiếu tiêu chuẩn với 96 ghế',  'trang_thai' => 1],
+            ['ten_phong' => 'Phòng 2 - VIP',      'so_hang' => 6,  'so_cot' => 8,  'suc_chua' => 48,  'mo_ta' => 'Phòng chiếu VIP với 48 ghế cao cấp', 'trang_thai' => 1],
+            ['ten_phong' => 'Phòng 3 - IMAX',     'so_hang' => 10, 'so_cot' => 15, 'suc_chua' => 150, 'mo_ta' => 'Phòng chiếu IMAX với 150 ghế',        'trang_thai' => 1],
+            ['ten_phong' => 'Phòng 4 - 3D',       'so_hang' => 7,  'so_cot' => 10, 'suc_chua' => 70,  'mo_ta' => 'Phòng chiếu 3D với 70 ghế',          'trang_thai' => 1],
         ];
 
-        foreach ($rooms as $roomData) {
-            $room = PhongChieu::create($roomData);
-            
-            // Create seats for this room
+        foreach ($rooms as $data) {
+            $room = PhongChieu::create($data);
             $this->createSeatsForRoom($room);
         }
 
@@ -71,85 +38,29 @@ class CinemaDataSeeder extends Seeder
     {
         $rows = $room->rows;
         $cols = $room->cols;
+
+        // Get default seat type (Ghế thường) or first available
+        $seatType = LoaiGhe::where('ten_loai', 'Ghế thường')->first() ?: LoaiGhe::first();
+        $seatTypeId = $seatType ? $seatType->id : null;
         
         for ($row = 1; $row <= $rows; $row++) {
             for ($col = 1; $col <= $cols; $col++) {
-                $rowLabel = chr(64 + $row); // A, B, C, etc.
-                $seatCode = $rowLabel . $col;
-                
-                // Determine seat type based on room type and position
-                $seatType = $this->determineSeatType($room->type, $row, $rows);
-                $price = $this->calculateSeatPrice($room->type, $seatType, $row, $rows);
-                
+                $seatCode = chr(64 + $row) . $col; // A1, A2, ...
                 Ghe::create([
-                    'room_id' => $room->id,
-                    'seat_code' => $seatCode,
-                    'row_label' => $rowLabel,
-                    'col_number' => $col,
-                    'type' => $seatType,
-                    'status' => 'available',
-                    'price' => $price,
+                    'id_phong' => $room->id,
+                    'id_loai' => $seatTypeId,
+                    'so_hang' => $row,
+                    'so_ghe' => $seatCode,
+                    'trang_thai' => 1,
                 ]);
             }
         }
     }
 
-    private function determineSeatType($roomType, $row, $totalRows)
-    {
-        // VIP seats in VIP rooms
-        if ($roomType === 'vip') {
-            return 'vip';
-        }
-        
-        // Front rows are normal, back rows might be VIP
-        if ($row <= 2) {
-            return 'normal';
-        } elseif ($row >= $totalRows - 1) {
-            return 'vip';
-        }
-        
-        return 'normal';
-    }
-
-    private function calculateSeatPrice($roomType, $seatType, $row, $totalRows)
-    {
-        $basePrice = 50000; // 50,000 VND base price
-        
-        // Room type multipliers
-        $roomMultipliers = [
-            'normal' => 1.0,
-            'vip' => 1.5,
-            '3d' => 1.3,
-            'imax' => 1.8,
-        ];
-        
-        // Seat type multipliers
-        $seatMultipliers = [
-            'normal' => 1.0,
-            'vip' => 1.5,
-            'disabled' => 0,
-        ];
-        
-        // Row position multipliers (front rows more expensive)
-        $rowMultiplier = 1.0;
-        if ($row <= 2) {
-            $rowMultiplier = 1.2; // Front rows
-        } elseif ($row >= $totalRows - 1) {
-            $rowMultiplier = 1.1; // Back rows
-        }
-        
-        $price = $basePrice * 
-                 ($roomMultipliers[$roomType] ?? 1.0) * 
-                 ($seatMultipliers[$seatType] ?? 1.0) * 
-                 $rowMultiplier;
-        
-        return round($price);
-    }
-
     private function createSampleShowtimes()
     {
-        $movies = Movie::where('trang_thai', 1)->take(3)->get();
-        $rooms = PhongChieu::where('status', 'active')->get();
+        $movies = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])->take(3)->get();
+        $rooms = PhongChieu::where('trang_thai', 1)->get();
         
         if ($movies->isEmpty() || $rooms->isEmpty()) {
             return;

@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Chi tiết phòng chiếu - Admin')
 @section('page-title', 'Chi tiết phòng chiếu')
@@ -90,7 +90,7 @@
           </div>
           <div class="flex justify-between py-2">
             <span class="font-medium text-[#a6a6b0]">Ngày tạo:</span>
-            <span class="text-white">{{ $phongChieu->created_at->format('d/m/Y') }}</span>
+            <span class="text-white">{{ optional($phongChieu->created_at)->format('d/m/Y') ?? 'Chưa cập nhật' }}</span>
           </div>
         </div>
       </div>
@@ -153,10 +153,10 @@
         </div>
         
         <div id="seat-map" class="flex flex-col items-center space-y-1">
-          @foreach($phongChieu->seats->groupBy('row_label') as $rowLabel => $seats)
+          @foreach($phongChieu->seats->groupBy('so_hang') as $rowNumber => $seats)
             <div class="flex space-x-1 items-center">
-              <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ $rowLabel }}</span>
-              @foreach($seats as $seat)
+              <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ chr(64 + (int)$rowNumber) }}</span>
+              @foreach($seats->sortBy('so_ghe') as $seat)
                 <button type="button" 
                         class="seat-btn w-8 h-8 rounded text-xs font-medium transition-all duration-200 
                                @if($seat->status === 'available') bg-green-600 hover:bg-green-700 text-white
@@ -213,7 +213,7 @@
                 <tr>
                   <td class="px-4 py-3 text-sm text-white">{{ $showtime->movie->ten_phim }}</td>
                   <td class="px-4 py-3 text-sm text-white">
-                    {{ $showtime->start_time->format('d/m/Y H:i') }} - {{ $showtime->end_time->format('H:i') }}
+                    {{ optional($showtime->start_time)->format('d/m/Y H:i') ?? 'N/A' }} - {{ optional($showtime->end_time)->format('H:i') ?? 'N/A' }}
                   </td>
                   <td class="px-4 py-3">
                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full 

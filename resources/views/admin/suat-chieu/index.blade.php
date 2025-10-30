@@ -1,27 +1,11 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Quản lý Suất Chiếu')
 @section('page-title', 'Quản lý Suất Chiếu')
 @section('page-description', 'Danh sách và quản lý các suất chiếu')
 
 @section('content')
-  <!-- Breadcrumb -->
-  <nav class="flex mb-6" aria-label="Breadcrumb">
-    <ol class="inline-flex items-center space-x-1 md:space-x-3">
-      <li class="inline-flex items-center">
-        <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center text-sm font-medium text-[#a6a6b0] hover:text-white">
-          <i class="fas fa-home mr-2"></i>
-          Trang chủ
-        </a>
-      </li>
-      <li aria-current="page">
-        <div class="flex items-center">
-          <i class="fas fa-chevron-right text-[#a6a6b0] mx-2"></i>
-          <span class="ml-1 text-sm font-medium text-white md:ml-2">Suất chiếu</span>
-        </div>
-      </li>
-    </ol>
-  </nav>
+  
 
   <div class="space-y-6">
     <div class="flex justify-between items-center">
@@ -32,6 +16,30 @@
       <a href="{{ route('admin.suat-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
         <i class="fas fa-plus mr-2"></i>Tạo Suất Chiếu Mới
       </a>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Tổng suất chiếu</div>
+        <div class="text-2xl font-bold text-white mt-1">{{ $totalShowtimes ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Sắp chiếu</div>
+        <div class="text-2xl font-bold text-blue-400 mt-1">{{ $comingCount ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Đang chiếu</div>
+        <div class="text-2xl font-bold text-green-400 mt-1">{{ $ongoingCount ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Đã kết thúc</div>
+        <div class="text-2xl font-bold text-gray-400 mt-1">{{ $finishedCount ?? 0 }}</div>
+      </div>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+        <div class="text-sm text-[#a6a6b0]">Trong hôm nay</div>
+        <div class="text-2xl font-bold text-yellow-400 mt-1">{{ $todayCount ?? 0 }}</div>
+      </div>
     </div>
 
     @if(session('success'))
@@ -311,6 +319,19 @@
                     <i class="fas fa-eye mr-1"></i>
                     Xem
                   </a>
+                  @if(auth()->check() && request()->is('admin/*') && optional(auth()->user()->vaiTro)->ten === 'admin')
+                  <a href="{{ route('admin.suat-chieu.edit', $suat) }}" 
+                     class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                     title="Sửa lịch">
+                    <i class="fas fa-edit mr-1"></i>
+                    Sửa
+                  </a>
+                  <button onclick="confirmDelete({{ $suat->id }})" 
+                          class="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                          title="Xóa">
+                    <i class="fas fa-trash mr-1"></i>
+                    Xóa
+                  </button>
                   <div class="relative">
                     <button type="button" class="inline-flex items-center px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
                             onclick="toggleDropdown({{ $suat->id }})" title="Thêm hành động">
@@ -318,22 +339,16 @@
                     </button>
                     <div id="dropdown-{{ $suat->id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
                       <div class="py-1">
-                        <a href="{{ route('admin.suat-chieu.edit', $suat) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                          <i class="fas fa-edit mr-2"></i>Sửa lịch
-                        </a>
                         <button onclick="duplicateShowtime({{ $suat->id }})" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                           <i class="fas fa-copy mr-2"></i>Nhân bản
                         </button>
                         <button onclick="updateStatus({{ $suat->id }}, '{{ $suat->status === 'coming' ? 'ongoing' : ($suat->status === 'ongoing' ? 'finished' : 'coming') }}')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                           <i class="fas fa-arrow-right mr-2"></i>Cập nhật trạng thái
                         </button>
-                        <hr class="my-1">
-                        <button onclick="confirmDelete({{ $suat->id }})" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                          <i class="fas fa-trash mr-2"></i>Xóa
-                        </button>
                       </div>
                     </div>
                   </div>
+                  @endif
                 </div>
               </td>
             </tr>

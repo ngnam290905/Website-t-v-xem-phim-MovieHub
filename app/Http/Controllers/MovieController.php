@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Phim;
+use App\Models\SuatChieu;
+use App\Models\PhongChieu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +19,57 @@ class MovieController extends Controller
     {
         $movies = Phim::orderByDesc('ngay_khoi_chieu')->get();
         return view('home', compact('movies'));
+    }
+
+    /**
+     * Admin index for movies list page
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Phim::query();
+
+        // Status filter
+        if ($request->filled('status')) {
+            $query->where('trang_thai', $request->string('status'));
+        }
+
+        // Search filter
+        if ($request->filled('search')) {
+            $s = trim($request->string('search'));
+            if ($s !== '') {
+                $query->where(function ($q) use ($s) {
+                    $q->where('ten_phim', 'like', "%{$s}%")
+                      ->orWhere('ten_goc', 'like', "%{$s}%")
+                      ->orWhere('dao_dien', 'like', "%{$s}%")
+                      ->orWhere('dien_vien', 'like', "%{$s}%")
+                      ->orWhere('the_loai', 'like', "%{$s}%");
+                });
+            }
+        }
+
+        // Additional filters: Diễn viên, Thể loại, Quốc gia
+        if ($request->filled('dien_vien')) {
+            $qActor = trim((string) $request->dien_vien);
+            $query->where('dien_vien', 'like', "%{$qActor}%");
+        }
+        if ($request->filled('the_loai')) {
+            $qGenre = trim((string) $request->the_loai);
+            $query->where('the_loai', 'like', "%{$qGenre}%");
+        }
+        if ($request->filled('quoc_gia')) {
+            $qCountry = trim((string) $request->quoc_gia);
+            $query->where('quoc_gia', 'like', "%{$qCountry}%");
+        }
+
+        $movies = $query->orderByDesc('created_at')->paginate(12);
+
+        // Quick stats
+        $totalMovies = (int) Phim::count();
+        $nowShowing = (int) Phim::where('trang_thai', 'dang_chieu')->count();
+        $upcoming = (int) Phim::where('trang_thai', 'sap_chieu')->count();
+        $ended = (int) Phim::where('trang_thai', 'ngung_chieu')->count();
+
+        return view('admin.movies.index', compact('movies', 'totalMovies', 'nowShowing', 'upcoming', 'ended'));
     }
 
     /**
@@ -107,29 +160,23 @@ class MovieController extends Controller
         }
     }
 
-    /**
-     * Display the specified movie
-     * Admin and Staff can access
-     */
+    
     public function show(Phim $movie)
     {
         $movie->load(['suatChieu.phongChieu']);
+        if (request()->routeIs('movie-detail')) {
+            return view('movie-detail', compact('movie'));
+        }
         return view('admin.movies.show', compact('movie'));
     }
 
-    /**
-     * Show the form for editing the specified movie
-     * Only Admin can access
-     */
+    
     public function edit(Phim $movie)
     {
         return view('admin.movies.edit', compact('movie'));
     }
 
-    /**
-     * Update the specified movie
-     * Only Admin can access
-     */
+    
     public function update(Request $request, Phim $movie)
     {
         $validator = Validator::make($request->all(), [
@@ -240,5 +287,69 @@ $displayText = $statusText[$newStatus] ?? 'không xác định';
 
 return redirect()->back()
     ->with('success', "Đã cập nhật trạng thái phim thành '{$displayText}'!");
+    }
+
+    /**
+     * API: Get movies list (basic data)
+     */
+    public function getMovies(Request $request)
+    {
+        $query = Phim::query();
+        if ($request->filled('status')) {
+            $query->where('trang_thai', $request->string('status'));
+        }
+        $movies = $query->orderByDesc('ngay_khoi_chieu')->limit(50)->get();
+        return response()->json($movies);
+    }
+
+    /**
+     * API: Featured movies (dang_chieu first, then sap_chieu)
+     */
+    public function getFeaturedMovies()
+    {
+        $movies = Phim::orderByRaw("FIELD(trang_thai, 'dang_chieu','sap_chieu','ngung_chieu')")
+            ->orderByDesc('diem_danh_gia')
+            ->limit(12)
+            ->get();
+        return response()->json($movies);
+    }
+
+    /**
+     * API: Search movies by keyword
+     */
+    public function search(Request $request)
+    {
+        $q = trim($request->string('q'));
+        if ($q === '') {
+            return response()->json([]);
+        }
+        $movies = Phim::where('ten_phim', 'like', "%{$q}%")
+            ->orWhere('ten_goc', 'like', "%{$q}%")
+            ->orWhere('the_loai', 'like', "%{$q}%")
+            ->orderByDesc('ngay_khoi_chieu')
+            ->limit(20)
+            ->get();
+        return response()->json($movies);
+    }
+
+    /**
+     * API: Get showtimes by movie id
+     */
+    public function getSuatChieu($movieId)
+    {
+        $suatChieu = SuatChieu::with(['phongChieu'])
+            ->where('id_phim', $movieId)
+            ->orderBy('thoi_gian_bat_dau')
+            ->get();
+        return response()->json($suatChieu);
+    }
+
+    /**
+     * API: Get rooms list
+     */
+    public function getPhongChieu()
+    {
+        $rooms = PhongChieu::orderBy('ten_phong')->get();
+        return response()->json($rooms);
     }
 }

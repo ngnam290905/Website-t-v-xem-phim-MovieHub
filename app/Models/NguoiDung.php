@@ -21,7 +21,7 @@ class NguoiDung extends Authenticatable
         'ho_ten',
         'email',
         'mat_khau',
-        'dien_thoai',
+        'sdt',
         'dia_chi',
         'id_vai_tro',
         'trang_thai',
@@ -44,5 +44,20 @@ class NguoiDung extends Authenticatable
     public function vaiTro()
     {
         return $this->belongsTo(VaiTro::class, 'id_vai_tro');
+    }
+
+    public function diemThanhVien()
+    {
+        return $this->hasOne(DiemThanhVien::class, 'id_nguoi_dung');
+    }
+
+    public function hangThanhVien()
+    {
+        return $this->hasOne(HangThanhVien::class, 'id_nguoi_dung');
+    }
+
+    public function datVe()
+    {
+        return $this->hasMany(DatVe::class, 'id_nguoi_dung');
     }
 }

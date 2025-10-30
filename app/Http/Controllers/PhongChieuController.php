@@ -8,6 +8,7 @@ use App\Models\LoaiGhe;
 use App\Models\SuatChieu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PhongChieuController extends Controller
 {
@@ -18,34 +19,50 @@ class PhongChieuController extends Controller
     {
         $query = PhongChieu::withCount(['seats', 'showtimes']);
 
-        // Search by name
+        // Search by name (legacy column: ten_phong)
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('ten_phong', 'like', '%' . $request->search . '%');
         }
 
-        // Filter by type
+        // Filter by type (only if column exists)
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            if (Schema::hasColumn('phong_chieu', 'type')) {
+                $query->where('type', $request->type);
+            }
         }
 
-        // Filter by status
+        // Filter by status (map to legacy trang_thai 1/0)
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->status;
+            $query->where('trang_thai', $status === 'active' ? 1 : 0);
         }
 
-        // Sort
+        // Sort (map UI field -> DB column)
         $sortBy = $request->get('sort_by', 'name');
         $sortOrder = $request->get('sort_order', 'asc');
-        $query->orderBy($sortBy, $sortOrder);
+        $columnMap = [
+            'name' => 'ten_phong',
+            'rows' => 'so_hang',
+            'cols' => 'so_cot',
+            'status' => 'trang_thai',
+        ];
+        $actual = $columnMap[$sortBy] ?? $sortBy;
+        $query->orderBy($actual, $sortOrder);
 
         $phongChieu = $query->paginate(20);
 
+        // Quick stats
+        $totalRooms = (int) PhongChieu::count();
+        $activeRooms = (int) PhongChieu::where('trang_thai', 1)->count();
+        $pausedRooms = (int) PhongChieu::where('trang_thai', 0)->count();
+        $showtimesToday = (int) SuatChieu::whereDate('thoi_gian_bat_dau', now()->toDateString())->count();
+
         // Check if this is staff route
         if (request()->is('staff/*')) {
-            return view('staff.phong-chieu.index', compact('phongChieu'));
+            return view('staff.phong-chieu.index', compact('phongChieu', 'totalRooms', 'activeRooms', 'pausedRooms', 'showtimesToday'));
         }
         
-        return view('admin.phong-chieu.index', compact('phongChieu'));
+        return view('admin.phong-chieu.index', compact('phongChieu', 'totalRooms', 'activeRooms', 'pausedRooms', 'showtimesToday'));
     }
 
     /**
@@ -66,11 +83,8 @@ class PhongChieuController extends Controller
             'name' => 'required|string|max:255',
             'rows' => 'required|integer|min:1|max:20',
             'cols' => 'required|integer|min:1|max:30',
-            'type' => 'required|string|in:2D,3D,IMAX,4DX',
             'description' => 'nullable|string|max:1000',
             'status' => 'required|string|in:active,inactive',
-            'audio_system' => 'nullable|string|max:255',
-            'screen_type' => 'nullable|string|max:255',
         ]);
 
         DB::beginTransaction();
@@ -80,11 +94,8 @@ class PhongChieuController extends Controller
                 'name' => $request->name,
                 'rows' => $request->rows,
                 'cols' => $request->cols,
-                'type' => $request->type,
                 'description' => $request->description,
                 'status' => $request->status,
-                'audio_system' => $request->audio_system,
-                'screen_type' => $request->screen_type,
             ]);
 
             // Generate seats
@@ -106,7 +117,7 @@ class PhongChieuController extends Controller
     public function show(PhongChieu $phongChieu)
     {
         $phongChieu->load(['seats' => function($query) {
-            $query->orderBy('row_label')->orderBy('so_ghe');
+            $query->orderBy('so_hang')->orderBy('so_ghe');
         }, 'showtimes.movie']);
 
         // Check if this is staff route
@@ -133,15 +144,12 @@ class PhongChieuController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|string|in:2D,3D,IMAX,4DX',
             'description' => 'nullable|string|max:1000',
             'status' => 'required|string|in:active,inactive',
-            'audio_system' => 'nullable|string|max:255',
-            'screen_type' => 'nullable|string|max:255',
         ]);
 
         $phongChieu->update($request->only([
-            'name', 'type', 'description', 'status', 'audio_system', 'screen_type'
+            'name', 'description', 'status'
         ]));
 
         return redirect()->route('admin.phong-chieu.index')
@@ -155,7 +163,7 @@ class PhongChieuController extends Controller
     {
         // Check if room has upcoming showtimes
         $upcomingShowtimes = $phongChieu->showtimes()
-            ->where('start_time', '>', now())
+            ->where('thoi_gian_bat_dau', '>', now())
             ->count();
 
         if ($upcomingShowtimes > 0) {
@@ -203,7 +211,7 @@ class PhongChieuController extends Controller
     public function getByRoom(Request $request, PhongChieu $phongChieu)
     {
         $seats = $phongChieu->seats()
-            ->orderBy('row_label')
+            ->orderBy('so_hang')
             ->orderBy('so_ghe')
             ->get();
 
@@ -262,32 +270,22 @@ class PhongChieuController extends Controller
      */
     private function createSeatsForRoom(PhongChieu $phongChieu, $rows, $cols, $defaultType = 'normal')
     {
-        $seatType = LoaiGhe::where('ten_loai', $defaultType)->first();
-        if (!$seatType) {
-            $seatType = LoaiGhe::first(); // Fallback to first available type
-        }
+        $seatType = LoaiGhe::where('ten_loai', $defaultType)->first() ?: LoaiGhe::first();
         $seats = [];
-
         for ($row = 1; $row <= $rows; $row++) {
-            $rowLabel = chr(64 + $row); // A, B, C, ...
-            
             for ($col = 1; $col <= $cols; $col++) {
                 $seats[] = [
-                    'room_id' => $phongChieu->id,
-                    'id_loai' => $seatType ? $seatType->id : 1,
-                    'seat_code' => $rowLabel . $col, // A1, A2, B1, B2, etc.
-                    'row_label' => $rowLabel,
-                    'col_number' => $col,
-                    'so_ghe' => $col,
-                    'status' => 'available',
-                    'price' => $seatType ? $seatType->he_so_gia * 50000 : 50000,
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'id_phong' => $phongChieu->id,
+                    'id_loai' => $seatType ? $seatType->id : null,
+                    'so_hang' => $row,
+                    'so_ghe' => chr(64 + $row) . $col, // ví dụ A1, A2...
+                    'trang_thai' => 1,
                 ];
             }
         }
-
-        Ghe::insert($seats);
+        if (!empty($seats)) {
+            Ghe::insert($seats);
+        }
     }
 
     /**
@@ -315,16 +313,13 @@ class PhongChieuController extends Controller
         ]);
 
         $seatType = LoaiGhe::find($request->id_loai);
-        $seatCode = $request->row_label . $request->so_ghe;
-
+        $row = strtoupper($request->row_label);
+        $rowNumber = max(1, ord($row) - 64);
         $seat = $phongChieu->seats()->create([
             'id_loai' => $request->id_loai,
-            'seat_code' => $seatCode,
-            'row_label' => $request->row_label,
-            'col_number' => $request->so_ghe,
-            'so_ghe' => $request->so_ghe,
-            'status' => $request->status,
-            'price' => $request->price ?? ($seatType ? $seatType->he_so_gia * 50000 : 50000)
+            'so_hang' => $rowNumber,
+            'so_ghe' => $row . $request->so_ghe,
+            'trang_thai' => $request->status === 'available' ? 1 : 0,
         ]);
 
         return response()->json([
@@ -348,16 +343,13 @@ class PhongChieuController extends Controller
         ]);
 
         $seatType = LoaiGhe::find($request->id_loai);
-        $seatCode = $request->row_label . $request->so_ghe;
-
+        $row = strtoupper($request->row_label);
+        $rowNumber = max(1, ord($row) - 64);
         $ghe->update([
             'id_loai' => $request->id_loai,
-            'seat_code' => $seatCode,
-            'row_label' => $request->row_label,
-            'col_number' => $request->so_ghe,
-            'so_ghe' => $request->so_ghe,
-            'status' => $request->status,
-            'price' => $request->price ?? ($seatType ? $seatType->he_so_gia * 50000 : 50000)
+            'so_hang' => $rowNumber,
+            'so_ghe' => $row . $request->so_ghe,
+            'trang_thai' => $request->status === 'available' ? 1 : 0,
         ]);
 
         return response()->json([
@@ -394,10 +386,18 @@ class PhongChieuController extends Controller
     public function updateSeatStatus(Request $request, Ghe $ghe)
     {
         $request->validate([
-            'status' => 'required|in:available,booked,locked'
+            'status' => 'required|in:available,booked,locked,unavailable,maintenance'
         ]);
 
-        $ghe->update(['status' => $request->status]);
+        // Map UI status to legacy numeric column
+        $map = [
+            'available' => 1,
+            'booked' => 0,
+            'locked' => 0,
+            'unavailable' => 0,
+            'maintenance' => 0,
+        ];
+        $ghe->update(['trang_thai' => $map[$request->status] ?? 0]);
 
         return response()->json([
             'success' => true,
@@ -415,16 +415,69 @@ class PhongChieuController extends Controller
             'id_loai' => 'required|exists:loai_ghe,id'
         ]);
 
-        $seatType = LoaiGhe::find($request->id_loai);
         $ghe->update([
             'id_loai' => $request->id_loai,
-            'price' => $seatType ? $seatType->he_so_gia * 50000 : 50000
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Loại ghế đã được cập nhật!',
             'seat' => $ghe->load('seatType')
+        ]);
+    }
+
+    /**
+     * Bulk update seats: lock/unlock/type/delete
+     */
+    public function bulkSeats(Request $request, PhongChieu $phongChieu)
+    {
+        $request->validate([
+            'action' => 'required|string|in:lock,unlock,type,delete',
+            'seat_ids' => 'required|array|min:1',
+            'seat_ids.*' => 'integer|exists:ghe,id',
+            'id_loai' => 'nullable|integer|exists:loai_ghe,id'
+        ]);
+
+        $action = $request->string('action');
+        $ids = collect($request->seat_ids)->unique()->values();
+
+        // Limit to seats in this room
+        $seats = Ghe::whereIn('id', $ids)->where('id_phong', $phongChieu->id)->get();
+        if ($seats->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy ghế hợp lệ trong phòng.'], 404);
+        }
+
+        $affected = 0; $skipped = [];
+        switch ($action) {
+            case 'lock':
+                $affected = Ghe::whereIn('id', $seats->pluck('id'))->update(['trang_thai' => 0]);
+                break;
+            case 'unlock':
+                $affected = Ghe::whereIn('id', $seats->pluck('id'))->update(['trang_thai' => 1]);
+                break;
+            case 'type':
+                if (!$request->filled('id_loai')) {
+                    return response()->json(['success' => false, 'message' => 'Thiếu id_loai cho hành động đổi loại.'], 422);
+                }
+                $affected = Ghe::whereIn('id', $seats->pluck('id'))->update(['id_loai' => $request->id_loai]);
+                break;
+            case 'delete':
+                foreach ($seats as $seat) {
+                    if ($seat->bookingDetails()->exists()) {
+                        $skipped[] = $seat->id;
+                        continue;
+                    }
+                    $seat->delete();
+                    $affected++;
+                }
+                break;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thực hiện thành công.',
+            'affected' => $affected,
+            'skipped_ids' => $skipped,
         ]);
     }
 }

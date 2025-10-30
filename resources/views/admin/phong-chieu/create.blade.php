@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Tạo phòng chiếu mới - Admin')
 @section('page-title', 'Tạo phòng chiếu mới')

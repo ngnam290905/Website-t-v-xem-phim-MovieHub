@@ -9,27 +9,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Ghe extends Model
 {
     protected $table = 'ghe';
+    public $timestamps = false;
     
     protected $fillable = [
-        'room_id',
+        'id_phong',
         'id_loai',
-        'seat_code',
-        'row_label',
-        'col_number',
+        'so_hang',
         'so_ghe',
-        'status',
-        'price'
+        'trang_thai'
     ];
 
     protected $casts = [
-        'status' => 'string',
-        'price' => 'decimal:2',
+        'trang_thai' => 'integer',
     ];
 
     // Relationship with PhongChieu (Room)
     public function room(): BelongsTo
     {
-        return $this->belongsTo(PhongChieu::class, 'room_id');
+        return $this->belongsTo(PhongChieu::class, 'id_phong');
     }
 
     // Legacy relationship for backward compatibility
@@ -65,7 +62,7 @@ class Ghe extends Model
     // Accessor for seat display name
     public function getDisplayNameAttribute()
     {
-        return $this->seat_code ?? ($this->row_label . $this->col_number);
+        return $this->so_ghe;
     }
 
     // Accessor for seat name (legacy)
@@ -74,51 +71,60 @@ class Ghe extends Model
         return $this->getDisplayNameAttribute();
     }
 
+    // Virtual status mapping for backward compatibility
+    public function getStatusAttribute()
+    {
+        return $this->trang_thai === 1 ? 'available' : 'locked';
+    }
+
     // Scope for available seats
     public function scopeAvailable($query)
     {
-        return $query->where('status', 'available');
+        return $query->where('trang_thai', 1);
     }
 
     // Scope for booked seats
     public function scopeBooked($query)
     {
-        return $query->where('status', 'booked');
+        // If you track booked status differently, adjust here. Default to none.
+        return $query->whereRaw('1=0');
     }
 
     // Scope for seat type
     public function scopeOfType($query, $type)
     {
-        return $query->where('type', $type);
+        return $query->whereHas('seatType', function($q) use ($type) {
+            $q->where('ten_loai', $type);
+        });
     }
 
     // Scope for VIP seats
     public function scopeVip($query)
     {
-        return $query->where('type', 'vip');
+        return $query->whereHas('seatType', function($q){ $q->where('ten_loai', 'vip'); });
     }
 
     // Scope for normal seats
     public function scopeNormal($query)
     {
-        return $query->where('type', 'normal');
+        return $query->whereHas('seatType', function($q){ $q->where('ten_loai', 'normal'); });
     }
 
     // Check if seat is available
     public function isAvailable()
     {
-        return $this->status === 'available';
+        return (int)$this->trang_thai === 1;
     }
 
     // Check if seat is booked
     public function isBooked()
     {
-        return $this->status === 'booked';
+        return false;
     }
 
     // Check if seat is locked
     public function isLocked()
     {
-        return $this->status === 'locked';
+        return (int)$this->trang_thai === 0;
     }
 }

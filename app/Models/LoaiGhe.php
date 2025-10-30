@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LoaiGhe extends Model
 {
     protected $table = 'loai_ghe';
+    public $timestamps = false;
     
     protected $fillable = [
         'ten_loai',

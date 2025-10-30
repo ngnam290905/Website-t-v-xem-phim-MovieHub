@@ -102,33 +102,49 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Recreate boolean column and map enum back to boolean
-        Schema::table('phim', function (Blueprint $table) {
-            $table->boolean('trang_thai')->default(true)->after('trailer');
-        });
+        if (Schema::hasTable('phim')) {
+            // Safely convert enum back to boolean in-place
+            if (Schema::hasColumn('phim', 'trang_thai')) {
+                DB::statement("UPDATE `phim` SET trang_thai = CASE WHEN trang_thai = 'dang_chieu' THEN 1 ELSE 0 END");
+                DB::statement("ALTER TABLE `phim` MODIFY COLUMN `trang_thai` TINYINT(1) NOT NULL DEFAULT 1");
+            }
 
-        DB::statement("UPDATE `phim` SET trang_thai = CASE WHEN trang_thai = 'dang_chieu' THEN 1 ELSE 0 END");
-
-        Schema::table('phim', function (Blueprint $table) {
-            // Drop the enum status column
-            $table->dropColumn('trang_thai');
-
-            // Drop added columns
-            $table->dropColumn([
-                'ten_goc',
-                'the_loai',
-                'quoc_gia',
-                'ngon_ngu',
-                'do_tuoi',
-                'ngay_khoi_chieu',
-                'ngay_ket_thuc',
-                'diem_danh_gia',
-                'so_luot_danh_gia',
-                'created_at',
-                'updated_at',
-                'deleted_at',
-            ]);
-        });
+            // Drop added columns only if they exist
+            if (Schema::hasColumn('phim', 'ten_goc')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('ten_goc'); });
+            }
+            if (Schema::hasColumn('phim', 'the_loai')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('the_loai'); });
+            }
+            if (Schema::hasColumn('phim', 'quoc_gia')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('quoc_gia'); });
+            }
+            if (Schema::hasColumn('phim', 'ngon_ngu')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('ngon_ngu'); });
+            }
+            if (Schema::hasColumn('phim', 'do_tuoi')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('do_tuoi'); });
+            }
+            if (Schema::hasColumn('phim', 'ngay_khoi_chieu')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('ngay_khoi_chieu'); });
+            }
+            if (Schema::hasColumn('phim', 'ngay_ket_thuc')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('ngay_ket_thuc'); });
+            }
+            if (Schema::hasColumn('phim', 'diem_danh_gia')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('diem_danh_gia'); });
+            }
+            if (Schema::hasColumn('phim', 'so_luot_danh_gia')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropColumn('so_luot_danh_gia'); });
+            }
+            if (Schema::hasColumn('phim', 'deleted_at')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropSoftDeletes(); });
+            }
+            // Timestamps: drop if present
+            if (Schema::hasColumn('phim', 'created_at') || Schema::hasColumn('phim', 'updated_at')) {
+                Schema::table('phim', function (Blueprint $table) { $table->dropTimestamps(); });
+            }
+        }
     }
 };
 

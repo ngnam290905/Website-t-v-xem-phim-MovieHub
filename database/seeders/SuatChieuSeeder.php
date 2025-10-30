@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\SuatChieu;
-use App\Models\Movie;
+use App\Models\Phim;
 use App\Models\PhongChieu;
 use Carbon\Carbon;
 
@@ -16,7 +16,7 @@ class SuatChieuSeeder extends Seeder
      */
     public function run(): void
     {
-        $movies = Movie::all();
+        $movies = Phim::all();
         $phongChieu = PhongChieu::all();
         
         $suatChieu = [];
@@ -37,11 +37,9 @@ class SuatChieuSeeder extends Seeder
                     $suatChieu[] = [
                         'id_phim' => $movie->id,
                         'id_phong' => $phong->id,
-                        'start_time' => $startTime,
-                        'end_time' => $endTime,
-                        'status' => 'coming',
-                        'created_at' => now(),
-                        'updated_at' => now()
+                        'thoi_gian_bat_dau' => $startTime,
+                        'thoi_gian_ket_thuc' => $endTime,
+                        'trang_thai' => 1,
                     ];
                 }
             }

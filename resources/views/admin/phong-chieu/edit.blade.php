@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Chỉnh sửa phòng chiếu - Admin')
 @section('page-title', 'Chỉnh sửa phòng chiếu')
@@ -103,6 +103,79 @@
               </a>
             </div>
           </div>
+
+          <!-- Inline seat editor -->
+          @php $phongChieu->loadMissing(['seats.seatType']); @endphp
+          <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-white font-semibold">Chỉnh sửa trực tiếp sơ đồ ghế</div>
+              <div class="text-xs text-[#a6a6b0]">Nhấp vào ghế để chuyển trạng thái Có sẵn/Bị khóa</div>
+            </div>
+            <div class="overflow-x-auto">
+              <div class="flex flex-col items-center space-y-2">
+                @for($row = 1; $row <= (int)($phongChieu->rows ?? 0); $row++)
+                  <div class="flex space-x-2 items-center">
+                    <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ chr(64 + $row) }}</span>
+                    @for($col = 1; $col <= (int)($phongChieu->cols ?? 0); $col++)
+                      @php
+                        $code = chr(64 + $row) . $col;
+                        $seat = $phongChieu->seats->firstWhere('so_ghe', $code);
+                        $status = $seat ? $seat->status : 'empty';
+                      @endphp
+                      <button type="button"
+                              class="w-8 h-8 rounded text-xs font-medium transition-colors 
+                                @if($status==='available') bg-green-600 hover:bg-green-700 text-white
+                                @elseif($status==='locked') bg-gray-800 hover:bg-gray-900 text-gray-400
+                                @else bg-gray-600 hover:bg-gray-700 text-gray-300
+                                @endif"
+                              data-seat-id="{{ $seat->id ?? '' }}"
+                              title="{{ $code }}"
+                              onclick="{{ $seat ? 'toggleSeatStatusInline(' . $seat->id . ')' : '' }}">
+                        {{ $col }}
+                      </button>
+                    @endfor
+                  </div>
+                @endfor
+              </div>
+            </div>
+            <div class="mt-3 text-xs text-[#a6a6b0] flex items-center gap-4">
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-600 inline-block"></span> Có sẵn</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-800 inline-block"></span> Bị khóa</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-600 inline-block"></span> Trống (chưa có ghế)</span>
+            </div>
+          </div>
+        
+          @push('scripts')
+          <script>
+          async function toggleSeatStatusInline(id) {
+            try {
+              const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+              // Lấy trạng thái hiện tại từ nút để quyết định trạng thái mới
+              const btn = document.querySelector('[data-seat-id="' + id + '"]');
+              const isAvailable = btn && btn.classList.contains('bg-green-600');
+              const newStatus = isAvailable ? 'locked' : 'available';
+              const res = await fetch(`/admin/seats/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ status: newStatus })
+              });
+              const data = await res.json();
+              if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi cập nhật');
+              // Cập nhật UI nhanh theo trạng thái mới
+              if (newStatus === 'available') {
+                btn.classList.remove('bg-gray-800','text-gray-400');
+                btn.classList.add('bg-green-600','text-white');
+              } else {
+                btn.classList.remove('bg-green-600','text-white');
+                btn.classList.add('bg-gray-800','text-gray-400');
+              }
+            } catch (e) {
+              alert('Có lỗi xảy ra khi cập nhật ghế');
+              console.error(e);
+            }
+          }
+          </script>
+          @endpush
         </div>
 
         <!-- Technical Specifications -->

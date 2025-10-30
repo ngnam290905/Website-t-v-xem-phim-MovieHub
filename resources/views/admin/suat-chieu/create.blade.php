@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Tạo Suất Chiếu Mới')
 @section('page-title', 'Tạo Suất Chiếu Mới')

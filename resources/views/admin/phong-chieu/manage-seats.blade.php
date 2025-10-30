@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('admin.layout')
 
 @section('title', 'Quản lý ghế - ' . $phongChieu->name)
 
@@ -34,6 +34,89 @@
         </div>
     </div>
 
+<!-- Bulk Actions Modal -->
+<div id="bulkModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+  <div class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-[#151822] border border-[#262833] rounded-xl w-full max-w-md">
+      <div class="flex items-center justify-between p-6 border-b border-[#262833]">
+        <h3 class="text-lg font-semibold text-white">Chỉnh sửa hàng loạt</h3>
+        <button type="button" onclick="closeBulkModal()" class="text-[#a6a6b0] hover:text-white"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Hành động</label>
+          <select id="bulk_action" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+            <option value="lock">Khóa ghế</option>
+            <option value="unlock">Mở khóa ghế</option>
+            <option value="type">Đổi loại ghế</option>
+            <option value="delete">Xóa ghế</option>
+          </select>
+        </div>
+        <div id="bulk_type_wrap" class="hidden">
+          <label class="block text-sm font-medium text-white mb-2">Loại ghế</label>
+          <select id="bulk_id_loai" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+            @foreach($seatTypes as $type)
+              <option value="{{ $type->id }}">{{ $type->ten_loai }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="text-xs text-[#a6a6b0]">Áp dụng cho các ghế đã chọn. Xóa sẽ bỏ qua ghế đã có đặt vé.</div>
+      </div>
+      <div class="flex items-center justify-end gap-3 p-6 border-t border-[#262833]">
+        <button type="button" onclick="closeBulkModal()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg">Hủy</button>
+        <button type="button" onclick="applyBulkAction()" class="px-4 py-2 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg">Áp dụng</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const actionSel = document.getElementById('bulk_action');
+  if (actionSel) {
+    actionSel.addEventListener('change', function(){
+      document.getElementById('bulk_type_wrap').classList.toggle('hidden', this.value !== 'type');
+    });
+  }
+  const selectAll = document.getElementById('selectAll');
+  if (selectAll) {
+    selectAll.addEventListener('change', function(){
+      document.querySelectorAll('.seat-checkbox').forEach(cb => cb.checked = selectAll.checked);
+    });
+  }
+  const bulkBtn = document.querySelector('[data-bulk-open]');
+  if (bulkBtn) bulkBtn.addEventListener('click', openBulkModal);
+});
+
+function openBulkModal(){ document.getElementById('bulkModal').classList.remove('hidden'); }
+function closeBulkModal(){ document.getElementById('bulkModal').classList.add('hidden'); }
+
+async function applyBulkAction(){
+  const ids = Array.from(document.querySelectorAll('.seat-checkbox:checked')).map(cb => parseInt(cb.value)).filter(Boolean);
+  if (ids.length === 0) { alert('Vui lòng chọn ít nhất một ghế.'); return; }
+  const action = document.getElementById('bulk_action').value;
+  const id_loai = document.getElementById('bulk_id_loai')?.value;
+  const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+  try {
+    const res = await fetch(`{{ route('admin.phong-chieu.seats.bulk', $phongChieu) }}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+      body: JSON.stringify({ action, seat_ids: ids, id_loai })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi thực thi');
+    if (data.skipped_ids && data.skipped_ids.length) {
+      alert('Đã xử lý: ' + data.affected + ' ghế. Bỏ qua: ' + data.skipped_ids.join(', '));
+    }
+    location.reload();
+  } catch(e){
+    console.error(e); alert('Có lỗi xảy ra khi thực hiện hành động.');
+  }
+}
+</script>
+@endpush
     <!-- Room Info Card -->
     <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
         <h3 class="text-lg font-semibold text-white flex items-center mb-4">
@@ -77,19 +160,14 @@
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 text-center">
                 <div class="text-2xl mb-2">⚪</div>
-                <div class="text-2xl font-bold text-white">{{ $phongChieu->seats->count() }}</div>
-                <div class="text-sm text-[#a6a6b0]">Tổng ghế</div>
-            </div>
-            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 text-center">
-                <div class="text-2xl mb-2">🟩</div>
-                <div class="text-2xl font-bold text-green-400">{{ $phongChieu->seats->where('status', 'available')->count() }}</div>
-                <div class="text-sm text-[#a6a6b0]">Còn trống</div>
-            </div>
-            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 text-center">
-                <div class="text-2xl mb-2">🟥</div>
-                <div class="text-2xl font-bold text-red-400">{{ $phongChieu->seats->where('status', 'booked')->count() }}</div>
-                <div class="text-sm text-[#a6a6b0]">Đã đặt</div>
-            </div>
+                <div class="flex items-center space-x-2">
+          <div class="w-4 h-4 bg-green-600 rounded"></div>
+          <span class="text-sm text-[#a6a6b0]">Có sẵn</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <div class="w-4 h-4 bg-red-600 rounded"></div>
+          <span class="text-sm text-[#a6a6b0]">Bị khóa</span>
+        </div>
             <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 text-center">
                 <div class="text-2xl mb-2">🟨</div>
                 <div class="text-2xl font-bold text-yellow-400">{{ $phongChieu->seats->filter(function($seat) { return $seat->seatType && strpos($seat->seatType->ten_loai, 'VIP') !== false; })->count() }}</div>
@@ -102,8 +180,8 @@
             </div>
             <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 text-center">
                 <div class="text-2xl mb-2">📊</div>
-                <div class="text-2xl font-bold text-blue-400">{{ $phongChieu->seats->count() > 0 ? round(($phongChieu->seats->where('status', 'booked')->count() / $phongChieu->seats->count()) * 100, 1) : 0 }}%</div>
-                <div class="text-sm text-[#a6a6b0]">Tỷ lệ đặt ghế</div>
+                <div class="text-2xl font-bold text-blue-400">{{ $phongChieu->seats->count() > 0 ? round(($phongChieu->seats->where('status', 'locked')->count() / $phongChieu->seats->count()) * 100, 1) : 0 }}%</div>
+                <div class="text-sm text-[#a6a6b0]">Tỷ lệ khóa</div>
             </div>
         </div>
     </div>
@@ -129,19 +207,16 @@
                         <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ chr(64 + $row) }}</span>
                         @for($col = 1; $col <= $phongChieu->cols; $col++)
                             @php
-                                $seat = $phongChieu->seats->where('row_label', chr(64 + $row))->where('so_ghe', $col)->first();
-                                $seatClass = 'empty';
                                 $seatCode = chr(64 + $row) . $col;
+                                $seat = $phongChieu->seats->firstWhere('so_ghe', $seatCode);
+                                $seatClass = 'empty';
                                 $seatType = 'Ghế thường';
-                                $seatPrice = '50.000đ';
-                                
                                 if ($seat) {
                                     $seatClass = $seat->status;
                                     if ($seat->seatType && strpos($seat->seatType->ten_loai, 'VIP') !== false) {
                                         $seatClass .= ' vip';
                                     }
                                     $seatType = $seat->seatType->ten_loai ?? 'Ghế thường';
-                                    $seatPrice = number_format($seat->price) . 'đ';
                                 }
                             @endphp
                             <button type="button" 
@@ -156,10 +231,10 @@
                                     data-seat-id="{{ $seat->id ?? '' }}"
                                     data-seat-code="{{ $seatCode }}"
                                     data-seat-type="{{ $seatType }}"
-                                    data-seat-price="{{ $seatPrice }}"
+                                    data-seat-price=""
                                     data-seat-status="{{ $seat->status ?? 'empty' }}"
-                                    onclick="{{ $seat ? 'editSeat(' . $seat->id . ')' : 'addSeatAtPosition(\'' . chr(64 + $row) . '\', ' . $col . ')' }}"
-                                    title="{{ $seatCode }} – {{ $seatType }} – {{ $seatPrice }}">
+                                    onclick="{{ $seat ? 'quickEditSeat(' . $seat->id . ')' : 'addSeatAtPosition(\'' . chr(64 + $row) . '\', ' . $col . ')' }}"
+                                    title="{{ $seatCode }} – {{ $seatType }}">
                                 {{ $col }}
                             </button>
                         @endfor
@@ -182,7 +257,7 @@
                 <button onclick="selectAllSeats()" class="text-sm text-[#a6a6b0] hover:text-white">
                     <i class="fas fa-check-square mr-1"></i>Chọn tất cả
                 </button>
-                <button onclick="bulkEditSeats()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                <button type="button" data-bulk-open class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
                     <i class="fas fa-edit mr-1"></i>Chỉnh sửa hàng loạt
                 </button>
             </div>
@@ -205,14 +280,14 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#262833]">
-                    @foreach($phongChieu->seats->sortBy(['row_label', 'so_ghe']) as $seat)
-                        <tr class="hover:bg-[#1a1d24] transition-colors">
+                    @foreach($phongChieu->seats->sortBy(['so_hang', 'so_ghe']) as $seat)
+                    <tr class="hover:bg-[#1a1d24] transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <input type="checkbox" class="seat-checkbox rounded" value="{{ $seat->id }}">
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ $seat->seat_code }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ $seat->row_label }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ $seat->so_ghe }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ chr(64 + (int)($seat->so_hang)) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ preg_replace('/^[A-Z]/','',$seat->so_ghe) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
                                     @if($seat->seatType && $seat->seatType->ten_loai == 'Ghế VIP') bg-yellow-100 text-yellow-800
@@ -225,16 +300,12 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
                                     @if($seat->status == 'available') bg-green-100 text-green-800
-                                    @elseif($seat->status == 'booked') bg-yellow-100 text-yellow-800
                                     @else bg-red-100 text-red-800
                                     @endif">
-                                    @if($seat->status == 'available') Có sẵn
-                                    @elseif($seat->status == 'booked') Đã đặt
-                                    @else Bị khóa
-                                    @endif
+                                    {{ $seat->status == 'available' ? 'Có sẵn' : 'Bị khóa' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">{{ number_format($seat->price) }} VNĐ</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-white">—</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex items-center space-x-2">
                                     <!-- Quick Edit Button -->
@@ -320,7 +391,6 @@
                         <label for="status" class="block text-sm font-medium text-white mb-2">Trạng thái <span class="text-red-400">*</span></label>
                         <select id="status" name="status" required class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent">
                             <option value="available">Có sẵn</option>
-                            <option value="booked">Đã đặt</option>
                             <option value="locked">Bị khóa</option>
                         </select>
                     </div>
@@ -380,7 +450,6 @@
                         <label for="edit_status" class="block text-sm font-medium text-white mb-2">Trạng thái <span class="text-red-400">*</span></label>
                         <select id="edit_status" name="status" required class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent">
                             <option value="available">Có sẵn</option>
-                            <option value="booked">Đã đặt</option>
                             <option value="locked">Bị khóa</option>
                         </select>
                     </div>
@@ -484,8 +553,7 @@
                         <label for="quick_status" class="block text-sm font-medium text-white mb-2">Trạng thái</label>
                         <select id="quick_status" name="status" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent">
                             <option value="available">Có sẵn</option>
-                            <option value="locked">Bảo trì</option>
-                            <option value="booked">Đã đặt</option>
+                            <option value="locked">Bị khóa</option>
                         </select>
                     </div>
                     <div>
