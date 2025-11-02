@@ -10,7 +10,6 @@ use App\Http\Controllers\PhongChieuController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
 

@@ -48,8 +48,8 @@
           <select name="id_phim" id="id_phim" class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('id_phim') border-red-500 @enderror" required>
             <option value="">Chọn phim</option>
             @foreach($phim as $movie)
-            <option value="{{ $movie->id }}" {{ old('id_phim') == $movie->id ? 'selected' : '' }}>
-              {{ $movie->ten_phim }}
+            <option value="{{ $movie->id }}" data-duration="{{ $movie->do_dai }}" {{ old('id_phim') == $movie->id ? 'selected' : '' }}>
+              {{ $movie->ten_phim }} ({{ $movie->do_dai }} phút)
             </option>
             @endforeach
           </select>
@@ -143,6 +143,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      const movieSelect = document.getElementById('id_phim');
       const startTimeInput = document.getElementById('start_time');
       const endTimeInput = document.getElementById('end_time');
       
@@ -150,13 +151,49 @@
       const today = new Date().toISOString().slice(0, 16);
       startTimeInput.min = today;
       
-      // Auto calculate end time when start time changes
+      // Function to round duration (làm tròn thời lượng)
+      // 1-15 phút -> 30 phút
+      // 16-45 phút -> 1 giờ (60 phút)
+      // 46-75 phút -> 1.5 giờ (90 phút)
+      // 76-105 phút -> 2 giờ (120 phút)
+      function roundDuration(minutes) {
+        const remainder = minutes % 30;
+        if (remainder === 0) {
+          return minutes; // Đã là bội số của 30
+        } else if (remainder <= 15) {
+          return minutes - remainder + 30; // Làm tròn lên đến 30 phút tiếp theo
+        } else {
+          return minutes - remainder + 60; // Làm tròn lên đến 60 phút (1 giờ tiếp theo)
+        }
+      }
+      
+      // Calculate end time based on movie duration and start time
+      function calculateEndTime() {
+        const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+        const duration = parseInt(selectedOption.getAttribute('data-duration')) || 0;
+        const startTime = startTimeInput.value;
+        
+        if (duration > 0 && startTime) {
+          const roundedDuration = roundDuration(duration);
+          const startDate = new Date(startTime);
+          const endDate = new Date(startDate.getTime() + (roundedDuration * 60 * 1000));
+          endTimeInput.value = endDate.toISOString().slice(0, 16);
+          
+          // Show rounded duration info
+          if (roundedDuration !== duration) {
+            console.log(`Thời lượng gốc: ${duration} phút → Làm tròn: ${roundedDuration} phút`);
+          }
+        }
+      }
+      
+      // Auto calculate when movie is selected
+      movieSelect.addEventListener('change', calculateEndTime);
+      
+      // Auto calculate when start time changes
       startTimeInput.addEventListener('change', function() {
         if (this.value) {
-          const startTime = new Date(this.value);
-          const endTime = new Date(startTime.getTime() + (2 * 60 * 60 * 1000)); // Add 2 hours
-          endTimeInput.value = endTime.toISOString().slice(0, 16);
           endTimeInput.min = this.value;
+          calculateEndTime();
         }
       });
     });
