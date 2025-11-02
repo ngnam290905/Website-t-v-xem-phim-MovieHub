@@ -6,6 +6,7 @@ use App\Models\Ghe;
 use App\Models\PhongChieu;
 use App\Models\LoaiGhe;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class GheController extends Controller
 {
@@ -30,7 +31,7 @@ class GheController extends Controller
         $totalSeats = (int) Ghe::count();
         $activeSeats = (int) Ghe::where('trang_thai', 1)->count();
         $pausedSeats = (int) Ghe::where('trang_thai', 0)->count();
-        $bookedToday = (int) \DB::table('chi_tiet_dat_ve as c')
+        $bookedToday = (int) DB::table('chi_tiet_dat_ve as c')
             ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
             ->whereDate('d.created_at', now()->toDateString())
             ->where('d.trang_thai', '!=', 2)
