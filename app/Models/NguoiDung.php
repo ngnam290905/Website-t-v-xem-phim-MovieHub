@@ -5,43 +5,59 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 
 class NguoiDung extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'nguoi_dung';
-
+    protected $primaryKey = 'id';
+    protected $dates = ['deleted_at'];
     public $timestamps = false;
 
     protected $fillable = [
         'ho_ten',
         'email',
         'mat_khau',
-        'ngay_sinh',
-        'gioi_tinh',
         'sdt',
         'dia_chi',
-        'hinh_anh',
         'id_vai_tro',
         'trang_thai',
     ];
 
-    protected $hidden = [
-        'mat_khau',
-    ];
+    // Ẩn mật khẩu khi trả về JSON
+    protected $hidden = ['mat_khau'];
 
-    public function vaiTro()
-    {
-        return $this->belongsTo(VaiTro::class, 'id_vai_tro');
-    }
-
+    /**
+     * Dùng cho Laravel Auth để biết cột nào là mật khẩu
+     */
     public function getAuthPassword()
     {
         return $this->mat_khau;
     }
 
+    /**
+     * Quan hệ: 1 người dùng thuộc về 1 vai trò
+     */
+    public function vaiTro()
+    {
+        return $this->belongsTo(VaiTro::class, 'id_vai_tro');
+    }
+
+    public function diemThanhVien()
+    {
+        return $this->hasOne(DiemThanhVien::class, 'id_nguoi_dung');
+    }
+
+    public function hangThanhVien()
+    {
+        return $this->hasOne(HangThanhVien::class, 'id_nguoi_dung');
+    }
+
+    public function datVe()
+    {
+        return $this->hasMany(DatVe::class, 'id_nguoi_dung');
+    }
 }
-
-
