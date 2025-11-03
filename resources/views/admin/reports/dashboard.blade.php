@@ -251,6 +251,204 @@
             </div>
         </div>
 
+        <!-- Thống kê doanh số theo hạng thành viên -->
+        <div class="mb-8">
+            <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-white">Thống kê doanh số theo hạng thành viên</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="memberStartDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                        <input id="memberEndDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                        <select id="memberRevenuePeriod" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <option value="today">Hôm nay</option>
+                            <option value="week">Tuần này</option>
+                            <option value="month" selected>Tháng này</option>
+                            <option value="year">Năm nay</option>
+                        </select>
+                        <button id="loadMemberRevenue" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-sync-alt mr-1"></i>Tải dữ liệu
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div id="memberRevenueSummary" class="space-y-2">
+                        <!-- Summary will be loaded here -->
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="memberRevenueTable">
+                        <thead>
+                            <tr class="border-b border-[#262833]">
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Hạng thành viên</th>
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Tổng doanh số</th>
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Số vé</th>
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Số thành viên</th>
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Tỷ lệ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#262833]">
+                            <!-- Member revenue data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top phim và suất chiếu được sử dụng nhiều nhất -->
+        <div class="mb-8">
+            <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-white">Top phim & suất chiếu được sử dụng nhiều nhất</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="popularStartDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                        <input id="popularEndDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                        <select id="popularPeriod" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            <option value="today">Hôm nay</option>
+                            <option value="week">Tuần này</option>
+                            <option value="month" selected>Tháng này</option>
+                            <option value="year">Năm nay</option>
+                        </select>
+                        <button id="loadPopular" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-sync-alt mr-1"></i>Tải dữ liệu
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-4">Top phim (sắp xếp theo số vé)</h4>
+                        <div id="popularMoviesList" class="space-y-3">
+                            <!-- Popular movies will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-white mb-4">Top suất chiếu (sắp xếp theo số vé)</h4>
+                        <div id="popularShowtimesList" class="space-y-3">
+                            <!-- Popular showtimes will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dữ liệu phim và suất chiếu -->
+        <div class="mb-8">
+            <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-white">🎬 Quản lý Phim & Suất chiếu</h3>
+                    </div>
+                </div>
+
+                <!-- Filter bar -->
+                <div class="bg-[#151822] border border-[#262833] rounded-xl p-4 flex flex-wrap items-end gap-3 mb-6">
+                    <div>
+                        <label class="block text-xs text-[#a6a6b0] mb-1">Thời gian</label>
+                        <select id="dataPeriod" class="w-48 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300">
+                            <option value="all">Tất cả</option>
+                            <option value="today">Hôm nay</option>
+                            <option value="week">Tuần này</option>
+                            <option value="month" selected>Tháng này</option>
+                            <option value="year">Năm nay</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#a6a6b0] mb-1">Từ ngày</label>
+                        <input id="dataStartDate" type="date" class="w-48 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#a6a6b0] mb-1">Đến ngày</label>
+                        <input id="dataEndDate" type="date" class="w-48 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#a6a6b0] mb-1">Trạng thái</label>
+                        <select id="dataStatus" class="w-48 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300">
+                            <option value="">-- Tất cả trạng thái --</option>
+                            <option value="dang_chieu">Đang chiếu</option>
+                            <option value="sap_chieu">Sắp chiếu</option>
+                            <option value="ngung_chieu">Ngừng chiếu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#a6a6b0] mb-1">Tìm phim</label>
+                        <input id="searchMovie" type="text" placeholder="Tên phim..." class="w-56 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300 placeholder-gray-500" />
+                    </div>
+                    <button id="loadMoviesShowtimesData" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-search mr-1"></i>Tìm kiếm
+                    </button>
+                </div>
+
+                <!-- Thống kê tổng quan -->
+                <div id="dataStatistics" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                    <!-- Statistics will be loaded here -->
+                </div>
+
+                <!-- Tabs -->
+                <div class="mb-4">
+                    <div class="border-b border-[#262833]">
+                        <nav class="flex space-x-8" aria-label="Tabs">
+                            <button class="data-tab active border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-400" data-tab="movies">
+                                📽️ Phim
+                            </button>
+                            <button class="data-tab border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-400 hover:text-gray-300" data-tab="showtimes">
+                                🎫 Suất chiếu
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Movies Tab Content -->
+                <div id="moviesTab" class="data-tab-content">
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="moviesDataTable">
+                            <thead>
+                                <tr class="border-b border-slate-700">
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">ID</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Tên phim</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Trạng thái</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Số suất chiếu</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Số vé bán</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Doanh thu</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Đánh giá</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700">
+                                <!-- Movies data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Showtimes Tab Content -->
+                <div id="showtimesTab" class="data-tab-content hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="showtimesDataTable">
+                            <thead>
+                                <tr class="border-b border-slate-700">
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">ID</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Phim</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Phòng</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Thời gian</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Trạng thái</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Số vé bán</th>
+                                    <th class="text-left py-4 px-6 font-semibold text-gray-300">Doanh thu</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700">
+                                <!-- Showtimes data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Đặt vé gần đây -->
         <div class="mb-8">
             <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">
@@ -784,6 +982,402 @@ $(document).ready(function() {
         loadTopMovies();
         loadTopCustomers();
         loadTopShowtimes();
+    });
+
+    // Load member revenue
+    function loadMemberRevenue() {
+        const period = $('#memberRevenuePeriod').val();
+        const startDate = $('#memberStartDate').val();
+        const endDate = $('#memberEndDate').val();
+
+        $.ajax({
+            url: '{{ route("admin.reports.member-revenue") }}',
+            method: 'GET',
+            data: { period: period, start_date: startDate, end_date: endDate },
+            success: function(response) {
+                updateMemberRevenue(response);
+            }
+        });
+    }
+
+    function updateMemberRevenue(data) {
+        // Update summary
+        const summary = data.total_member_revenue;
+        let summaryHtml = '';
+        if (summary) {
+            summaryHtml = `
+                <div class="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-4">
+                    <div class="text-sm text-green-100 mb-2">Tổng doanh số thành viên</div>
+                    <div class="text-2xl font-bold text-white">${new Intl.NumberFormat('vi-VN').format(summary.total_revenue)}đ</div>
+                    <div class="text-xs text-green-100 mt-1">${summary.total_tickets} vé • ${summary.total_members} thành viên</div>
+                </div>
+            `;
+        }
+        $('#memberRevenueSummary').html(summaryHtml);
+
+        // Update table
+        let tableHtml = '';
+        const totalRevenue = data.revenue_by_tier.reduce((sum, item) => sum + parseFloat(item.total_revenue || 0), 0);
+        
+        data.revenue_by_tier.forEach((tier) => {
+            const percentage = totalRevenue > 0 ? ((tier.total_revenue / totalRevenue) * 100).toFixed(1) : 0;
+            const tierColors = {
+                'Kim cương': 'from-purple-500 to-indigo-600',
+                'Vàng': 'from-yellow-400 to-orange-500',
+                'Bạc': 'from-gray-400 to-gray-600',
+                'Đồng': 'from-amber-600 to-orange-600',
+                'Chưa có hạng': 'from-gray-500 to-gray-700'
+            };
+            const tierColor = tierColors[tier.member_tier] || 'from-gray-500 to-gray-700';
+            
+            tableHtml += `
+                <tr class="hover:bg-[#262833] transition-colors">
+                    <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br ${tierColor} rounded-lg flex items-center justify-center text-white font-bold">
+                                ${tier.member_tier.charAt(0)}
+                            </div>
+                            <span class="text-white font-semibold">${tier.member_tier}</span>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-green-400 font-bold">${new Intl.NumberFormat('vi-VN').format(tier.total_revenue)}đ</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-blue-400 font-semibold">${tier.total_tickets}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-purple-400 font-semibold">${tier.total_members}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div class="bg-gradient-to-r ${tierColor} h-2 rounded-full" style="width: ${percentage}%"></div>
+                            </div>
+                            <span class="text-gray-400 text-sm">${percentage}%</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        $('#memberRevenueTable tbody').html(tableHtml);
+    }
+
+    // Load popular movies and showtimes
+    function loadPopularMoviesAndShowtimes() {
+        const period = $('#popularPeriod').val();
+        const startDate = $('#popularStartDate').val();
+        const endDate = $('#popularEndDate').val();
+
+        $.ajax({
+            url: '{{ route("admin.reports.popular-movies-showtimes") }}',
+            method: 'GET',
+            data: { period: period, start_date: startDate, end_date: endDate, limit: 10 },
+            success: function(response) {
+                updatePopularMovies(response.top_movies);
+                updatePopularShowtimes(response.top_showtimes);
+            }
+        });
+    }
+
+    function updatePopularMovies(movies) {
+        let html = '';
+        const rankEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        
+        movies.forEach((movie, index) => {
+            const rankEmoji = rankEmojis[index] || `${index + 1}️⃣`;
+            html += `
+                <div class="group flex items-center gap-4 p-4 bg-[#262833] rounded-xl hover:bg-[#2a2d3a] transition-all">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        ${rankEmoji}
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h6 class="text-white font-bold group-hover:text-pink-300 transition-colors">${movie.ten_phim}</h6>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="text-green-400">
+                                <i class="fas fa-ticket-alt"></i> ${movie.total_tickets} vé
+                            </div>
+                            <div class="text-blue-400">
+                                <i class="fas fa-money-bill-wave"></i> ${new Intl.NumberFormat('vi-VN').format(movie.total_revenue)}đ
+                            </div>
+                            <div class="text-purple-400">
+                                <i class="fas fa-calendar"></i> ${movie.total_showtimes} suất
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        $('#popularMoviesList').html(html || '<div class="text-gray-400 text-center py-8">Không có dữ liệu</div>');
+    }
+
+    function updatePopularShowtimes(showtimes) {
+        let html = '';
+        const rankEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        
+        showtimes.forEach((showtime, index) => {
+            const rankEmoji = rankEmojis[index] || `${index + 1}️⃣`;
+            const showtimeDate = new Date(showtime.ngay_chieu + 'T' + showtime.thoi_gian);
+            const dateLabel = showtimeDate.toLocaleString('vi-VN', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            html += `
+                <div class="group flex items-center gap-4 p-4 bg-[#262833] rounded-xl hover:bg-[#2a2d3a] transition-all">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        ${rankEmoji}
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h6 class="text-white font-bold group-hover:text-rose-300 transition-colors">${showtime.ten_phim}</h6>
+                        </div>
+                        <div class="text-gray-400 text-xs mb-2">${dateLabel}</div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="text-green-400">
+                                <i class="fas fa-ticket-alt"></i> ${showtime.total_tickets} vé
+                            </div>
+                            <div class="text-blue-400">
+                                <i class="fas fa-money-bill-wave"></i> ${new Intl.NumberFormat('vi-VN').format(showtime.total_revenue)}đ
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        $('#popularShowtimesList').html(html || '<div class="text-gray-400 text-center py-8">Không có dữ liệu</div>');
+    }
+
+    // Event listeners
+    $('#loadMemberRevenue').click(function() {
+        loadMemberRevenue();
+    });
+
+    $('#memberRevenuePeriod').change(function() {
+        loadMemberRevenue();
+    });
+
+    $('#loadPopular').click(function() {
+        loadPopularMoviesAndShowtimes();
+    });
+
+    $('#popularPeriod').change(function() {
+        loadPopularMoviesAndShowtimes();
+    });
+
+    // Load initial data
+    loadMemberRevenue();
+    loadPopularMoviesAndShowtimes();
+    loadMoviesShowtimesData();
+
+    // Load movies and showtimes data
+    function loadMoviesShowtimesData() {
+        const period = $('#dataPeriod').val();
+        const startDate = $('#dataStartDate').val();
+        const endDate = $('#dataEndDate').val();
+        const status = $('#dataStatus').val();
+        const searchMovie = $('#searchMovie').val();
+
+        $.ajax({
+            url: '{{ route("admin.reports.movies-showtimes-data") }}',
+            method: 'GET',
+            data: { 
+                period: period, 
+                start_date: startDate, 
+                end_date: endDate,
+                status: status,
+                phim: searchMovie
+            },
+            success: function(response) {
+                updateMoviesShowtimesData(response);
+            },
+            error: function(xhr) {
+                console.error('Error loading data:', xhr);
+                showNotification('Có lỗi xảy ra khi tải dữ liệu', 'error');
+            }
+        });
+    }
+
+    function updateMoviesShowtimesData(data) {
+        // Update statistics
+        const stats = data.statistics;
+        let statsHtml = `
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Tổng phim</div>
+                <div class="text-2xl font-bold text-white mt-1">${stats.total_movies}</div>
+            </div>
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Đang chiếu</div>
+                <div class="text-2xl font-bold text-green-400 mt-1">${stats.movies_by_status.dang_chieu || 0}</div>
+            </div>
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Sắp chiếu</div>
+                <div class="text-2xl font-bold text-blue-400 mt-1">${stats.movies_by_status.sap_chieu || 0}</div>
+            </div>
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Ngừng chiếu</div>
+                <div class="text-2xl font-bold text-gray-400 mt-1">${stats.movies_by_status.ngung_chieu || 0}</div>
+            </div>
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Tổng suất chiếu</div>
+                <div class="text-2xl font-bold text-purple-400 mt-1">${stats.total_showtimes}</div>
+            </div>
+            <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
+                <div class="text-sm text-[#a6a6b0]">Tổng doanh thu</div>
+                <div class="text-lg font-bold text-yellow-400 mt-1">${new Intl.NumberFormat('vi-VN').format(stats.total_revenue || 0)}đ</div>
+            </div>
+        `;
+        $('#dataStatistics').html(statsHtml);
+
+        // Update movies table
+        let moviesHtml = '';
+        if (data.movies && data.movies.length > 0) {
+            data.movies.forEach((movie) => {
+                const statusColors = {
+                    'dang_chieu': ['text-green-400', 'bg-green-900/30'],
+                    'sap_chieu': ['text-blue-400', 'bg-blue-900/30'],
+                    'ngung_chieu': ['text-gray-400', 'bg-gray-800']
+                };
+                const statusTexts = {
+                    'dang_chieu': 'Đang chiếu',
+                    'sap_chieu': 'Sắp chiếu',
+                    'ngung_chieu': 'Ngừng chiếu'
+                };
+                const statusConfig = statusColors[movie.trang_thai] || ['text-gray-400', 'bg-gray-800'];
+                const statusText = statusTexts[movie.trang_thai] || movie.trang_thai;
+                const rating = movie.diem_danh_gia > 0 ? movie.diem_danh_gia.toFixed(1) : 'N/A';
+                
+                moviesHtml += `
+                    <tr class="hover:bg-slate-800/60 transition-colors duration-200 group odd:bg-slate-800/30">
+                        <td class="py-4 px-6">
+                            <span class="bg-slate-700 text-gray-300 px-3 py-1 rounded-full text-sm font-mono">#${movie.id}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center gap-3">
+                                ${movie.poster ? `<img src="{{ asset('storage') }}/${movie.poster}" alt="${movie.ten_phim}" class="w-12 h-16 object-cover rounded">` : '<div class="w-12 h-16 bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-film text-gray-500"></i></div>'}
+                                <div>
+                                    <div class="text-white font-medium group-hover:text-blue-300 transition-colors">${movie.ten_phim}</div>
+                                    ${movie.ten_goc ? `<div class="text-gray-500 text-sm">${movie.ten_goc}</div>` : ''}
+                                    ${movie.the_loai ? `<div class="text-gray-400 text-xs mt-1">${movie.the_loai}</div>` : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="px-2 py-1 ${statusConfig[0]} ${statusConfig[1]} rounded-full text-xs">${statusText}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-blue-400 font-semibold">${movie.so_suat_chieu}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-green-400 font-semibold">${movie.so_ve_ban}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-yellow-400 font-bold">${new Intl.NumberFormat('vi-VN').format(movie.tong_doanh_thu || 0)}đ</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center gap-2">
+                                <span class="text-orange-400 font-semibold">${rating}</span>
+                                ${movie.so_luot_danh_gia > 0 ? `<span class="text-gray-400 text-sm">(${movie.so_luot_danh_gia})</span>` : '<span class="text-gray-500 text-sm">(0)</span>'}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            moviesHtml = '<tr><td colspan="7" class="py-8 text-center text-gray-400">Không có dữ liệu</td></tr>';
+        }
+        $('#moviesDataTable tbody').html(moviesHtml);
+
+        // Update showtimes table
+        let showtimesHtml = '';
+        if (data.showtimes && data.showtimes.length > 0) {
+            data.showtimes.forEach((showtime) => {
+                const startTime = new Date(showtime.thoi_gian_bat_dau);
+                const endTime = new Date(showtime.thoi_gian_ket_thuc);
+                const timeLabel = startTime.toLocaleString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const statusColors = {
+                    'Sắp chiếu': ['text-blue-400', 'bg-blue-900/30'],
+                    'Đang chiếu': ['text-green-400', 'bg-green-900/30'],
+                    'Đã kết thúc': ['text-gray-400', 'bg-gray-800']
+                };
+                const statusConfig = statusColors[showtime.status_text] || ['text-gray-400', 'bg-gray-800'];
+                
+                showtimesHtml += `
+                    <tr class="hover:bg-slate-800/60 transition-colors duration-200 group odd:bg-slate-800/30">
+                        <td class="py-4 px-6">
+                            <span class="bg-slate-700 text-gray-300 px-3 py-1 rounded-full text-sm font-mono">#${showtime.id}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-white font-medium group-hover:text-cyan-300 transition-colors">${showtime.ten_phim}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-gray-300">${showtime.ten_phong}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-gray-300">${timeLabel}</div>
+                            <div class="text-gray-500 text-sm">${startTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="px-2 py-1 ${statusConfig[0]} ${statusConfig[1]} rounded-full text-xs">${showtime.status_text}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-green-400 font-semibold">${showtime.so_ve_ban}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-yellow-400 font-bold">${new Intl.NumberFormat('vi-VN').format(showtime.tong_doanh_thu || 0)}đ</div>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            showtimesHtml = '<tr><td colspan="7" class="py-8 text-center text-gray-400">Không có dữ liệu</td></tr>';
+        }
+        $('#showtimesDataTable tbody').html(showtimesHtml);
+    }
+
+    // Tab switching
+    $('.data-tab').click(function() {
+        const targetTab = $(this).data('tab');
+        
+        // Update tab buttons
+        $('.data-tab').removeClass('active border-blue-500 text-blue-400').addClass('border-transparent text-gray-400');
+        $(this).addClass('active border-blue-500 text-blue-400').removeClass('border-transparent text-gray-400');
+        
+        // Show/hide tab content
+        $('.data-tab-content').addClass('hidden');
+        $('#' + targetTab + 'Tab').removeClass('hidden');
+    });
+
+    // Event listeners for movies/showtimes data
+    $('#loadMoviesShowtimesData').click(function() {
+        loadMoviesShowtimesData();
+    });
+
+    $('#dataPeriod').change(function() {
+        loadMoviesShowtimesData();
+    });
+
+    $('#dataStatus').change(function() {
+        loadMoviesShowtimesData();
+    });
+
+    // Search on Enter key
+    $('#searchMovie').keypress(function(e) {
+        if (e.which === 13) {
+            loadMoviesShowtimesData();
+        }
     });
 });
 </script>

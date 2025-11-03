@@ -193,6 +193,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/top-movies', [ReportController::class, 'topMovies'])->name('top-movies');
         Route::get('/top-showtimes', [ReportController::class, 'topShowtimes'])->name('top-showtimes');
         Route::get('/top-customers', [ReportController::class, 'topCustomers'])->name('top-customers');
+        Route::get('/member-revenue', [ReportController::class, 'memberRevenue'])->name('member-revenue');
+        Route::get('/popular-movies-showtimes', [ReportController::class, 'popularMoviesAndShowtimes'])->name('popular-movies-showtimes');
+        Route::get('/movies-showtimes-data', [ReportController::class, 'moviesAndShowtimesData'])->name('movies-showtimes-data');
+        Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
     });
 });
 
