@@ -26,6 +26,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');
             Route::get('/revenue', [ReportController::class, 'revenue'])->name('revenue');
             Route::get('/top-movies', [ReportController::class, 'topMovies'])->name('top-movies');
+            Route::get('/top-showtimes', [ReportController::class, 'topShowtimes'])->name('top-showtimes');
             Route::get('/top-customers', [ReportController::class, 'topCustomers'])->name('top-customers');
         });
     });

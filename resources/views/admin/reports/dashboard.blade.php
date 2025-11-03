@@ -140,6 +140,11 @@
                             <h3 class="text-xl font-bold text-white">Biểu đồ doanh thu</h3>
                         </div>
                         <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2">
+                                <input id="startDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                                <input id="endDate" type="date" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-gray-200" />
+                                <button id="applyDateRange" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium">Áp dụng</button>
+                            </div>
                             <select id="revenuePeriod" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="today">Hôm nay</option>
                                 <option value="week">Tuần này</option>
@@ -197,6 +202,10 @@
                     </div>
                     <div id="topMoviesList" class="space-y-4">
                         <!-- Top movies will be loaded here -->
+                    </div>
+                    <div class="mt-6">
+                        <h5 class="text-sm text-gray-400 mb-3">Top suất chiếu sử dụng nhiều</h5>
+                        <div id="topShowtimesList" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
@@ -377,6 +386,7 @@ $(document).ready(function() {
     loadRevenueData();
     loadTopMovies();
     loadTopCustomers();
+    loadTopShowtimes();
     
     // Update last update time
     function updateLastUpdateTime() {
@@ -417,6 +427,10 @@ $(document).ready(function() {
             }),
             new Promise(resolve => {
                 loadTopCustomers();
+                setTimeout(resolve, 600);
+            }),
+            new Promise(resolve => {
+                loadTopShowtimes();
                 setTimeout(resolve, 600);
             })
         ]).then(() => {
@@ -468,11 +482,13 @@ $(document).ready(function() {
     // Revenue chart
     function loadRevenueData() {
         const period = $('#revenuePeriod').val();
-        
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+
         $.ajax({
             url: '{{ route("admin.reports.revenue") }}',
             method: 'GET',
-            data: { period: period },
+            data: { period: period, start_date: startDate, end_date: endDate },
             success: function(response) {
                 updateRevenueChart(response.revenue_data);
             }
@@ -570,11 +586,13 @@ $(document).ready(function() {
     // Top movies
     function loadTopMovies() {
         const period = $('#topMoviesPeriod').val();
-        
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+
         $.ajax({
             url: '{{ route("admin.reports.top-movies") }}',
             method: 'GET',
-            data: { period: period },
+            data: { period: period, start_date: startDate, end_date: endDate },
             success: function(response) {
                 updateTopMovies(response.top_movies);
             }
@@ -638,15 +656,54 @@ $(document).ready(function() {
     // Top customers
     function loadTopCustomers() {
         const period = $('#topCustomersPeriod').val();
-        
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+
         $.ajax({
             url: '{{ route("admin.reports.top-customers") }}',
             method: 'GET',
-            data: { period: period },
+            data: { period: period, start_date: startDate, end_date: endDate, limit: 10 },
             success: function(response) {
                 updateTopCustomers(response.top_customers);
             }
         });
+    }
+
+    // Top showtimes
+    function loadTopShowtimes() {
+        const period = $('#topMoviesPeriod').val();
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+
+        $.ajax({
+            url: '{{ route("admin.reports.top-showtimes") }}',
+            method: 'GET',
+            data: { period: period, start_date: startDate, end_date: endDate, limit: 10 },
+            success: function(response) {
+                updateTopShowtimes(response.top_showtimes);
+            }
+        });
+    }
+
+    function updateTopShowtimes(showtimes) {
+        let html = '';
+        showtimes.forEach((s, idx) => {
+            const time = new Date(s.thoi_gian);
+            const dateLabel = time.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            html += `
+                <div class="p-3 bg-[#262833] rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-white font-semibold">${s.ten_phim}</div>
+                        <div class="text-gray-400 text-sm">Suất: ${dateLabel}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-green-400 font-bold">${new Intl.NumberFormat('vi-VN').format(s.total_tickets)} vé</div>
+                        <div class="text-gray-500 text-sm">${new Intl.NumberFormat('vi-VN').format(s.total_revenue)}đ</div>
+                    </div>
+                </div>
+            `;
+        });
+        $('#topShowtimesList').html(html);
     }
     
     function updateTopCustomers(customers) {
@@ -714,10 +771,19 @@ $(document).ready(function() {
     
     $('#topMoviesPeriod').change(function() {
         loadTopMovies();
+        loadTopShowtimes();
     });
     
     $('#topCustomersPeriod').change(function() {
         loadTopCustomers();
+    });
+
+    // Apply date range
+    $('#applyDateRange').click(function() {
+        loadRevenueData();
+        loadTopMovies();
+        loadTopCustomers();
+        loadTopShowtimes();
     });
 });
 </script>
