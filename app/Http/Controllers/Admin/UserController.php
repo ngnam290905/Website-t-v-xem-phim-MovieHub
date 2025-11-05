@@ -8,16 +8,30 @@ use App\Models\VaiTro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use App\Models\DiemThanhVien;
+use App\Models\HangThanhVien;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = NguoiDung::with('vaiTro')
-        ->whereNull('deleted_at') // chỉ lấy user chưa bị xóa
-        ->paginate(10);
+        $query = NguoiDung::with(['vaiTro', 'diemThanhVien', 'hangThanhVien'])
+        ->whereNull('deleted_at');
+
+        // 🔍 Nếu có tìm kiếm
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('ho_ten', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('id', 'desc')->paginate(10);
+
         return view('admin.users.index', compact('users'));
     }
+
 
     public function create()
     {
@@ -50,9 +64,15 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'Tạo tài khoản thành công.');
     }
 
+    public function show($id)
+    {
+        $user = NguoiDung::with('vaiTro')->findOrFail($id);
+        return view('admin.users.show', compact('user'));
+    }
+
     public function edit($id)
     {
-        $user = NguoiDung::findOrFail($id);
+        $user = NguoiDung::with(['diemThanhVien', 'hangThanhVien'])->findOrFail($id);
         $roles = VaiTro::all();
         return view('admin.users.edit', compact('user', 'roles'));
     }
@@ -69,21 +89,39 @@ class UserController extends Controller
             'dia_chi' => 'nullable|string|max:255',
             'id_vai_tro' => 'required|exists:vai_tro,id',
             'trang_thai' => 'boolean',
+            'tong_diem' => 'nullable|integer|min:0',
+            'ten_hang' => 'nullable|string|max:50',
+            'tong_chi_tieu' => 'nullable|numeric|min:0',
         ]);
 
-        // Chỉ cập nhật mật khẩu nếu có nhập
-        $data = $validated;
+        $data = $request->only([
+            'ho_ten', 'email', 'sdt', 'dia_chi', 'id_vai_tro', 'trang_thai', 'tong_chi_tieu'
+        ]);
+
         if ($request->filled('mat_khau')) {
-            $data['mat_khau'] = Hash::make($validated['mat_khau']);
-        } else {
-            unset($data['mat_khau']);
+            $data['mat_khau'] = Hash::make($request->mat_khau);
         }
 
-        // Đảm bảo trạng thái là 0 hoặc 1
         $data['trang_thai'] = $request->has('trang_thai') ? 1 : 0;
 
-        // Cập nhật dữ liệu
+        // Cập nhật user
         $user->update($data);
+
+        // Cập nhật điểm thành viên
+        if ($request->filled('tong_diem')) {
+            DiemThanhVien::updateOrCreate(
+                ['id_nguoi_dung' => $user->id],
+                ['tong_diem' => $request->tong_diem]
+            );
+        }
+
+        // Cập nhật hạng thành viên
+        if ($request->filled('ten_hang')) {
+            HangThanhVien::updateOrCreate(
+                ['id_nguoi_dung' => $user->id],
+                ['ten_hang' => $request->ten_hang]
+            );
+        }
 
         return redirect()->route('admin.users.index')->with('success', 'Cập nhật tài khoản thành công.');
     }
