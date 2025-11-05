@@ -153,41 +153,63 @@
         </div>
         
         <div id="seat-map" class="flex flex-col items-center space-y-1">
-          @foreach($phongChieu->seats->groupBy('so_hang') as $rowNumber => $seats)
+          @for($row = 1; $row <= (int)($phongChieu->rows ?? 0); $row++)
+            @php $rowLabel = chr(64 + $row); @endphp
             <div class="flex space-x-1 items-center">
-              <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ chr(64 + (int)$rowNumber) }}</span>
-              @foreach($seats->sortBy('so_ghe') as $seat)
-                <button type="button" 
-                        class="seat-btn w-8 h-8 rounded text-xs font-medium transition-all duration-200 
-                               @if($seat->status === 'available') bg-green-600 hover:bg-green-700 text-white
-                               @elseif($seat->status === 'unavailable') bg-red-600 hover:bg-red-700 text-white
-                               @else bg-yellow-600 hover:bg-yellow-700 text-white
-                               @endif"
-                        data-seat-id="{{ $seat->id }}"
-                        data-seat-status="{{ $seat->status }}"
-                        data-seat-type="{{ $seat->id_loai }}"
-                        onclick="selectSeat({{ $seat->id }}, '{{ $seat->status }}', {{ $seat->id_loai }})">
-                  {{ $seat->so_ghe }}
-                </button>
-              @endforeach
+              <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ $rowLabel }}</span>
+              @for($col = 1; $col <= (int)($phongChieu->cols ?? 0); $col++)
+                @php
+                  $code = $rowLabel . $col;
+                  $seat = $phongChieu->seats->firstWhere('so_ghe', $code);
+                @endphp
+                @if($seat)
+                  @php
+                    $isAvailable = (int)($seat->trang_thai ?? 0) === 1;
+                    $typeText = strtolower($seat->seatType->ten_loai ?? 'thuong');
+                    if ($isAvailable) {
+                      if (str_contains($typeText, 'vip')) { $btnClass = 'bg-yellow-600 hover:bg-yellow-700 text-white'; }
+                      elseif (str_contains($typeText, 'đôi') || str_contains($typeText, 'doi') || str_contains($typeText, 'couple')) { $btnClass = 'bg-pink-600 hover:bg-pink-700 text-white'; }
+                      else { $btnClass = 'bg-blue-600 hover:bg-blue-700 text-white'; }
+                    } else {
+                      $btnClass = 'bg-gray-800 hover:bg-gray-900 text-gray-400';
+                    }
+                    $statusStr = $isAvailable ? 'available' : 'locked';
+                  @endphp
+                  <button type="button"
+                          class="seat-btn w-8 h-8 rounded text-xs font-medium transition-all duration-200 {{ $btnClass }}"
+                          data-seat-id="{{ $seat->id }}"
+                          data-seat-status="{{ $statusStr }}"
+                          data-seat-type="{{ $seat->id_loai }}"
+                          title="{{ $code }}"
+                          onclick="selectSeat({{ $seat->id }}, '{{ $statusStr }}', {{ $seat->id_loai }})">
+                    {{ $code }}
+                  </button>
+                @else
+                  <span class="w-8 h-8 rounded text-xs inline-flex items-center justify-center text-[#4b5563] border border-[#2f3240]">&nbsp;</span>
+                @endif
+              @endfor
             </div>
-          @endforeach
+          @endfor
         </div>
       </div>
 
       <!-- Seat Legend -->
       <div class="mt-4 flex flex-wrap gap-4 justify-center">
         <div class="flex items-center space-x-2">
-          <div class="w-4 h-4 bg-green-600 rounded"></div>
-          <span class="text-sm text-[#a6a6b0]">Có sẵn</span>
-        </div>
-        <div class="flex items-center space-x-2">
-          <div class="w-4 h-4 bg-red-600 rounded"></div>
-          <span class="text-sm text-[#a6a6b0]">Đã đặt</span>
+          <div class="w-4 h-4 bg-blue-600 rounded"></div>
+          <span class="text-sm text-[#a6a6b0]">Ghế thường</span>
         </div>
         <div class="flex items-center space-x-2">
           <div class="w-4 h-4 bg-yellow-600 rounded"></div>
-          <span class="text-sm text-[#a6a6b0]">Bảo trì</span>
+          <span class="text-sm text-[#a6a6b0]">Ghế VIP</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <div class="w-4 h-4 bg-pink-600 rounded"></div>
+          <span class="text-sm text-[#a6a6b0]">Ghế đôi</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <div class="w-4 h-4 bg-gray-800 rounded"></div>
+          <span class="text-sm text-[#a6a6b0]">Bị khóa</span>
         </div>
       </div>
     </div>

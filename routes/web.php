@@ -82,6 +82,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     // Quản lý suất chiếu
     // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
     Route::middleware('role:admin')->group(function () {
+        Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
@@ -106,6 +107,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::put('phong-chieu/{phongChieu}', [PhongChieuController::class, 'update'])->name('phong-chieu.update');
         Route::delete('phong-chieu/{phongChieu}', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy');
         Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
+        Route::get('phong-chieu/{phongChieu}/can-modify', [PhongChieuController::class, 'canModify'])->name('phong-chieu.can-modify');
         Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
         Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');

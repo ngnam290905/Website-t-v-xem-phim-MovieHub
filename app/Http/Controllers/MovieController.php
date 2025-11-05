@@ -8,6 +8,7 @@ use App\Models\PhongChieu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 
 class MovieController extends Controller
@@ -167,7 +168,36 @@ class MovieController extends Controller
         if (request()->routeIs('movie-detail')) {
             return view('movie-detail', compact('movie'));
         }
-        return view('admin.movies.show', compact('movie'));
+
+        // Admin detail: support date-based filtering and quick stats
+        $dateParam = request()->query('date');
+        try {
+            $selectedDate = $dateParam ? Carbon::parse($dateParam)->startOfDay() : Carbon::today();
+        } catch (\Throwable $e) {
+            $selectedDate = Carbon::today();
+        }
+
+        $days = collect(range(0, 6))->map(function ($i) use ($selectedDate) {
+            return $selectedDate->copy()->startOfDay()->addDays($i);
+        });
+
+        $suatChieu = SuatChieu::with(['phongChieu'])
+            ->where('id_phim', $movie->id)
+            ->whereDate('thoi_gian_bat_dau', $selectedDate)
+            ->orderBy('thoi_gian_bat_dau')
+            ->get();
+
+        $doanhThu = $movie->calculateDoanhThu();
+        $loiNhuan = $movie->calculateLoiNhuan();
+
+        return view('admin.movies.show', [
+            'movie' => $movie,
+            'selectedDate' => $selectedDate,
+            'days' => $days,
+            'suatChieu' => $suatChieu,
+            'doanhThu' => $doanhThu,
+            'loiNhuan' => $loiNhuan,
+        ]);
     }
 
     

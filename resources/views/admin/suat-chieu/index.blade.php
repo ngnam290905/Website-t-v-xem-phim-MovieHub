@@ -13,9 +13,14 @@
         <h1 class="text-2xl font-bold text-white">Danh sách Suất Chiếu</h1>
         <p class="text-[#a6a6b0] mt-1">Quản lý tất cả các suất chiếu trong hệ thống</p>
       </div>
-      <a href="{{ route('admin.suat-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
-        <i class="fas fa-plus mr-2"></i>Tạo Suất Chiếu Mới
-      </a>
+      <div class="flex items-center gap-2">
+        <a href="{{ route('admin.suat-chieu.auto') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
+          <i class="fas fa-magic mr-2"></i>Tạo suất chiếu tự động
+        </a>
+        <a href="{{ route('admin.suat-chieu.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
+          <i class="fas fa-plus mr-2"></i>Tạo Suất Chiếu Mới
+        </a>
+      </div>
     </div>
 
     <!-- Quick Stats -->
@@ -522,6 +527,168 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activeFilters.length > 0 && filterIndicator) {
         filterIndicator.innerHTML = `<i class="fas fa-filter mr-1"></i>Đang áp dụng ${activeFilters.length} bộ lọc`;
     }
+});
+
+// ================== AUTO GENERATOR ==================
+document.addEventListener('DOMContentLoaded', function() {
+  const openBtn = document.getElementById('openAutoModal');
+  const modal = document.getElementById('autoModal');
+  const closeBtn = document.getElementById('closeAutoModal');
+  const tbody = document.getElementById('autoTbody');
+  const btnGen = document.getElementById('btnGenerate');
+  const btnSave = document.getElementById('btnSaveAll');
+  const notice = document.getElementById('autoNotice');
+
+  const selMovies = document.getElementById('autoMovies');
+  const selRooms = document.getElementById('autoRooms');
+  const startDate = document.getElementById('autoStartDate');
+  const startTime = document.getElementById('autoStartTime');
+  const endDate = document.getElementById('autoEndDate');
+  const durationInput = document.getElementById('autoDuration');
+  const slotsInput = document.getElementById('autoSlots');
+
+  function openModal(){ modal.classList.remove('hidden'); }
+  function closeModal(){ modal.classList.add('hidden'); tbody.innerHTML=''; btnSave.disabled = true; notice.classList.add('hidden'); }
+  if (openBtn) openBtn.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+
+  function toMinutes(hhmm){ const [h,m] = hhmm.split(':').map(x=>parseInt(x)); return h*60+m; }
+  function fmtDate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+  function fmtTime(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+  function addMinutes(date, mins){ const d=new Date(date.getTime()); d.setMinutes(d.getMinutes()+mins); return d; }
+
+  // Build existing schedules map (room -> [{start,end}]) from current page rows
+  const existing = {};
+  try {
+    document.querySelectorAll('tbody tr').forEach(tr => {
+      const roomCell = tr.querySelector('td:nth-child(3) .text-sm');
+      const timeCell = tr.querySelector('td:nth-child(4) .text-xs:nth-child(2)');
+      const dateCell = tr.querySelector('td:nth-child(4) .text-sm');
+      if (!roomCell || !timeCell || !dateCell) return;
+      const roomName = roomCell.textContent.trim();
+      const dateStr = (dateCell.textContent.split('•')[0] || '').trim(); // d/m/Y • H:i
+      const times = timeCell.textContent.split('–');
+      if (times.length !== 2) return;
+      const [s,e] = times.map(s=>s.trim());
+      const [d,mo,y] = dateStr.split('/').map(x=>parseInt(x));
+      const start = new Date(y, mo-1, d, parseInt(s.split(':')[0]), parseInt(s.split(':')[1]));
+      const end = new Date(y, mo-1, d, parseInt(e.split(':')[0]), parseInt(e.split(':')[1]));
+      existing[roomName] = existing[roomName] || [];
+      existing[roomName].push({start, end});
+    });
+  } catch {}
+
+  function conflict(roomName, s, e){
+    const arr = existing[roomName] || [];
+    return arr.some(x => (x.start <= e && x.end >= s));
+  }
+
+  function businessOk(s, e){
+    const open = toMinutes('08:00');
+    const close = toMinutes('23:00');
+    const sm = s.getHours()*60 + s.getMinutes();
+    const em = e.getHours()*60 + e.getMinutes();
+    return sm >= open && em <= close;
+  }
+
+  function weekendExtraSlots(day){
+    const dow = day.getDay(); // 0 Sun, 6 Sat
+    return (dow===0 || dow===6) ? ['23:00'] : [];
+  }
+
+  function getSelected(selectEl){ return Array.from(selectEl.selectedOptions).map(o=>o.value); }
+  function getMovieMeta(selectEl){ return Array.from(selectEl.selectedOptions).map(o=>({id:o.value, name:o.textContent.trim(), dur:parseInt(o.dataset.duration||'120')})); }
+
+  function renderRows(rows){
+    tbody.innerHTML='';
+    rows.forEach((r,idx)=>{
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-[#1a1d24]';
+      const statusBadge = r.conflict ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-300">Trùng phòng</span>' : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-300">Hợp lệ</span>';
+      tr.innerHTML = `
+        <td class="px-3 py-2 text-white">${r.movieName}</td>
+        <td class="px-3 py-2 text-white">${r.roomName}</td>
+        <td class="px-3 py-2 text-white">${r.date}</td>
+        <td class="px-3 py-2 text-white">${r.start}–${r.end}</td>
+        <td class="px-3 py-2 text-white">${r.duration} phút</td>
+        <td class="px-3 py-2">${statusBadge}</td>
+        <td class="px-3 py-2">
+          <button type="button" data-idx="${idx}" class="delRow bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"><i class="fas fa-trash mr-1"></i>Xoá</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.delRow').forEach(btn=>btn.addEventListener('click', e=>{
+      const i = parseInt(e.currentTarget.getAttribute('data-idx'));
+      genRows.splice(i,1);
+      renderRows(genRows);
+      btnSave.disabled = genRows.length===0 || genRows.some(r=>r.conflict);
+    }));
+  }
+
+  let genRows = [];
+
+  btnGen?.addEventListener('click', function(){
+    notice.classList.add('hidden');
+    genRows = [];
+    const movies = getMovieMeta(selMovies);
+    const rooms = getSelected(selRooms);
+    const sd = startDate.value; const st = startTime.value; const ed = endDate.value; const duration = parseInt(durationInput.value||'150');
+    let slots = (slotsInput.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if (!movies.length || !rooms.length || !sd || !ed || !st || !duration) { alert('Vui lòng chọn phim, phòng, ngày giờ và thời lượng.'); return; }
+    // Default slots if empty
+    if (slots.length===0) slots = ['09:00','12:00','15:00','18:00','21:00'];
+
+    const startDay = new Date(sd+'T'+st+':00');
+    const endDay = new Date(ed+'T23:59:59');
+    for (let d = new Date(startDay); d <= endDay; d = addMinutes(new Date(fmtDate(d)+'T00:00:00'), 24*60)) {
+      const dateStr = fmtDate(d);
+      // weekend extra
+      const extra = weekendExtraSlots(d);
+      const daySlots = [...slots, ...extra];
+      rooms.forEach(roomId => {
+        const roomName = (selRooms.querySelector(`option[value="${roomId}"]`)?.textContent || '').trim();
+        movies.forEach(m => {
+          daySlots.forEach(hhmm => {
+            const start = new Date(`${dateStr}T${hhmm}:00`);
+            const end = addMinutes(start, duration);
+            if (!businessOk(start, end)) return;
+            const conf = conflict(roomName, start, end);
+            genRows.push({ movieId: m.id, movieName: m.name, roomId, roomName, date: dateStr.split('-').reverse().join('/'), start: fmtTime(start), end: fmtTime(end), startISO: start.toISOString(), endISO: end.toISOString(), duration, conflict: conf });
+          });
+        });
+      });
+    }
+
+    // Sort by date/time
+    genRows.sort((a,b)=> (a.date===b.date? a.start.localeCompare(b.start) : a.date.split('/').reverse().join('-').localeCompare(b.date.split('/').reverse().join('-'))));
+    renderRows(genRows);
+    btnSave.disabled = genRows.length===0 || genRows.some(r=>r.conflict);
+    if (genRows.some(r=>r.conflict)) { notice.textContent = 'Một số suất bị trùng phòng, vui lòng xóa hoặc điều chỉnh trước khi lưu.'; notice.classList.remove('hidden'); }
+  });
+
+  btnSave?.addEventListener('click', async function(){
+    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const validRows = genRows.filter(r=>!r.conflict);
+    if (validRows.length===0) { alert('Không có suất hợp lệ để lưu.'); return; }
+    btnSave.disabled = true;
+    let ok=0, fail=0;
+    for (const r of validRows) {
+      try {
+        const res = await fetch('{{ route('admin.suat-chieu.store') }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+          body: JSON.stringify({ movie_id: r.movieId, room_id: r.roomId, start_time: r.startISO, end_time: r.endISO })
+        });
+        if (!res.ok) { fail++; continue; }
+        const text = await res.text();
+        // store() redirects on success; assume ok when 200/302
+        ok++;
+      } catch(e){ fail++; }
+    }
+    alert(`Đã lưu ${ok} suất, thất bại ${fail}.`);
+    window.location.reload();
+  });
 });
 </script>
 @endsection
