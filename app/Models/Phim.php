@@ -119,4 +119,26 @@ class Phim extends Model
         }
         return 'Chưa có đánh giá';
     }
+
+    /**
+     * Calculate total revenue from all showtimes of this movie
+     */
+    public function calculateDoanhThu()
+    {
+        return $this->suatChieu()
+            ->with('datVe')
+            ->get()
+            ->sum(function ($suatChieu) {
+                return $suatChieu->datVe->sum('tong_tien');
+            });
+    }
+
+    /**
+     * Calculate profit (revenue minus estimated costs)
+     * For now, returns revenue as profit calculation requires cost data
+     */
+    public function calculateLoiNhuan()
+    {
+        return $this->calculateDoanhThu();
+    }
 }
