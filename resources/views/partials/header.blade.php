@@ -37,8 +37,30 @@
                 <span class="text-white text-sm font-medium">{{ strtoupper(substr(auth()->user()->ho_ten, 0, 1)) }}</span>
               </div>
               <span class="hidden sm:inline text-sm">{{ auth()->user()->ho_ten }}</span>
+              @if(auth()->user()->la_thanh_vien)
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-600 to-orange-600 text-white">
+                  <i class="fas fa-crown text-xs"></i>
+                  Thành viên
+                </span>
+              @endif
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.958a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            </a>
+          @else
+            <!-- Chưa là thành viên - hiển thị nút đăng ký -->
+            <a href="{{ route('thanh-vien.register-form') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition animate-pulse">
+              <i class="fas fa-star text-sm"></i>
+              Đăng ký thành viên
+            </a>
+          @endif
+          
+          @if(in_array(optional(auth()->user()->vaiTro)->ten, ['admin', 'staff']))
+            <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#F53003] hover:bg-[#e02a00] transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+>>>>>>> 0eade8d (Chỉnh sửa các bảng và thêm bảng tiers)
               </svg>
             </button>
             <div class="absolute right-0 mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-[#1b1d24] border border-[#262833] rounded-md shadow-xl min-w-[200px] py-2 z-50">

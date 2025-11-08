@@ -12,7 +12,10 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
+
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\ThanhVienController;
+
 
 
 // Main routes
@@ -48,6 +51,7 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
+
 // User profile routes
 Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
@@ -57,6 +61,13 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::post('/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
     Route::get('/booking-history', [UserProfileController::class, 'bookingHistory'])->name('booking-history');
     Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking');
+});
+
+// Thành viên routes
+Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
+    Route::get('/dang-ky', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
+    Route::post('/dang-ky', [ThanhVienController::class, 'register'])->name('register');
+    Route::get('/thong-tin', [ThanhVienController::class, 'profile'])->name('profile');
 });
 
 

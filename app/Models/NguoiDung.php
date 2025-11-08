@@ -26,6 +26,8 @@ class NguoiDung extends Authenticatable
         'dia_chi',
         'id_vai_tro',
         'trang_thai',
+        'la_thanh_vien',
+        'ngay_dang_ky_thanh_vien',
     ];
 
     // Ẩn mật khẩu khi trả về JSON

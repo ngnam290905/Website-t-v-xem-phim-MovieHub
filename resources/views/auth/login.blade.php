@@ -7,17 +7,49 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        // Tự động refresh CSRF token nếu trang load lâu (tránh lỗi 419)
+        setTimeout(function() {
+            fetch('{{ route('login.form') }}', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.text())
+              .then(html => {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, 'text/html');
+                  const newToken = doc.querySelector('meta[name="csrf-token"]');
+                  if (newToken) {
+                      document.querySelector('meta[name="csrf-token"]').content = newToken.content;
+                      const tokenInput = document.querySelector('input[name="_token"]');
+                      if (tokenInput) {
+                          tokenInput.value = newToken.content;
+                      }
+                  }
+              });
+        }, 60000); // Refresh sau 1 phút
+    </script>
     <style>
         body {
             background-color: #0d0f14;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
         }
         .form-container {
             background-color: #151822;
             border: 1px solid #262833;
+            border-radius: 1rem;
+            padding: 2rem;
+            width: 100%;
+            max-width: 28rem;
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body>
     <div class="w-full max-w-md">
         <!-- Logo và Tiêu đề -->
         <div class="text-center mb-8">
@@ -27,7 +59,6 @@
             <h1 class="text-3xl font-bold text-white mb-2">Đăng nhập MovieHub</h1>
             <p class="text-gray-400">Chào mừng trở lại!</p>
         </div>
-
         <!-- Form đăng nhập -->
         <div class="form-container rounded-xl p-8">
             @if ($errors->any())
