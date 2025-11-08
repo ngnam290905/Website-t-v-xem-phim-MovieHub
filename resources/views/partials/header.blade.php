@@ -33,6 +33,20 @@
         <div class="flex items-center gap-4">
           <span class="text-sm">Xin chào, {{ auth()->user()->ho_ten }}</span>
           
+          @if(auth()->user()->la_thanh_vien)
+            <!-- Đã là thành viên - hiển thị link thông tin -->
+            <a href="{{ route('thanh-vien.profile') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 transition">
+              <i class="fas fa-crown text-sm"></i>
+              Thành viên
+            </a>
+          @else
+            <!-- Chưa là thành viên - hiển thị nút đăng ký -->
+            <a href="{{ route('thanh-vien.register-form') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition animate-pulse">
+              <i class="fas fa-star text-sm"></i>
+              Đăng ký thành viên
+            </a>
+          @endif
+          
           @if(in_array(optional(auth()->user()->vaiTro)->ten, ['admin', 'staff']))
             <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#F53003] hover:bg-[#e02a00] transition">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">

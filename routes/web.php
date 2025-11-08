@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\ThanhVienController;
 
 
 // Main routes
@@ -48,6 +49,13 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+// Thành viên routes
+Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
+    Route::get('/dang-ky', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
+    Route::post('/dang-ky', [ThanhVienController::class, 'register'])->name('register');
+    Route::get('/thong-tin', [ThanhVienController::class, 'profile'])->name('profile');
+});
 
 
 // Admin routes - cả Admin và Staff

@@ -6,6 +6,26 @@
     <title>Đăng nhập</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        // Tự động refresh CSRF token nếu trang load lâu (tránh lỗi 419)
+        setTimeout(function() {
+            fetch('{{ route('login.form') }}', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.text())
+              .then(html => {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, 'text/html');
+                  const newToken = doc.querySelector('meta[name="csrf-token"]');
+                  if (newToken) {
+                      document.querySelector('meta[name="csrf-token"]').content = newToken.content;
+                      document.querySelector('input[name="_token"]').value = newToken.content;
+                  }
+              });
+        }, 60000); // Refresh sau 1 phút
+    </script>
     </head>
 <body>
 <main class="container">
