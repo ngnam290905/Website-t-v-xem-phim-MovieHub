@@ -49,9 +49,9 @@
         <div class="flex space-x-2 pb-2">
             @foreach($dates as $date)
             <a href="?date={{ $date['date'] }}" 
-               class="flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-lg {{ $activeDate === $date['date'] ? 'bg-[#F53003]' : 'bg-[#1b1d24] hover:bg-[#262833]' }} transition-colors">
-                <span class="text-sm {{ $activeDate === $date['date'] ? 'text-white' : 'text-gray-400' }}">{{ $date['weekday'] }}</span>
-                <span class="text-xl font-bold {{ $activeDate === $date['date'] ? 'text-white' : 'text-white' }}">{{ $date['day'] }}</span>
+               class="relative flex-shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-lg {{ $date['is_selected'] ? 'bg-[#F53003]' : 'bg-[#1b1d24] hover:bg-[#262833]' }} transition-colors">
+                <span class="text-sm {{ $date['is_selected'] ? 'text-white' : 'text-gray-400' }}">{{ $date['weekday'] }}</span>
+                <span class="text-xl font-bold {{ $date['is_selected'] ? 'text-white' : 'text-white' }}">{{ $date['day'] }}</span>
                 @if($date['is_today'])
                     <span class="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
                 @endif
@@ -59,18 +59,42 @@
             @endforeach
         </div>
     </div>
+    
+    @php
+        $activeDate = request()->has('date') ? request()->date : now()->format('Y-m-d');
+    @endphp
 
-    <!-- Room Filter -->
-    @if($rooms->isNotEmpty())
-    <div class="mb-6">
-        <select id="room-filter" class="bg-[#1b1d24] border border-[#262833] text-white text-sm rounded-lg focus:ring-[#F53003] focus:border-[#F53003] block w-full md:w-64 p-2.5">
-            <option value="">Tất cả phòng chiếu</option>
-            @foreach($rooms as $room)
-                <option value="{{ $room->id }}">{{ $room->ten_phong }}</option>
-            @endforeach
-        </select>
+    <!-- Filters -->
+    <div class="flex flex-col md:flex-row gap-4 mb-6">
+        <!-- Genre Filter -->
+        @if(isset($genres) && $genres->isNotEmpty())
+        <div class="w-full md:w-64">
+            <form id="genre-form" method="GET" action="{{ route('movies.showtimes') }}">
+                @if(request()->has('date'))
+                    <input type="hidden" name="date" value="{{ request()->date }}">
+                @endif
+                <select name="genre" id="genre-filter" onchange="this.form.submit()" class="bg-[#1b1d24] border border-[#262833] text-white text-sm rounded-lg focus:ring-[#F53003] focus:border-[#F53003] block w-full p-2.5">
+                    <option value="">Tất cả thể loại</option>
+                    @foreach($genres as $genre)
+                        <option value="{{ $genre }}" {{ request('genre') == $genre ? 'selected' : '' }}>{{ $genre }}</option>
+                    @endforeach
+                </select>
+            </form>
+        </div>
+        @endif
+
+        <!-- Room Filter -->
+        @if(isset($rooms) && $rooms->isNotEmpty())
+        <div class="w-full md:w-64">
+            <select id="room-filter" class="bg-[#1b1d24] border border-[#262833] text-white text-sm rounded-lg focus:ring-[#F53003] focus:border-[#F53003] block w-full p-2.5">
+                <option value="">Tất cả phòng chiếu</option>
+                @foreach($rooms as $room)
+                    <option value="{{ $room->id }}" {{ request('room') == $room->id ? 'selected' : '' }}>{{ $room->ten_phong }}</option>
+                @endforeach
+            </select>
+        </div>
+        @endif
     </div>
-    @endif
 
     <!-- Movie Showtimes -->
     <div class="space-y-6">
@@ -98,17 +122,19 @@
                             <h3 class="text-sm font-medium text-gray-300 mb-2">Suất chiếu:</h3>
                             <div class="flex flex-wrap gap-2">
                                 @php
-                                    $showtimes = $movie->suatChieus->where('ngay_chieu', $activeDate);
                                     $now = now();
                                     $activeDateTime = \Carbon\Carbon::parse($activeDate);
                                     $isToday = $activeDateTime->isToday();
+                                    $showtimes = $movie->suatChieu
+                                        ->where('thoi_gian_bat_dau', '>=', $activeDateTime->copy()->startOfDay())
+                                        ->where('thoi_gian_bat_dau', '<', $activeDateTime->copy()->addDay()->startOfDay());
                                 @endphp
                                 
                                 @if($showtimes->count() > 0)
                                     @forelse($showtimes as $showtime)
                                     @php
-                                        $showTime = \Carbon\Carbon::parse($showtime->gio_bat_dau);
-                                        $isPastShowtime = $isToday && $showTime->lt($now);
+                                        $showTime = \Carbon\Carbon::parse($showtime->thoi_gian_bat_dau);
+                                        $isPastShowtime = $showTime->lt($now);
                                     @endphp
                                     <a href="{{ !$isPastShowtime ? route('booking', ['movie' => $movie->id, 'showtime' => $showtime->id]) : '#' }}" 
                                        class="time-btn px-4 py-2 border rounded-md text-sm font-medium {{ $isPastShowtime ? 'border-gray-700 text-gray-500 bg-gray-800 cursor-not-allowed disabled' : 'border-gray-600 text-white hover:bg-[#F53003] hover:border-[#F53003]' }} transition-colors"
@@ -156,7 +182,6 @@
         </div>
     </div>
 </div>
-@endsection
 
 @push('scripts')
 <script>
@@ -168,7 +193,7 @@
         if (!dateParam) {
             // If no date is selected, redirect to today's date
             const today = new Date().toISOString().split('T')[0];
-            window.location.href = '{{ route("showtimes") }}?date=' + today;
+            window.location.href = '{{ route("movies.showtimes") }}?date=' + today;
         }
     });
 </script>

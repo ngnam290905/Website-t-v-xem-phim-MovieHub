@@ -97,49 +97,109 @@ class MovieController extends Controller
      */
     public function byGenre($genre)
     {
-        $genreName = str_replace('-', ' ', $genre);
-        $movies = Phim::where('the_loai', 'like', "%{$genreName}%")
+        // Decode the URL-encoded genre name
+        $genreName = urldecode($genre);
+        
+        // Get all unique genres for the filter sidebar
+        $allGenres = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
+            ->whereNotNull('the_loai')
+            ->where('the_loai', '!=', '')
+            ->pluck('the_loai')
+            ->flatMap(function($item) {
+                return array_map('trim', explode(',', $item));
+            })
+            ->unique()
+            ->sort()
+            ->values();
+
+        // Get movies that match the selected genre
+        $movies = Phim::where(function($query) use ($genreName) {
+                $query->where('the_loai', 'LIKE', "%{$genreName}%");
+            })
             ->whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
             ->orderBy('ngay_khoi_chieu', 'desc')
             ->paginate(12);
 
         return view('movies.listing', [
             'movies' => $movies,
-            'title' => 'Thể loại: ' . ucfirst($genreName),
+            'title' => 'Thể loại: ' . $genreName,
             'description' => 'Danh sách phim thể loại ' . $genreName,
             'activeTab' => 'genre',
-            'currentGenre' => $genreName
+            'currentGenre' => $genreName,
+            'genres' => $allGenres
         ]);
     }
 
     /**
      * Show movie showtimes for all movies
      */
-    public function showtimes()
+    public function showtimes(Request $request)
     {
-        // Get all movies with their showtimes for the next 7 days
-        $movies = Phim::with(['suatChieus' => function($query) {
-                $query->where('ngay_chieu', '>=', now()->format('Y-m-d'))
-                    ->where('ngay_chieu', '<=', now()->addDays(7)->format('Y-m-d'))
-                    ->orderBy('ngay_chieu')
-                    ->orderBy('gio_bat_dau');
-            }])
-            ->whereHas('suatChieus', function($query) {
-                $query->where('ngay_chieu', '>=', now()->format('Y-m-d'))
-                    ->where('ngay_chieu', '<=', now()->addDays(7)->format('Y-m-d'));
+        // Get the selected date or default to today
+        $selectedDate = $request->has('date') 
+            ? \Carbon\Carbon::parse($request->date)
+            : now();
+            
+        // Format the selected date for display
+        $formattedSelectedDate = $selectedDate->format('Y-m-d');
+        
+        // Get all active showtimes for the selected date
+        $startOfDay = $selectedDate->copy()->startOfDay();
+        $endOfDay = $selectedDate->copy()->endOfDay();
+        
+        // Get all unique genres from movies that have showtimes
+        $genres = Phim::where('trang_thai', 'dang_chieu')
+            ->whereHas('suatChieu', function($query) use ($startOfDay, $endOfDay) {
+                $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
+                    ->where('thoi_gian_bat_dau', '<=', $endOfDay)
+                    ->where('trang_thai', 1);
             })
+            ->select('the_loai')
+            ->distinct()
+            ->pluck('the_loai')
+            ->filter()
+            ->sort()
+            ->values();
+
+        // Get selected genre from request
+        $selectedGenre = $request->input('genre');
+        
+        // Get movies that have showtimes in the selected date range
+        $movies = Phim::with(['suatChieu' => function($query) use ($startOfDay, $endOfDay) {
+                $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
+                    ->where('thoi_gian_bat_dau', '<=', $endOfDay)
+                    ->where('trang_thai', 1) // Only active showtimes
+                    ->orderBy('thoi_gian_bat_dau');
+            }])
+            ->whereHas('suatChieu', function($query) use ($startOfDay, $endOfDay) {
+                $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
+                    ->where('thoi_gian_bat_dau', '<=', $endOfDay)
+                    ->where('trang_thai', 1); // Only active showtimes
+            })
+            ->when($selectedGenre, function($query) use ($selectedGenre) {
+                return $query->where('the_loai', $selectedGenre);
+            })
+            ->where('trang_thai', 'dang_chieu') // Only showing movies that are currently playing
             ->orderBy('ten_phim')
-            ->get();
+            ->get()
+            ->filter(function($movie) {
+                // Filter out movies that have no showtimes after the with() eager load
+                return $movie->suatChieu->isNotEmpty();
+            });
 
         // Generate dates for the next 7 days
         $dates = [];
+        $today = now();
+        
         for ($i = 0; $i < 7; $i++) {
-            $date = now()->addDays($i);
+            $date = $today->copy()->addDays($i);
+            $dateString = $date->format('Y-m-d');
             $dates[] = [
-                'date' => $date->format('Y-m-d'),
+                'date' => $dateString,
                 'day' => $date->format('d/m'),
                 'weekday' => $this->getWeekdayName($date->dayOfWeek),
-                'is_today' => $i === 0
+                'is_today' => $date->isToday(),
+                'is_selected' => $dateString === $formattedSelectedDate
             ];
         }
 

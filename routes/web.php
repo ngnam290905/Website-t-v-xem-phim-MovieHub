@@ -20,15 +20,18 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Client Movie Routes
 Route::prefix('phim')->name('movies.')->group(function () {
+    // Static routes first
     Route::get('/', [MovieController::class, 'list'])->name('index');
     Route::get('/dang-chieu', [MovieController::class, 'nowShowing'])->name('now-showing');
     Route::get('/sap-chieu', [MovieController::class, 'comingSoon'])->name('coming-soon');
     Route::get('/phim-hot', [MovieController::class, 'hotMovies'])->name('hot');
-    Route::get('/the-loai/{genre}', [MovieController::class, 'byGenre'])->name('by-genre');
-    Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
-    
-    // Showtimes route inside the movies group to get the correct name prefix
     Route::get('/gio-chieu', [MovieController::class, 'showtimes'])->name('showtimes');
+    
+    // Dynamic routes with parameters should come after static routes
+    Route::get('/the-loai/{genre}', [MovieController::class, 'byGenre'])->name('by-genre');
+    
+    // Catch-all route for movie details should be last
+    Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
 });
 
 // API routes for AJAX calls
