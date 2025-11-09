@@ -113,9 +113,9 @@
         <!-- Navigation -->
         <nav class="hidden md:flex items-center gap-6">
           <a href="{{ route('home') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Trang chủ</a>
-          <a href="#movies" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Phim</a>
-          <a href="#cinemas" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Rạp</a>
-          <a href="#promotions" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Khuyến mãi</a>
+          <a href="{{ route('movies.index') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Phim</a>
+          <a href="{{ route('movies.showtimes') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Lịch chiếu</a>
+          <a href="#" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Khuyến mãi</a>
         </nav>
         
         <!-- User Actions -->
@@ -195,10 +195,10 @@
             <h3 class="text-white font-semibold mb-4">Liên kết nhanh</h3>
             <ul class="space-y-2">
               <li><a href="{{ route('home') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Trang chủ</a></li>
-              <li><a href="#movies" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim đang chiếu</a></li>
-              <li><a href="#coming" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim sắp chiếu</a></li>
-              <li><a href="#cinemas" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Rạp chiếu</a></li>
-              <li><a href="#promotions" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Khuyến mãi</a></li>
+              <li><a href="{{ route('movies.now-showing') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim đang chiếu</a></li>
+              <li><a href="{{ route('movies.coming-soon') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim sắp chiếu</a></li>
+              <li><a href="{{ route('movies.showtimes') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Lịch chiếu</a></li>
+              <li><a href="#" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Khuyến mãi</a></li>
             </ul>
           </div>
           

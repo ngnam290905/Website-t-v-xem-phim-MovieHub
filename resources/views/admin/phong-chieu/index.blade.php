@@ -191,7 +191,7 @@
                     </a>
                     <button type="button" 
                             class="inline-flex items-center px-3 py-1.5 {{ $phong->status === 'active' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }} text-white text-xs font-medium rounded-md transition-colors duration-200" 
-                            onclick="updateStatus({{ $phong->id }}, '{{ $phong->status === 'active' ? 'inactive' : 'active' }}')" 
+                            onclick="attemptPause({{ $phong->id }}, '{{ $phong->status === 'active' ? 'inactive' : 'active' }}')" 
                             title="{{ $phong->status === 'active' ? 'Tạm dừng' : 'Kích hoạt' }}">
                       <i class="fas fa-{{ $phong->status === 'active' ? 'pause' : 'play' }} mr-1"></i>
                       <span class="hidden sm:inline">{{ $phong->status === 'active' ? 'Dừng' : 'Bật' }}</span>
@@ -199,7 +199,8 @@
                     <form action="{{ route('admin.phong-chieu.destroy', $phong) }}" 
                           method="POST" 
                           style="display: inline-block;" 
-                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này? Tất cả ghế và dữ liệu liên quan sẽ bị xóa!')">
+                          class="room-delete-form" 
+                          data-room-id="{{ $phong->id }}">
                       @csrf
                       @method('DELETE')
                       <button type="submit" 
@@ -237,33 +238,94 @@
     </div>
   </div>
 
+<!-- Modal cảnh báo không thể thao tác -->
+<div id="roomBlockModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/60"></div>
+  <div class="relative z-10 max-w-lg mx-auto my-24 bg-[#151822] border border-[#262833] rounded-xl shadow-xl">
+    <div class="px-5 py-4 border-b border-[#262833] flex items-center justify-between">
+      <h3 class="text-white font-semibold text-lg"><i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>Không thể thực hiện</h3>
+      <button type="button" class="text-[#a6a6b0] hover:text-white" onclick="closeBlockModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-5">
+      <p id="roomBlockMessage" class="text-[#d1d5db]"></p>
+      <div class="mt-5 text-right">
+        <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm" onclick="closeBlockModal()">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
 <script>
-function updateStatus(id, status) {
-    if (confirm('Bạn có chắc chắn muốn thay đổi trạng thái phòng chiếu?')) {
-        fetch(`/admin/phong-chieu/${id}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                status: status
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Có lỗi xảy ra khi cập nhật trạng thái');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Có lỗi xảy ra khi cập nhật trạng thái');
-        });
-    }
+// Sử dụng URL sinh từ Blade để tránh sai prefix
+const ROOM_STATUS_BASE = "{{ url('admin/phong-chieu') }}";
+const ROOM_CAN_MODIFY_BASE = "{{ url('admin/phong-chieu') }}";
+
+function showBlockModal(msg){
+  const m = document.getElementById('roomBlockModal');
+  const p = document.getElementById('roomBlockMessage');
+  if (p) p.textContent = msg || 'Phòng chiếu đang có suất chiếu sắp diễn ra.';
+  if (m) m.classList.remove('hidden');
 }
+function closeBlockModal(){
+  const m = document.getElementById('roomBlockModal');
+  if (m) m.classList.add('hidden');
+}
+
+async function attemptPause(id, status){
+  try{
+    const res = await fetch(`${ROOM_CAN_MODIFY_BASE}/${id}/can-modify`, { headers:{'X-Requested-With':'XMLHttpRequest'} });
+    const data = await res.json();
+    if (!data.success) { showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); return; }
+    if (!data.can_pause) { showBlockModal('Không thể dừng phòng chiếu vì đang có suất chiếu sắp diễn ra.'); return; }
+    updateStatus(id, status);
+  }catch(e){ showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); }
+}
+
+async function updateStatus(id, status) {
+  if (!confirm('Bạn có chắc chắn muốn thay đổi trạng thái phòng chiếu?')) return;
+  const url = `${ROOM_STATUS_BASE}/${id}/status`;
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({ status })
+    });
+    let data = null;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { success: res.ok, message: text || 'Unknown' }; }
+    if (!res.ok || !data.success) {
+      alert(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+      return;
+    }
+    location.reload();
+  } catch (e) {
+    console.error(e);
+    alert('Không thể kết nối máy chủ khi cập nhật trạng thái.');
+  }
+}
+
+// Intercept delete to pre-check
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.room-delete-form').forEach(function(form){
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const id = form.getAttribute('data-room-id');
+      if (!id) { form.submit(); return; }
+      try{
+        const res = await fetch(`${ROOM_CAN_MODIFY_BASE}/${id}/can-modify`, { headers:{'X-Requested-With':'XMLHttpRequest'} });
+        const data = await res.json();
+        if (!data.success) { showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); return; }
+        if (!data.can_delete) { showBlockModal('Không thể xóa phòng chiếu vì đang có suất chiếu sắp diễn ra.'); return; }
+        if (confirm('Bạn có chắc chắn muốn xóa phòng chiếu này? Tất cả ghế và dữ liệu liên quan sẽ bị xóa!')) {
+          form.submit();
+        }
+      }catch(err){ showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); }
+    });
+  });
+});
 </script>
 @endsection
 

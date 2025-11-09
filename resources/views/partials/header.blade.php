@@ -7,8 +7,8 @@
 
     <nav class="hidden md:flex items-center gap-10 text-[15px]">
       <a href="{{ route('home') }}" class="hover:text-[#F53003] transition">Trang chủ</a>
-      <a href="#phim" class="hover:text-[#F53003] transition">Phim</a>
-      <a href="#gio-ve" class="hover:text-[#F53003] transition">Giờ vé</a>
+      <a href="{{ route('movies.index') }}" class="hover:text-[#F53003] transition">Phim</a>
+      <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition">Giờ vé</a>
       <div class="relative group">
         <button class="inline-flex items-center gap-2 hover:text-[#F53003] transition">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm2 3h8l-4 5-4-5z"/></svg>

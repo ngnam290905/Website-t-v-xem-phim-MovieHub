@@ -12,11 +12,24 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\HomeController;
 
 
 // Main routes
-Route::get('/', [MovieController::class, 'index'])->name('home');
-Route::get('/phim/{movie}', [MovieController::class, 'show'])->name('movie-detail');
+Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Client Movie Routes
+Route::prefix('phim')->name('movies.')->group(function () {
+    Route::get('/', [MovieController::class, 'list'])->name('index');
+    Route::get('/dang-chieu', [MovieController::class, 'nowShowing'])->name('now-showing');
+    Route::get('/sap-chieu', [MovieController::class, 'comingSoon'])->name('coming-soon');
+    Route::get('/phim-hot', [MovieController::class, 'hotMovies'])->name('hot');
+    Route::get('/the-loai/{genre}', [MovieController::class, 'byGenre'])->name('by-genre');
+    Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
+    
+    // Showtimes route inside the movies group to get the correct name prefix
+    Route::get('/gio-chieu', [MovieController::class, 'showtimes'])->name('showtimes');
+});
 
 // API routes for AJAX calls
 Route::get('/api/movies', [MovieController::class, 'getMovies'])->name('api.movies');
@@ -82,6 +95,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     // Quản lý suất chiếu
     // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
     Route::middleware('role:admin')->group(function () {
+        Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
@@ -106,6 +120,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::put('phong-chieu/{phongChieu}', [PhongChieuController::class, 'update'])->name('phong-chieu.update');
         Route::delete('phong-chieu/{phongChieu}', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy');
         Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
+        Route::get('phong-chieu/{phongChieu}/can-modify', [PhongChieuController::class, 'canModify'])->name('phong-chieu.can-modify');
         Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
         Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
