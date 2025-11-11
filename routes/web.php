@@ -12,6 +12,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\AiSearchController;
 
 
 // Main routes
@@ -24,6 +25,10 @@ Route::get('/api/featured-movies', [MovieController::class, 'getFeaturedMovies']
 Route::get('/api/search', [MovieController::class, 'search'])->name('api.search');
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
+// AI search endpoint (exempt from CSRF so it can be called by external clients/tests)
+Route::post('/api/ai/search', [AiSearchController::class, 'search'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('api.ai.search');
 
 // Booking routes
 Route::get('/dat-ve/{id?}', function ($id = 1) {
