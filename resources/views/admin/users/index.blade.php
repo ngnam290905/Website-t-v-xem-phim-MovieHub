@@ -93,6 +93,7 @@
                 <td>{{ optional($user->vaiTro)->ten ?? 'Không có' }}</td>
                 <td>{{ $user->trang_thai ? 'Hoạt động' : 'Khóa' }}</td>
                 <td class="flex gap-2">
+                  <a href="{{ route('admin.users.show', $user->id) }}" class="text-blue-400 hover:text-blue-300 hover:underline">Xem</a>
                   <a href="{{ route('admin.users.edit', $user->id) }}" class="text-[#F53003] hover:underline">Sửa</a>
                   <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Xác nhận xóa?');">
                     @csrf

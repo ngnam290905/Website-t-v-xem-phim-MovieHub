@@ -206,6 +206,7 @@ class QuanLyDatVeController extends Controller
             'suat_chieu_id' => 'nullable|integer',
             'ghi_chu_noi_bo' => 'nullable|string',
             'trang_thai' => 'nullable|in:0,1,2,3',
+            'trang_thai_thanh_toan' => 'nullable|in:0,1,2',
             'ma_km' => 'nullable|string',
             'combo_ids' => 'nullable|array',
             'combo_ids.*' => 'integer'
@@ -351,6 +352,12 @@ class QuanLyDatVeController extends Controller
             if ($request->filled('trang_thai')) {
                 $booking->trang_thai = (int) $request->input('trang_thai');
             }
+            
+            // Cập nhật trạng thái thanh toán nếu truyền vào
+            if ($request->filled('trang_thai_thanh_toan')) {
+                $booking->trang_thai_thanh_toan = (int) $request->input('trang_thai_thanh_toan');
+            }
+            
             $booking->save();
 
             return ['tong' => $tong, 'comboTotal' => $comboTotal, 'discount' => $discount, 'memberDiscount' => $memberDiscount];
@@ -453,5 +460,21 @@ class QuanLyDatVeController extends Controller
             // Nếu chưa đạt ngưỡng nào, có thể xóa hoặc đặt null
             HangThanhVien::where('id_nguoi_dung', $userId)->delete();
         }
+    }
+
+    public function updatePayment(Request $request, $id)
+    {
+        $booking = DatVe::findOrFail($id);
+        
+        $request->validate([
+            'payment_status' => 'required|integer|in:0,1,2'
+        ]);
+
+        // Cập nhật trạng thái thanh toán (giả sử có cột trang_thai_thanh_toan)
+        $booking->trang_thai_thanh_toan = $request->payment_status;
+        $booking->save();
+
+        return redirect()->route('admin.bookings.index')
+            ->with('success', 'Cập nhật trạng thái thanh toán thành công!');
     }
 }

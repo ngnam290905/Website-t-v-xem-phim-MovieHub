@@ -110,6 +110,7 @@
                             <th class="px-4 py-3">Tổng tiền</th>
                             <th class="px-4 py-3">Mã KM</th>
                             <th class="px-4 py-3">Trạng thái</th>
+                            <th class="px-4 py-3">Thanh toán</th>
                             <th class="px-4 py-3">Thời gian đặt</th>
                             <th class="px-4 py-3 text-center">Hành động</th>
                         </tr>
@@ -165,10 +166,27 @@
                                             <span class="px-2 py-1 text-gray-400 bg-gray-800 rounded-full text-xs">Không xác định</span>
                                     @endswitch
                                 </td>
+                                <td class="px-4 py-3">
+                                    @php
+                                        $paymentStatus = $booking->trang_thai_thanh_toan ?? ($booking->trang_thai == 1 ? 1 : 0);
+                                    @endphp
+                                    @switch($paymentStatus)
+                                        @case(0)
+                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chưa thanh toán</span>
+                                            @break
+                                        @case(1)
+                                            <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã thanh toán</span>
+                                            @break
+                                        @case(2)
+                                            <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Đã hoàn tiền</span>
+                                            @break
+                                        @default
+                                            <span class="px-2 py-1 text-gray-400 bg-gray-800 rounded-full text-xs">Chưa thanh toán</span>
+                                    @endswitch
+                                </td>
                                 <td class="px-4 py-3">{{ optional($booking->created_at)->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex justify-center gap-1.5">
-
                                         {{-- Xem chi tiết --}}
                                         <a href="{{ route('admin.bookings.show', $booking->id) }}"
                                             class="p-1.5 rounded-md bg-blue-600/80 hover:bg-blue-600 transition"

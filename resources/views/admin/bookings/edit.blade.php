@@ -34,6 +34,15 @@
       </div>
 
       <div>
+        <label class="block mb-1 text-sm text-gray-300">Trạng thái thanh toán</label>
+        <select name="trang_thai_thanh_toan" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200">
+          <option value="0" {{ ($booking->trang_thai_thanh_toan ?? ($booking->trang_thai == 1 ? 1 : 0)) == 0 ? 'selected' : '' }}>Chưa thanh toán</option>
+          <option value="1" {{ ($booking->trang_thai_thanh_toan ?? ($booking->trang_thai == 1 ? 1 : 0)) == 1 ? 'selected' : '' }}>Đã thanh toán</option>
+          <option value="2" {{ ($booking->trang_thai_thanh_toan ?? ($booking->trang_thai == 1 ? 1 : 0)) == 2 ? 'selected' : '' }}>Đã hoàn tiền</option>
+        </select>
+      </div>
+
+      <div>
         <label class="block mb-1 text-sm text-gray-300">Mã giảm giá</label>
         <input type="text" name="ma_km" value="{{ old('ma_km') }}" placeholder="Nhập mã (VD: DEMO10)"
                class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
