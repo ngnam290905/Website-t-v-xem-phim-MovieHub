@@ -6,6 +6,43 @@
 
 @section('content')
   <div class="space-y-6">
+    <!-- Success/Error Messages -->
+    @if(session('success'))
+      <div id="successMessage" class="bg-green-500 border-l-4 border-green-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
+        <div class="flex items-center">
+          <i class="fas fa-check-circle text-2xl mr-3"></i>
+          <div>
+            <p class="font-semibold">Thành công!</p>
+            <p class="text-sm">{{ session('success') }}</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('successMessage').remove()" class="ml-4 text-white hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    @endif
+
+    @if(session('error') || $errors->any())
+      <div id="errorMessage" class="bg-red-500 border-l-4 border-red-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
+        <div class="flex items-center">
+          <i class="fas fa-exclamation-circle text-2xl mr-3"></i>
+          <div>
+            <p class="font-semibold">Có lỗi xảy ra!</p>
+            <p class="text-sm">
+              @if(session('error'))
+                {{ session('error') }}
+              @else
+                {{ $errors->first() }}
+              @endif
+            </p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('errorMessage').remove()" class="ml-4 text-white hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    @endif
+
     <!-- Header Actions -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
       <div>
@@ -232,35 +269,108 @@
       </div>
 
       <div class="px-6 py-4 border-t border-[#262833]">
-        {{ $phongChieu->links() }}
+        {{ $phongChieu->links('pagination.custom') }}
       </div>
     </div>
   </div>
 
+@push('styles')
+<style>
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+}
+</style>
+@endpush
+
 <script>
+// Auto-hide success message after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const successMsg = document.getElementById('successMessage');
+    if (successMsg) {
+        setTimeout(function() {
+            successMsg.style.transition = 'opacity 0.3s';
+            successMsg.style.opacity = '0';
+            setTimeout(function() {
+                successMsg.remove();
+            }, 300);
+        }, 5000);
+    }
+
+    const errorMsg = document.getElementById('errorMessage');
+    if (errorMsg) {
+        setTimeout(function() {
+            errorMsg.style.transition = 'opacity 0.3s';
+            errorMsg.style.opacity = '0';
+            setTimeout(function() {
+                errorMsg.remove();
+            }, 300);
+        }, 7000);
+    }
+});
+
 function updateStatus(id, status) {
     if (confirm('Bạn có chắc chắn muốn thay đổi trạng thái phòng chiếu?')) {
         fetch(`/admin/phong-chieu/${id}/status`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({
                 status: status
             })
         })
-        .then(response => response.json())
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+            }
+            return data;
+        })
         .then(data => {
             if (data.success) {
-                location.reload();
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.id = 'statusUpdateSuccess';
+                successDiv.className = 'bg-green-500 border-l-4 border-green-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down fixed top-4 right-4 z-50';
+                successDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-2xl mr-3"></i>
+                        <div>
+                            <p class="font-semibold">Thành công!</p>
+                            <p class="text-sm">${data.message || 'Cập nhật trạng thái thành công!'}</p>
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                document.body.appendChild(successDiv);
+                
+                // Auto remove after 3 seconds
+                setTimeout(() => {
+                    successDiv.remove();
+                    location.reload();
+                }, 2000);
             } else {
-                alert('Có lỗi xảy ra khi cập nhật trạng thái');
+                throw new Error(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Có lỗi xảy ra khi cập nhật trạng thái');
+            alert('Có lỗi xảy ra: ' + error.message);
         });
     }
 }

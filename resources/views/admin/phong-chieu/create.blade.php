@@ -79,7 +79,7 @@
             Cấu hình sơ đồ ghế
           </h3>
           
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <!-- Number of Rows -->
             <div class="space-y-2">
               <label for="rows" class="block text-sm font-medium text-gray-300">
@@ -132,6 +132,36 @@
               </select>
               <p class="text-xs text-[#a6a6b0]">Có thể thay đổi sau khi tạo</p>
             </div>
+            <!-- Layout preset -->
+            <div class="space-y-2">
+              <label for="layout_preset" class="block text-sm font-medium text-gray-300">
+                <i class="fas fa-shapes mr-2 text-[#F53003]"></i>Kiểu ma trận ghế
+              </label>
+              <select name="layout_preset" id="layout_preset" class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200">
+                <option value="grid">Lưới chuẩn</option>
+                <option value="arc">Vòng cung</option>
+                <option value="staggered">So le</option>
+                <option value="cluster">Cụm/khu vực</option>
+              </select>
+              <p class="text-xs text-[#a6a6b0]">Có thể tùy biến chi tiết ở trang quản lý ghế.</p>
+            </div>
+          </div>
+
+          <!-- Mixed groups (optional) -->
+          <div class="space-y-3">
+            <label class="block text-sm font-medium text-gray-300">
+              <i class="fas fa-layer-group mr-2 text-[#F53003]"></i>Nhóm ghế theo loại (tùy chọn)
+            </label>
+            <p class="text-xs text-[#a6a6b0]">Tạo nhiều loại ghế trong 1 lần: ví dụ A:10 ghế Thường, B:5 ghế VIP, C:3 ghế Đôi.</p>
+
+            <div id="segments-wrap" class="space-y-3"></div>
+
+            <div>
+              <button type="button" id="btn-add-seg" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                <i class="fas fa-plus mr-1"></i>Thêm nhóm
+              </button>
+            </div>
+            <input type="hidden" name="segments" id="segments-input">
           </div>
 
           <!-- Seat Preview -->
@@ -269,6 +299,77 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial preview
     updateSeatPreview();
+});
+</script>
+<script>
+// Dynamic segments UI
+document.addEventListener('DOMContentLoaded', function(){
+  const wrap = document.getElementById('segments-wrap');
+  const btnAdd = document.getElementById('btn-add-seg');
+  const inputHidden = document.getElementById('segments-input');
+  const seatTypeSel = document.getElementById('seat_type');
+  const formEl = document.querySelector('form[action="{{ route('admin.phong-chieu.store') }}"]');
+
+  function segRowTpl(idx){
+    return `
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end" data-seg-row>
+        <div>
+          <label class="block text-xs text-gray-400">Hàng</label>
+          <input type="text" maxlength="1" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded text-white" data-row-label placeholder="A" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400">Số ghế</label>
+          <input type="number" min="1" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded text-white" data-count placeholder="10" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400">Bắt đầu từ</label>
+          <input type="number" min="1" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded text-white" data-start placeholder="1" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400">Loại ghế</label>
+          <select class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded text-white" data-type>
+            <option value="normal">Ghế thường</option>
+            <option value="vip">Ghế VIP</option>
+            <option value="couple">Ghế đôi</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm" data-remove>Gỡ</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function addSeg(){
+    const div = document.createElement('div');
+    div.innerHTML = segRowTpl(Date.now());
+    const row = div.firstElementChild;
+    row.querySelector('[data-remove]').addEventListener('click', ()=>{
+      row.remove();
+    });
+    wrap.appendChild(row);
+  }
+
+  btnAdd?.addEventListener('click', addSeg);
+
+  formEl?.addEventListener('submit', function(){
+    const segs = [];
+    wrap.querySelectorAll('[data-seg-row]').forEach(r => {
+      const rowLabel = (r.querySelector('[data-row-label]')?.value || '').trim().toUpperCase();
+      const count = parseInt(r.querySelector('[data-count]')?.value || '0');
+      const start = parseInt(r.querySelector('[data-start]')?.value || '1');
+      const typeKey = (r.querySelector('[data-type]')?.value || '').trim();
+      if (!rowLabel || !count || !typeKey) return;
+      // map type key to loai_ghe id via default seat_type selection name
+      // server-side createSeatsForRoom maps name, còn bulk thì cần id; tạm gửi theo tên, backend sẽ tra theo tên.
+      segs.push({ row_label: rowLabel, count: count, start_index: start, id_loai: typeKey });
+    });
+    if (segs.length > 0) {
+      inputHidden.value = JSON.stringify(segs);
+    } else {
+      inputHidden.value = '';
+    }
+  });
 });
 </script>
 @endsection

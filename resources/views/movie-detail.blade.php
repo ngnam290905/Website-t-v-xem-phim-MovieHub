@@ -313,31 +313,73 @@
       <div class="bg-[#1b1d24] border border-[#262833] rounded-xl p-6 sticky top-6">
         <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
           <span>🎫</span>
-          <span>Suất chiếu hôm nay</span>
+          <span>Lịch chiếu</span>
         </h3>
         
-        <div class="space-y-3">
-          @if(isset($suatChieu) && $suatChieu->count() > 0)
-            @foreach($suatChieu as $suat)
-              <div class="bg-[#222533] rounded-lg p-4 hover:bg-[#2a2d3a] transition-colors cursor-pointer">
+        <!-- Date Selector -->
+        @if(isset($availableDates) && count($availableDates) > 0)
+          <div class="mb-4 overflow-x-auto">
+            <div class="flex gap-2 pb-2">
+              @foreach($availableDates as $date)
+                @php
+                  $carbonDate = \Carbon\Carbon::parse($date);
+                  $isToday = $carbonDate->isToday();
+                  $isSelected = $date === $selectedDate;
+                @endphp
+                <a href="{{ route('movie-detail', ['movie' => $movie->id, 'date' => $date]) }}"
+                   class="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200
+                   {{ $isSelected 
+                     ? 'bg-gradient-to-r from-[#F53003] to-orange-400 text-white shadow-lg' 
+                     : 'bg-[#222533] text-[#a6a6b0] hover:bg-[#2a2d3a] hover:text-white' }}">
+                  @if($isToday)
+                    <span class="mr-1">📅</span>
+                  @endif
+                  {{ $carbonDate->format('d/m') }}
+                  @if($carbonDate->isToday())
+                    <span class="ml-1 text-xs">(Hôm nay)</span>
+                  @elseif($carbonDate->isTomorrow())
+                    <span class="ml-1 text-xs">(Ngày mai)</span>
+                  @endif
+                </a>
+              @endforeach
+            </div>
+          </div>
+        @endif
+        
+        <!-- Showtimes List -->
+        <div class="space-y-3 max-h-[500px] overflow-y-auto">
+          @if(isset($showtimesByDate[$selectedDate]) && count($showtimesByDate[$selectedDate]) > 0)
+            @foreach($showtimesByDate[$selectedDate] as $showtime)
+              @php
+                $now = now();
+                $canBook = $showtime->thoi_gian_bat_dau > $now;
+              @endphp
+              <div class="bg-[#222533] rounded-lg p-4 hover:bg-[#2a2d3a] transition-colors {{ !$canBook ? 'opacity-60' : '' }}">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="font-semibold text-lg">{{ $suat->start_time->format('H:i') }}</p>
-                    <p class="text-sm text-[#a6a6b0]">{{ $suat->phongChieu->ten_phong }}</p>
-                    <p class="text-xs text-[#a6a6b0]">{{ $suat->start_time->format('d/m/Y') }}</p>
+                    <p class="font-semibold text-lg">{{ $showtime->thoi_gian_bat_dau->format('H:i') }}</p>
+                    <p class="text-sm text-[#a6a6b0]">{{ $showtime->phongChieu->name ?? $showtime->phongChieu->ten_phong ?? 'Phòng chiếu' }}</p>
+                    <p class="text-xs text-[#a6a6b0]">{{ $showtime->thoi_gian_bat_dau->format('d/m/Y') }}</p>
                   </div>
                   <div class="text-right">
-                    <p class="font-bold text-[#F53003]">{{ number_format(80000) }}đ</p>
-                    <button class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-[#ff4d4d] transition-colors">
-                      Đặt vé
-                    </button>
+                    <p class="font-bold text-[#F53003]">Từ 50.000đ</p>
+                    @if($canBook)
+                      <a href="{{ route('booking.seats', $showtime->id) }}" 
+                         class="inline-block text-sm bg-[#F53003] text-white px-4 py-2 rounded hover:bg-[#ff4d4d] transition-colors">
+                        Chọn ghế
+                      </a>
+                    @else
+                      <span class="inline-block text-sm bg-gray-600 text-white px-4 py-2 rounded cursor-not-allowed">
+                        Đã qua
+                      </span>
+                    @endif
                   </div>
                 </div>
               </div>
             @endforeach
           @else
             <div class="text-center py-8">
-              <p class="text-[#a6a6b0]">Không có suất chiếu nào</p>
+              <p class="text-[#a6a6b0]">Không có suất chiếu nào cho ngày này</p>
             </div>
           @endif
         </div>

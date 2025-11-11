@@ -21,14 +21,16 @@ class PhongChieu extends Model
         'rows',
         'cols',
         'description',
-        'type',
         'status',
-        'audio_system',
-        'screen_type'
+        'trang_thai', // Legacy column for status
+        'layout_json'
+        // Note: 'type', 'audio_system', 'screen_type' are handled conditionally
+        // to avoid errors when columns don't exist in database
     ];
 
     protected $casts = [
         'status' => 'string',
+        'layout_json' => 'array',
     ];
 
     // Relationship with SuatChieu (Showtimes)
@@ -108,11 +110,18 @@ class PhongChieu extends Model
 
     public function getStatusAttribute()
     {
-        if (array_key_exists('status', $this->attributes)) {
-            return $this->attributes['status'];
-        }
+        // Always prioritize trang_thai column as it's the source of truth
         if (array_key_exists('trang_thai', $this->attributes)) {
             return ((int) $this->attributes['trang_thai']) === 1 ? 'active' : 'inactive';
+        }
+        // Fallback to status column if trang_thai doesn't exist
+        if (array_key_exists('status', $this->attributes)) {
+            // If status is already a string, return it; otherwise convert
+            $status = $this->attributes['status'];
+            if (is_string($status)) {
+                return $status;
+            }
+            return ((int) $status) === 1 ? 'active' : 'inactive';
         }
         return null;
     }
@@ -125,6 +134,30 @@ class PhongChieu extends Model
         } else {
             $this->attributes['trang_thai'] = (int) $value;
         }
+    }
+
+    // Type accessor and mutator - check if column exists
+    public function getTypeAttribute()
+    {
+        // Check if type column exists in database, otherwise return null
+        if (array_key_exists('type', $this->attributes)) {
+            return $this->attributes['type'];
+        }
+        // Try legacy column names if type doesn't exist
+        return $this->attributes['loai_phong'] ?? null;
+    }
+
+    public function setTypeAttribute($value)
+    {
+        // Try to set type column, if it doesn't exist it will be ignored by Eloquent
+        // We'll handle this in controller to avoid schema checks in model
+        if (array_key_exists('type', $this->getAttributes()) || 
+            in_array('type', $this->getFillable())) {
+            $this->attributes['type'] = $value;
+        } elseif (array_key_exists('loai_phong', $this->getAttributes())) {
+            $this->attributes['loai_phong'] = $value;
+        }
+        // If neither column exists, don't set anything (will be filtered in controller)
     }
 
     // Scope for active rooms

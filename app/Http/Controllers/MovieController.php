@@ -164,9 +164,34 @@ class MovieController extends Controller
     public function show(Phim $movie)
     {
         $movie->load(['suatChieu.phongChieu']);
+        
         if (request()->routeIs('movie-detail')) {
-            return view('movie-detail', compact('movie'));
+            // Group showtimes by date
+            $showtimesByDate = [];
+            $selectedDate = request()->get('date', now()->format('Y-m-d'));
+            
+            $showtimes = SuatChieu::where('id_phim', $movie->id)
+                ->where('trang_thai', 1)
+                ->whereDate('thoi_gian_bat_dau', '>=', now()->format('Y-m-d'))
+                ->with(['phongChieu'])
+                ->orderBy('thoi_gian_bat_dau')
+                ->get();
+            
+            foreach ($showtimes as $showtime) {
+                $date = $showtime->thoi_gian_bat_dau->format('Y-m-d');
+                if (!isset($showtimesByDate[$date])) {
+                    $showtimesByDate[$date] = [];
+                }
+                $showtimesByDate[$date][] = $showtime;
+            }
+            
+            // Get available dates
+            $availableDates = array_keys($showtimesByDate);
+            sort($availableDates);
+            
+            return view('movie-detail', compact('movie', 'showtimesByDate', 'selectedDate', 'availableDates'));
         }
+        
         return view('admin.movies.show', compact('movie'));
     }
 

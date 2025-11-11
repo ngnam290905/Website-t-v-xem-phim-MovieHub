@@ -205,7 +205,7 @@
             </div>
 
             <div class="mt-6">
-                {{ $bookings->links('pagination::tailwind') }}
+                {{ $bookings->links('pagination.custom') }}
             </div>
         @endif
     </div>

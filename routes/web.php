@@ -16,7 +16,8 @@ use App\Http\Controllers\ComboController;
 
 // Main routes
 Route::get('/', [MovieController::class, 'index'])->name('home');
-Route::get('/phim/{movie}', [MovieController::class, 'show'])->name('movie-detail');
+Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movie-detail');
+Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
 
 // API routes for AJAX calls
 Route::get('/api/movies', [MovieController::class, 'getMovies'])->name('api.movies');
@@ -25,7 +26,21 @@ Route::get('/api/search', [MovieController::class, 'search'])->name('api.search'
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
 
-// Booking routes
+// Booking routes (new user flow)
+Route::middleware('auth')->group(function () {
+    Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
+    Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
+    Route::post('/shows/{showId}/seats/unlock', [App\Http\Controllers\BookingController::class, 'unlockSeats'])->name('booking.seats.unlock');
+    Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
+    Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
+    Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
+    Route::get('/checkout/{bookingId}', [App\Http\Controllers\BookingController::class, 'checkout'])->name('booking.checkout');
+    Route::post('/checkout/{bookingId}/payment', [App\Http\Controllers\BookingController::class, 'processPayment'])->name('booking.payment.process');
+    Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
+    Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
+});
+
+// Legacy booking routes
 Route::get('/dat-ve/{id?}', function ($id = 1) {
     return view('booking', ['id' => $id]);
 })->name('booking');
@@ -105,15 +120,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::get('phong-chieu/{phongChieu}/edit', [PhongChieuController::class, 'edit'])->name('phong-chieu.edit');
         Route::put('phong-chieu/{phongChieu}', [PhongChieuController::class, 'update'])->name('phong-chieu.update');
         Route::delete('phong-chieu/{phongChieu}', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy');
+        // Fallback route to handle POST requests that should be DELETE
+        Route::post('phong-chieu/{phongChieu}/delete', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy.post');
         Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
         Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
+        Route::get('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'showSeat'])->name('phong-chieu.seats.show');
         Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
         Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
         Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
         Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
         Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
+        Route::post('phong-chieu/{phongChieu}/seats/bulk-create', [PhongChieuController::class, 'bulkCreateSeats'])->name('phong-chieu.seats.bulk-create');
+        Route::post('phong-chieu/{phongChieu}/seats/positions', [PhongChieuController::class, 'updateSeatPositions'])->name('phong-chieu.seats.positions');
     });
     // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');

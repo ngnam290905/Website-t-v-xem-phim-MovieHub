@@ -26,25 +26,14 @@ class GheController extends Controller
             ->paginate(20)
             ->appends($request->query());
 
-        // Quick stats
-        $totalSeats = (int) Ghe::count();
-        $activeSeats = (int) Ghe::where('trang_thai', 1)->count();
-        $pausedSeats = (int) Ghe::where('trang_thai', 0)->count();
-        $bookedToday = (int) \DB::table('chi_tiet_dat_ve as c')
-            ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
-            ->whereDate('d.created_at', now()->toDateString())
-            ->where('d.trang_thai', '!=', 2)
-            ->distinct('c.id_ghe')
-            ->count('c.id_ghe');
-
         // Check if this is staff route
         if (request()->is('staff/*')) {
-            return view('staff.ghe.index', compact('ghe', 'totalSeats', 'activeSeats', 'pausedSeats', 'bookedToday'));
+            return view('staff.ghe.index', compact('ghe'));
         }
 
         $rooms = PhongChieu::orderBy('ten_phong')->get();
         $seatTypes = LoaiGhe::all();
-        return view('admin.ghe.index', compact('ghe', 'rooms', 'seatTypes', 'totalSeats', 'activeSeats', 'pausedSeats', 'bookedToday'));
+        return view('admin.ghe.index', compact('ghe', 'rooms', 'seatTypes'));
     }
 
     /**

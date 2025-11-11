@@ -103,46 +103,39 @@
   </head>
   <body class="min-h-screen bg-[#0d0f14] text-white">
     <!-- Header -->
-    <header class="bg-[#151822] border-b border-[#262833] sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
+    <header id="main-header" class="h-[56px] sticky top-0 z-50 border-b border-[#262833]/30 backdrop-blur-md bg-[#151822]/80 transition-all duration-300">
+      <div class="max-w-7xl mx-auto px-4 h-full flex items-center justify-between gap-6">
+        <!-- Left: Logo + MovieHub -->
         <a href="{{ route('home') }}" class="flex items-center gap-3 shrink-0">
-          <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
-          <span class="text-xl font-bold gradient-text">MovieHub</span>
+          <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-8 w-8 object-contain rounded">
+          <span class="text-lg font-bold gradient-text">MovieHub</span>
         </a>
         
-        <!-- Navigation -->
-        <nav class="hidden md:flex items-center gap-6">
-          <a href="{{ route('home') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Trang chủ</a>
-          <a href="#movies" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Phim</a>
-          <a href="#cinemas" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Rạp</a>
-          <a href="#promotions" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Khuyến mãi</a>
+        <!-- Center: Navigation Menu -->
+        <nav class="hidden md:flex items-center gap-6 flex-1 justify-center">
+          <a href="{{ route('home') }}" class="text-white/90 hover:text-[#F53003] transition-colors duration-300 font-medium text-sm">Trang chủ</a>
+          <span class="text-[#262833]">/</span>
+          <a href="#movies" class="text-white/90 hover:text-[#F53003] transition-colors duration-300 font-medium text-sm">Phim</a>
+          <span class="text-[#262833]">/</span>
+          <a href="#cinemas" class="text-white/90 hover:text-[#F53003] transition-colors duration-300 font-medium text-sm">Rạp</a>
+          <span class="text-[#262833]">/</span>
+          <a href="#promotions" class="text-white/90 hover:text-[#F53003] transition-colors duration-300 font-medium text-sm">Khuyến mãi</a>
         </nav>
         
-        <!-- User Actions -->
-        <div class="flex items-center gap-4">
-          <a href="{{ route('mini-game') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-            <i class="fas fa-gamepad text-lg"></i>
-          </a>
-          
+        <!-- Right: Settings + Logout -->
+        <div class="flex items-center gap-3">
           @auth
-            @if(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'admin')
-              <a href="{{ route('admin.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-                <i class="fas fa-cog text-lg"></i>
-              </a>
-            @elseif(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'staff')
-              <a href="{{ route('staff.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-                <i class="fas fa-user-tie text-lg"></i>
-              </a>
-            @endif
-            
+            <a href="{{ route('admin.dashboard') }}" class="text-white/70 hover:text-white hover:bg-white/5 px-3 py-1.5 rounded-lg transition-all duration-300 text-sm font-medium">
+              Cài đặt
+            </a>
             <form method="POST" action="{{ route('logout') }}" class="inline">
               @csrf
-              <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300">
+              <button type="submit" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300 text-sm">
                 Đăng xuất
               </button>
             </form>
           @else
-            <a href="{{ route('login.form') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300">
+            <a href="{{ route('login.form') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-4 py-2 rounded-lg font-medium transition-colors duration-300 text-sm">
               Đăng nhập
             </a>
           @endauth
@@ -280,6 +273,21 @@
       document.querySelectorAll('.movie-card').forEach(card => {
         observer.observe(card);
       });
+      
+      // Header scroll effect
+      const header = document.getElementById('main-header');
+      if (header) {
+        window.addEventListener('scroll', () => {
+          const currentScroll = window.pageYOffset;
+          if (currentScroll > 10) {
+            header.classList.add('bg-[#151822]/80', 'backdrop-blur-md');
+            header.classList.remove('bg-[#151822]/80', 'backdrop-blur-sm');
+          } else {
+            header.classList.remove('bg-[#151822]/80', 'backdrop-blur-md');
+            header.classList.add('bg-[#151822]/80', 'backdrop-blur-sm');
+          }
+        });
+      }
     </script>
     
     @yield('scripts')
