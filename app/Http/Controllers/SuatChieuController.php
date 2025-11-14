@@ -318,4 +318,105 @@ class SuatChieuController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Batch create suat chieu for auto generation
+     */
+    public function batchStore(Request $request)
+    {
+        $request->validate([
+            'showtimes' => 'required|array|min:1|max:100',
+            'showtimes.*.movie_id' => 'required|exists:phim,id',
+            'showtimes.*.room_id' => 'required|exists:phong_chieu,id',
+            'showtimes.*.start_time' => 'required|date',
+            'showtimes.*.end_time' => 'required|date|after:showtimes.*.start_time',
+        ]);
+
+        $showtimes = $request->showtimes;
+        $results = ['created' => 0, 'conflicts' => 0, 'errors' => []];
+
+        // Group by room for efficient conflict checking
+        $rooms = [];
+        foreach ($showtimes as $index => $showtime) {
+            $rooms[$showtime['room_id']][] = ['data' => $showtime, 'index' => $index];
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($rooms as $roomId => $roomShowtimes) {
+                // Get existing showtimes for this room in one query
+                $timeRange = [
+                    min(array_column(array_column($roomShowtimes, 'data'), 'start_time')),
+                    max(array_column(array_column($roomShowtimes, 'data'), 'end_time'))
+                ];
+                
+                $existingShowtimes = SuatChieu::where('id_phong', $roomId)
+                    ->where(function($query) use ($timeRange) {
+                        $query->whereBetween('thoi_gian_bat_dau', $timeRange)
+                              ->orWhereBetween('thoi_gian_ket_thuc', $timeRange)
+                              ->orWhere(function($q) use ($timeRange) {
+                                  $q->where('thoi_gian_bat_dau', '<=', $timeRange[0])
+                                    ->where('thoi_gian_ket_thuc', '>=', $timeRange[1]);
+                              });
+                    })
+                    ->get(['thoi_gian_bat_dau', 'thoi_gian_ket_thuc']);
+
+                // Check conflicts and prepare insert data
+                $insertData = [];
+                foreach ($roomShowtimes as $item) {
+                    $showtime = $item['data'];
+                    $index = $item['index'];
+                    
+                    $hasConflict = $existingShowtimes->contains(function($existing) use ($showtime) {
+                        return !($showtime['end_time'] <= $existing->thoi_gian_bat_dau || 
+                                $showtime['start_time'] >= $existing->thoi_gian_ket_thuc);
+                    });
+
+                    if ($hasConflict) {
+                        $results['conflicts']++;
+                        continue;
+                    }
+
+                    $insertData[] = [
+                        'id_phim' => $showtime['movie_id'],
+                        'id_phong' => $showtime['room_id'],
+                        'thoi_gian_bat_dau' => $showtime['start_time'],
+                        'thoi_gian_ket_thuc' => $showtime['end_time'],
+                        'trang_thai' => 1,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ];
+                }
+
+                // Batch insert for this room
+                if (!empty($insertData)) {
+                    try {
+                        SuatChieu::insert($insertData);
+                        $results['created'] += count($insertData);
+                    } catch (\Exception $e) {
+                        $results['errors'][] = "Lỗi phòng {$roomId}: " . $e->getMessage();
+                    }
+                }
+            }
+
+            if (empty($results['errors'])) {
+                DB::commit();
+            } else {
+                DB::rollBack();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'message' => "Đã tạo thành công {$results['created']} suất. Trùng lịch: {$results['conflicts']}."
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi hệ thống: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

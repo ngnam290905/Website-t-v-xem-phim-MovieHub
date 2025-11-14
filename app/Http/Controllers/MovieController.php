@@ -177,15 +177,20 @@ class MovieController extends Controller
             $selectedDate = Carbon::today();
         }
 
+        // Generate 7 days from today (or selected date)
         $days = collect(range(0, 6))->map(function ($i) use ($selectedDate) {
             return $selectedDate->copy()->startOfDay()->addDays($i);
         });
 
+        // Filter showtimes by selected date
         $suatChieu = SuatChieu::with(['phongChieu'])
             ->where('id_phim', $movie->id)
-            ->whereDate('thoi_gian_bat_dau', $selectedDate)
+            ->whereDate('thoi_gian_bat_dau', $selectedDate->toDateString())
             ->orderBy('thoi_gian_bat_dau')
             ->get();
+
+        // Debug: Log the results
+        \Log::info('Movie ID: ' . $movie->id . ', Selected Date: ' . $selectedDate->toDateString() . ', Found showtimes: ' . $suatChieu->count());
 
         $doanhThu = $movie->calculateDoanhThu();
         $loiNhuan = $movie->calculateLoiNhuan();

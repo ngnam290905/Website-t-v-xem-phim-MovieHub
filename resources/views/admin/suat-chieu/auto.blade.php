@@ -82,6 +82,17 @@
         </div>
       </div>
       <div id="warn" class="text-yellow-400 text-sm hidden"></div>
+      
+      <!-- Progress Bar -->
+      <div id="progressContainer" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm text-[#a6a6b0]">Đang lưu suất chiếu...</span>
+          <span id="progressText" class="text-sm text-[#a6a6b0]">0%</span>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-2">
+          <div id="progressBar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Preview -->
@@ -189,17 +200,66 @@
       btnSave.addEventListener('click', async function(e){
         e.preventDefault();
         const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        const valids=rows.filter(r=>!r.conflict); if(!valids.length){ alert('Không có suất hợp lệ.'); return; }
-        btnSave.disabled=true; let ok=0, fail=0, conflicts=0;
-        for(const r of valids){
-          try{
-            const res = await fetch('{{ route('admin.suat-chieu.store') }}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token}, body: JSON.stringify({ movie_id:r.movieId, room_id:r.roomId, start_time:r.startISO, end_time:r.endISO }) });
-            if(res.status===302 || res.ok){ ok++; continue; }
-            const text=await res.text(); if(text.includes('trùng')) conflicts++; else fail++;
-          }catch{ fail++; }
+        const valids=rows.filter(r=>!r.conflict); 
+        if(!valids.length){ 
+          alert('Không có suất hợp lệ.'); 
+          return; 
         }
-        alert(`Đã tạo thành công ${ok} suất. Trùng lịch: ${conflicts}. Lỗi khác: ${fail}.`);
-        window.location.href='{{ route('admin.suat-chieu.index') }}';
+        
+        // Show progress
+        btnSave.disabled=true; 
+        document.getElementById('progressContainer').classList.remove('hidden');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        // Prepare batch data
+        const showtimes = valids.map(r => ({
+          movie_id: r.movieId,
+          room_id: r.roomId,
+          start_time: r.startISO,
+          end_time: r.endISO
+        }));
+        
+        try {
+          // Simulate progress for better UX
+          let progress = 0;
+          const progressInterval = setInterval(() => {
+            progress = Math.min(progress + 10, 90);
+            progressBar.style.width = progress + '%';
+            progressText.textContent = progress + '%';
+          }, 100);
+          
+          const res = await fetch('{{ route('admin.suat-chieu.batch-store') }}', { 
+            method:'POST', 
+            headers:{
+              'Content-Type':'application/json',
+              'X-CSRF-TOKEN':token
+            }, 
+            body: JSON.stringify({ showtimes: showtimes }) 
+          });
+          
+          clearInterval(progressInterval);
+          progressBar.style.width = '100%';
+          progressText.textContent = '100%';
+          
+          if(res.ok) {
+            const result = await res.json();
+            alert(result.message || 'Lưu suất chiếu thành công!');
+            setTimeout(() => {
+              window.location.href = '{{ route('admin.suat-chieu.index') }}';
+            }, 1000);
+          } else {
+            const error = await res.json();
+            alert(error.message || 'Có lỗi xảy ra khi lưu suất chiếu.');
+            document.getElementById('progressContainer').classList.add('hidden');
+            btnSave.disabled = false;
+          }
+        } catch(error) {
+          console.error('Error:', error);
+          alert('Lỗi kết nối, vui lòng thử lại.');
+          document.getElementById('progressContainer').classList.add('hidden');
+          btnSave.disabled = false;
+        }
       });
     });
   </script>

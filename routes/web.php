@@ -85,6 +85,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
+        Route::post('suat-chieu/batch', [SuatChieuController::class, 'batchStore'])->name('suat-chieu.batch-store');
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
         Route::put('suat-chieu/{suatChieu}', [SuatChieuController::class, 'update'])->name('suat-chieu.update');
         Route::delete('suat-chieu/{suatChieu}', [SuatChieuController::class, 'destroy'])->name('suat-chieu.destroy');
@@ -154,6 +155,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
     // API lấy bản đồ ghế theo suất chiếu
     Route::get('showtimes/{suatChieu}/seats', [QuanLyDatVeController::class, 'seatsByShowtime'])->name('showtimes.seats');
+    Route::get('admin/showtimes/{suatChieu}/seats', [QuanLyDatVeController::class, 'seatsByShowtime'])->name('admin.showtimes.seats');
 
     // KHUYẾN MẠI
     // Đặt nhóm Admin (tạo/sửa/xóa) TRƯỚC để tránh 'show' nuốt '/create'
