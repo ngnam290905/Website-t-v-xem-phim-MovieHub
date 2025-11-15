@@ -125,13 +125,9 @@
           </a>
           
           @auth
-            @if(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'admin')
-              <a href="{{ route('admin.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-                <i class="fas fa-cog text-lg"></i>
-              </a>
-            @elseif(auth()->user()->vaiTro && auth()->user()->vaiTro->ten === 'staff')
-              <a href="{{ route('staff.dashboard') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
-                <i class="fas fa-user-tie text-lg"></i>
+            @if(auth()->user()->vaiTro && in_array(auth()->user()->vaiTro->ten, ['admin', 'staff']))
+              <a href="{{ auth()->user()->vaiTro->ten === 'admin' ? route('admin.dashboard') : route('staff.movies.index') }}" class="text-white hover:text-[#F53003] transition-colors duration-300">
+                <i class="fas {{ auth()->user()->vaiTro->ten === 'admin' ? 'fa-cog' : 'fa-user-tie' }} text-lg"></i>
               </a>
             @endif
             

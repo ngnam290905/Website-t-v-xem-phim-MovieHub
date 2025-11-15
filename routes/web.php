@@ -48,21 +48,21 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 
-// Admin routes - cả Admin và Staff
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
+// Admin routes - chỉ Admin
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
         Route::get('/', [MovieController::class, 'adminIndex'])->name('index');
         Route::get('/search', [MovieController::class, 'adminIndex'])->name('search');
-        Route::get('/create', [MovieController::class, 'create'])->middleware('role:admin')->name('create');
-        Route::post('/', [MovieController::class, 'store'])->middleware('role:admin')->name('store');
+        Route::get('/create', [MovieController::class, 'create'])->name('create');
+        Route::post('/', [MovieController::class, 'store'])->name('store');
         Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
-        Route::get('/{movie}/edit', [MovieController::class, 'edit'])->middleware('role:admin')->name('edit');
-        Route::put('/{movie}', [MovieController::class, 'update'])->middleware('role:admin')->name('update');
-        Route::delete('/{movie}', [MovieController::class, 'destroy'])->middleware('role:admin')->name('destroy');
-        Route::patch('/{movie}/toggle-status', [MovieController::class, 'toggleStatus'])->middleware('role:admin')->name('toggle-status');
+        Route::get('/{movie}/edit', [MovieController::class, 'edit'])->name('edit');
+        Route::put('/{movie}', [MovieController::class, 'update'])->name('update');
+        Route::delete('/{movie}', [MovieController::class, 'destroy'])->name('destroy');
+        Route::patch('/{movie}/toggle-status', [MovieController::class, 'toggleStatus'])->name('toggle-status');
     });
 
     // Quản lý người dùng
@@ -80,7 +80,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     });
 
     // Quản lý suất chiếu
-    // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
+    // Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
     Route::middleware('role:admin')->group(function () {
         Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
@@ -92,16 +92,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
         Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     });
-    // Staff & Admin: chỉ xem danh sách/chi tiết
+    // Admin: xem danh sách/chi tiết
     Route::resource('suat-chieu', SuatChieuController::class)->only(['index', 'show']);
     Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
 
     // Quản lý phòng chiếu
-    // Staff & Admin: chỉ xem danh sách
+    // Admin: xem danh sách
     Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
     Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
-    // Chỉ Admin: CRUD & seat management (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin')->group(function () {
+    // Admin: CRUD & seat management (đặt trước show để tránh nuốt '/create')
+    Route::middleware('role:admin')->group(function () {  
         Route::get('phong-chieu/create', [PhongChieuController::class, 'create'])->name('phong-chieu.create');
         Route::post('phong-chieu', [PhongChieuController::class, 'store'])->name('phong-chieu.store');
         Route::get('phong-chieu/{phongChieu}/edit', [PhongChieuController::class, 'edit'])->name('phong-chieu.edit');
@@ -118,14 +118,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
     });
-    // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
+    // Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');
 
     // Quản lý ghế (legacy)
-    // Staff & Admin: chỉ xem danh sách
+    // Admin: xem danh sách
     Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
-    // Chỉ Admin: CRUD & thao tác
+    // Admin: CRUD & thao tác
     Route::middleware('role:admin')->group(function () {
         Route::get('ghe/create', [GheController::class, 'create'])->name('ghe.create');
         Route::post('ghe', [GheController::class, 'store'])->name('ghe.store');
@@ -136,7 +136,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
         Route::post('ghe/bulk', [GheController::class, 'bulk'])->name('ghe.bulk');
     });
-    // Staff & Admin: chi tiết (ràng buộc số để không nuốt '/create')
+    // Admin: chi tiết (ràng buộc số để không nuốt '/create')
     Route::get('ghe/{ghe}', [GheController::class, 'show'])->whereNumber('ghe')->name('ghe.show');
 
     // Quản lý đặt vé
@@ -168,16 +168,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('/khuyenmai/seed-tiers', [AdminKhuyenMaiController::class, 'seedTiers'])->name('khuyenmai.seed-tiers');
     });
 
-    // CẢ ADMIN & STAFF ĐƯỢC XEM
+    // Admin được xem
     Route::get('/khuyenmai', [AdminKhuyenMaiController::class, 'index'])->name('khuyenmai.index');
     Route::get('/khuyenmai/{khuyenmai}', [AdminKhuyenMaiController::class, 'show'])
         ->whereNumber('khuyenmai')
         ->name('khuyenmai.show');
 
     // Quản lý Combo
-    // Admin & Staff: xem danh sách
+    // Admin: xem danh sách
     Route::get('combos', [ComboController::class, 'index'])->name('combos.index');
-    // Chỉ Admin: CRUD (đặt trước show để tránh nuốt '/create')
+    // Admin: CRUD (đặt trước show để tránh nuốt '/create')
     Route::middleware('role:admin')->group(function () {
         Route::get('combos/create', [ComboController::class, 'create'])->name('combos.create');
         Route::post('combos', [ComboController::class, 'store'])->name('combos.store');
@@ -185,8 +185,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::put('combos/{combo}', [ComboController::class, 'update'])->name('combos.update');
         Route::delete('combos/{combo}', [ComboController::class, 'destroy'])->name('combos.destroy');
     });
-    // Admin & Staff: chi tiết (ràng buộc là số để tránh nuốt '/create')
-    Route::get('combos/{combo}', [ComboController::class, 'show'])->whereNumber('combo')->name('combos.show');
+    // Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
+    Route::get('combos/{combo}', [ComboController::class, 'show'])
+        ->whereNumber('combo')
+        ->name('combos.show');
 });
 
 // BÁO CÁO - CHỈ ADMIN
@@ -202,18 +204,300 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
 // ==================== STAFF ROUTES (chỉ xem) ====================
 Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->group(function () {
-    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
 
-    Route::get('suat-chieu', [SuatChieuController::class, 'index'])->name('suat-chieu.index');
-    Route::get('suat-chieu/{suatChieu}', [SuatChieuController::class, 'show'])->name('suat-chieu.show');
+    // Quản lý phim (Staff chỉ xem)
+    Route::prefix('movies')->name('movies.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\Phim::query();
+            
+            // Status filter
+            if (request()->filled('status')) {
+                $query->where('trang_thai', request()->string('status'));
+            }
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->string('search'));
+                if ($s !== '') {
+                    $query->where(function ($q) use ($s) {
+                        $q->where('ten_phim', 'like', "%{$s}%")
+                          ->orWhere('ten_goc', 'like', "%{$s}%")
+                          ->orWhere('dao_dien', 'like', "%{$s}%")
+                          ->orWhere('dien_vien', 'like', "%{$s}%")
+                          ->orWhere('the_loai', 'like', "%{$s}%");
+                    });
+                }
+            }
+            
+            // Additional filters
+            if (request()->filled('dien_vien')) {
+                $qActor = trim((string) request()->dien_vien);
+                $query->where('dien_vien', 'like', "%{$qActor}%");
+            }
+            if (request()->filled('the_loai')) {
+                $qGenre = trim((string) request()->the_loai);
+                $query->where('the_loai', 'like', "%{$qGenre}%");
+            }
+            if (request()->filled('quoc_gia')) {
+                $qCountry = trim((string) request()->quoc_gia);
+                $query->where('quoc_gia', 'like', "%{$qCountry}%");
+            }
+            
+            $movies = $query->orderByDesc('created_at')->paginate(12);
+            
+            // Quick stats
+            $totalMovies = (int) \App\Models\Phim::count();
+            $nowShowing = (int) \App\Models\Phim::where('trang_thai', 'dang_chieu')->count();
+            $upcoming = (int) \App\Models\Phim::where('trang_thai', 'sap_chieu')->count();
+            $ended = (int) \App\Models\Phim::where('trang_thai', 'ngung_chieu')->count();
+            
+            return view('staff.phim.index', compact('movies', 'totalMovies', 'nowShowing', 'upcoming', 'ended'));
+        })->name('index');
+        Route::get('/{movie}', function($movie) {
+            $movie = \App\Models\Phim::findOrFail($movie);
+            return view('staff.phim.show', compact('movie'));
+        })->name('show');
+    });
 
-    Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
-    Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->name('phong-chieu.show');
-    Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
+    // Quản lý người dùng (Staff chỉ xem)
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\NguoiDung::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where(function ($q) use ($s) {
+                        $q->where('ho_ten', 'like', "%{$s}%")
+                          ->orWhere('email', 'like', "%{$s}%");
+                    });
+                }
+            }
+            
+            $users = $query->orderByDesc('created_at')->paginate(12);
+            
+            // Quick stats - sử dụng query builder
+            $totalUsers = (int) \App\Models\NguoiDung::count();
+            $activeUsers = (int) \App\Models\NguoiDung::where('trang_thai', 1)->count();
+            $inactiveUsers = (int) \App\Models\NguoiDung::where('trang_thai', 0)->count();
+            $adminUsers = (int) \App\Models\NguoiDung::whereHas('vaiTro', function($q) { $q->where('ten', 'admin'); })->count();
+            
+            return view('staff.users.index', compact('users', 'totalUsers', 'activeUsers', 'inactiveUsers', 'adminUsers'));
+        })->name('index');
+        Route::get('/{id}', function($id) {
+            $user = \App\Models\NguoiDung::findOrFail($id);
+            return view('staff.users.show', compact('user'));
+        })->whereNumber('id')->name('show');
+    });
 
-    Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
-    Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
-    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
+    // Quản lý suất chiếu (Staff chỉ xem)
+    Route::prefix('suat-chieu')->name('suat-chieu.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\SuatChieu::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where(function ($q) use ($s) {
+                        $q->whereHas('phim', function($subQ) use ($s) {
+                            $subQ->where('ten_phim', 'like', "%{$s}%");
+                        });
+                    });
+                }
+            }
+            
+            $suatChieus = $query->orderByDesc('thoi_gian_bat_dau')->paginate(12);
+            
+            // Quick stats
+            $totalShowtimes = (int) \App\Models\SuatChieu::count();
+            $todayShowtimes = (int) \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', \Carbon\Carbon::today())->count();
+            $upcomingShowtimes = (int) \App\Models\SuatChieu::where('thoi_gian_bat_dau', '>', \Carbon\Carbon::now())->count();
+            $pastShowtimes = (int) \App\Models\SuatChieu::where('thoi_gian_bat_dau', '<', \Carbon\Carbon::now())->count();
+            
+            return view('staff.suat-chieu.index', compact('suatChieus', 'totalShowtimes', 'todayShowtimes', 'upcomingShowtimes', 'pastShowtimes'));
+        })->name('index');
+        Route::get('/{suatChieu}', function($suatChieu) {
+            $suatChieu = \App\Models\SuatChieu::findOrFail($suatChieu);
+            return view('staff.suat-chieu.show', compact('suatChieu'));
+        })->name('show');
+    });
+
+    // Quản lý phòng chiếu (Staff chỉ xem)
+    Route::prefix('phong-chieu')->name('phong-chieu.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\PhongChieu::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where('ten_phong', 'like', "%{$s}%");
+                }
+            }
+            
+            $phongChieus = $query->orderByDesc('id')->paginate(12);
+            
+            // Quick stats - sử dụng các giá trị có thể có trong database
+            $totalRooms = (int) \App\Models\PhongChieu::count();
+            $activeRooms = (int) \App\Models\PhongChieu::where('status', 'active')->orWhere('status', 'hoạt động')->orWhere('status', 1)->count();
+            $inactiveRooms = (int) \App\Models\PhongChieu::where('status', 'inactive')->orWhere('status', 'ngừng hoạt động')->orWhere('status', 0)->count();
+            $totalSeats = (int) \App\Models\Ghe::count();
+            
+            return view('staff.phong-chieu.index', compact('phongChieus', 'totalRooms', 'activeRooms', 'inactiveRooms', 'totalSeats'));
+        })->name('index');
+        Route::get('/{phongChieu}', function($phongChieu) {
+            $phongChieu = \App\Models\PhongChieu::findOrFail($phongChieu);
+            return view('staff.phong-chieu.show', compact('phongChieu'));
+        })->whereNumber('phongChieu')->name('show');
+    });
+
+    // Quản lý ghế (Staff chỉ xem)
+    Route::prefix('ghe')->name('ghe.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\Ghe::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where(function ($q) use ($s) {
+                        $q->where('so_ghe', 'like', "%{$s}%")
+                          ->orWhereHas('phongChieu', function($subQ) use ($s) {
+                              $subQ->where('ten_phong', 'like', "%{$s}%");
+                          });
+                    });
+                }
+            }
+            
+            $ghes = $query->orderByDesc('id')->paginate(12);
+            
+            // Quick stats - chỉ sử dụng các cột chắc chắn tồn tại
+            $totalSeats = (int) \App\Models\Ghe::count();
+            $normalSeats = 0; // Tạm thời đặt 0 vì không có cột loai_ghe
+            $vipSeats = 0; // Tạm thời đặt 0 vì không có cột loai_ghe
+            $availableSeats = 0; // Tạm thời đặt 0 vì không chắc cột trang_thai
+            
+            return view('staff.ghe.index', compact('ghes', 'totalSeats', 'normalSeats', 'vipSeats', 'availableSeats'));
+        })->name('index');
+        Route::get('/{ghe}', function($ghe) {
+            $ghe = \App\Models\Ghe::findOrFail($ghe);
+            return view('staff.ghe.show', compact('ghe'));
+        })->whereNumber('ghe')->name('show');
+    });
+
+    // Quản lý combo (Staff chỉ xem)
+    Route::prefix('combos')->name('combos.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\Combo::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where('ten_combo', 'like', "%{$s}%");
+                }
+            }
+            
+            $combos = $query->orderByDesc('created_at')->paginate(12);
+            
+            // Quick stats
+            $totalCombos = (int) \App\Models\Combo::count();
+            $activeCombos = (int) \App\Models\Combo::where('trang_thai', 'active')->count();
+            $inactiveCombos = (int) \App\Models\Combo::where('trang_thai', 'inactive')->count();
+            $avgPrice = \App\Models\Combo::avg('gia');
+            
+            return view('staff.combos.index', compact('combos', 'totalCombos', 'activeCombos', 'inactiveCombos', 'avgPrice'));
+        })->name('index');
+        Route::get('/{combo}', function($combo) {
+            $combo = \App\Models\Combo::findOrFail($combo);
+            return view('staff.combos.show', compact('combo'));
+        })->whereNumber('combo')->name('show');
+    });
+
+    // Quản lý đặt vé (Staff chỉ xem)
+    Route::prefix('dat-ve')->name('dat-ve.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\DatVe::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where(function ($q) use ($s) {
+                        $q->whereHas('nguoiDung', function($subQ) use ($s) {
+                            $subQ->where('ho_ten', 'like', "%{$s}%");
+                        })
+                        ->orWhereHas('suatChieu.phim', function($subQ) use ($s) {
+                            $subQ->where('ten_phim', 'like', "%{$s}%");
+                        });
+                    });
+                }
+            }
+            
+            // Status filter
+            if (request()->filled('status')) {
+                $query->where('trang_thai', request()->string('status'));
+            }
+            
+            $datVes = $query->orderByDesc('id')->paginate(12);
+            
+            // Quick stats - chỉ sử dụng các cột chắc chắn tồn tại
+            $totalBookings = (int) \App\Models\DatVe::count();
+            $paidBookings = (int) \App\Models\DatVe::where('trang_thai', 1)->count();
+            $pendingBookings = (int) \App\Models\DatVe::where('trang_thai', 0)->count();
+            $totalRevenue = 0; // Tạm thời đặt 0 vì không có cột tong_tien
+            
+            return view('staff.dat-ve.index', compact('datVes', 'totalBookings', 'paidBookings', 'pendingBookings', 'totalRevenue'));
+        })->name('index');
+        Route::get('/{datVe}', function($datVe) {
+            $datVe = \App\Models\DatVe::findOrFail($datVe);
+            return view('staff.dat-ve.show', compact('datVe'));
+        })->whereNumber('datVe')->name('show');
+    });
+
+    // Quản lý khuyến mãi (Staff chỉ xem)
+    Route::prefix('khuyen-mai')->name('khuyen-mai.')->group(function () {
+        Route::get('/', function() {
+            $query = \App\Models\KhuyenMai::query();
+            
+            // Search filter
+            if (request()->filled('search')) {
+                $s = trim(request()->search);
+                if ($s !== '') {
+                    $query->where('ten_khuyen_mai', 'like', "%{$s}%");
+                }
+            }
+            
+            // Status filter
+            if (request()->filled('status')) {
+                if (request()->string('status') === 'active') {
+                    $query->where('ngay_bat_dau', '<=', now())
+                          ->where('ngay_ket_thuc', '>=', now());
+                } elseif (request()->string('status') === 'expired') {
+                    $query->where('ngay_ket_thuc', '<', now());
+                } elseif (request()->string('status') === 'upcoming') {
+                    $query->where('ngay_bat_dau', '>', now());
+                }
+            }
+            
+            $khuyenMais = $query->orderByDesc('id')->paginate(12);
+            
+            // Quick stats
+            $totalPromotions = (int) \App\Models\KhuyenMai::count();
+            $activePromotions = (int) \App\Models\KhuyenMai::where('ngay_bat_dau', '<=', now())
+                                                          ->where('ngay_ket_thuc', '>=', now())->count();
+            $expiredPromotions = (int) \App\Models\KhuyenMai::where('ngay_ket_thuc', '<', now())->count();
+            $upcomingPromotions = (int) \App\Models\KhuyenMai::where('ngay_bat_dau', '>', now())->count();
+            
+            return view('staff.khuyen-mai.index', compact('khuyenMais', 'totalPromotions', 'activePromotions', 'expiredPromotions', 'upcomingPromotions'));
+        })->name('index');
+        Route::get('/{khuyenMai}', function($khuyenMai) {
+            $khuyenMai = \App\Models\KhuyenMai::findOrFail($khuyenMai);
+            return view('staff.khuyen-mai.show', compact('khuyenMai'));
+        })->whereNumber('khuyenMai')->name('show');
+    });
 });
 
 // Test route
