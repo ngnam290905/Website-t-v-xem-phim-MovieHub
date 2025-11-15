@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Đăng nhập - MovieHub</title>
+    <title>Quên mật khẩu - MovieHub</title>
     
     <!-- Swiper CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
@@ -26,14 +26,14 @@
             height: 100vh;
         }
 
-        .login-container {
+        .forgot-container {
             display: flex;
             height: 100vh;
             width: 100%;
         }
 
         /* Form Section - 40% */
-        .login-form-section {
+        .forgot-form-section {
             width: 40%;
             display: flex;
             align-items: center;
@@ -44,26 +44,27 @@
             z-index: 10;
         }
 
-        .login-form-wrapper {
+        .forgot-form-wrapper {
             width: 100%;
             max-width: 420px;
         }
 
-        .login-header {
+        .forgot-header {
             text-align: center;
             margin-bottom: 40px;
         }
 
-        .login-header h1 {
+        .forgot-header h1 {
             font-size: 32px;
             font-weight: 700;
             color: #ffffff;
             margin-bottom: 8px;
         }
 
-        .login-header p {
+        .forgot-header p {
             color: #a0a6b1;
             font-size: 14px;
+            line-height: 1.6;
         }
 
         .form-group {
@@ -124,11 +125,20 @@
             gap: 6px;
         }
 
-        .error-message i {
-            font-size: 12px;
+        .success-message {
+            color: #10b981;
+            font-size: 13px;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
         }
 
-        .login-btn {
+        .submit-btn {
             width: 100%;
             padding: 16px;
             background: #0077c8;
@@ -146,31 +156,31 @@
             gap: 8px;
         }
 
-        .login-btn:hover {
+        .submit-btn:hover {
             background: #0088e0;
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(0, 119, 200, 0.3);
         }
 
-        .login-btn:active {
+        .submit-btn:active {
             transform: translateY(0);
         }
 
-        .register-link {
+        .back-link {
             text-align: center;
             margin-top: 24px;
             color: #a0a6b1;
             font-size: 14px;
         }
 
-        .register-link a {
+        .back-link a {
             color: #ffcc00;
             text-decoration: none;
             font-weight: 600;
             transition: color 0.3s ease;
         }
 
-        .register-link a:hover {
+        .back-link a:hover {
             color: #ffd633;
         }
 
@@ -209,21 +219,13 @@
         }
 
         @keyframes zoomIn {
-            0% {
-                transform: scale(1.1);
-            }
-            100% {
-                transform: scale(1.15);
-            }
+            0% { transform: scale(1.1); }
+            100% { transform: scale(1.15); }
         }
 
         @keyframes zoomOut {
-            0% {
-                transform: scale(1.15);
-            }
-            100% {
-                transform: scale(1);
-            }
+            0% { transform: scale(1.15); }
+            100% { transform: scale(1); }
         }
 
         .slide-overlay {
@@ -240,12 +242,8 @@
         }
 
         @keyframes overlayPulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.9;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.9; }
         }
 
         .slide-content {
@@ -304,12 +302,8 @@
         }
 
         @keyframes fadeInDelay {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .slide-badge {
@@ -337,7 +331,6 @@
             }
         }
 
-        /* Floating particles effect */
         .particles {
             position: absolute;
             width: 100%;
@@ -361,19 +354,14 @@
                 transform: translateY(100vh) translateX(0) rotate(0deg);
                 opacity: 0;
             }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
             100% {
                 transform: translateY(-100px) translateX(100px) rotate(360deg);
                 opacity: 0;
             }
         }
 
-        /* Spotlight effect */
         .spotlight {
             position: absolute;
             width: 300px;
@@ -388,18 +376,10 @@
         }
 
         @keyframes spotlightMove {
-            0%, 100% {
-                transform: translate(0, 0) scale(1);
-            }
-            25% {
-                transform: translate(-50px, 50px) scale(1.2);
-            }
-            50% {
-                transform: translate(50px, -30px) scale(0.8);
-            }
-            75% {
-                transform: translate(-30px, -50px) scale(1.1);
-            }
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(-50px, 50px) scale(1.2); }
+            50% { transform: translate(50px, -30px) scale(0.8); }
+            75% { transform: translate(-30px, -50px) scale(1.1); }
         }
 
         .swiper-pagination {
@@ -431,94 +411,41 @@
             }
         }
 
-        /* Gradient border animation */
-        .carousel-section::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            padding: 2px;
-            background: linear-gradient(45deg, #0077c8, #ffcc00, #0077c8);
-            background-size: 200% 200%;
-            border-radius: 0;
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            z-index: 5;
-            animation: gradientBorder 3s ease infinite;
-            pointer-events: none;
-        }
-
-        @keyframes gradientBorder {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
         /* Responsive */
         @media (max-width: 1024px) {
-            .login-container {
+            .forgot-container {
                 flex-direction: column;
             }
 
-            .login-form-section {
+            .forgot-form-section {
                 width: 100%;
-                height: 50%;
+                height: auto;
+                min-height: 50vh;
             }
 
             .carousel-section {
                 width: 100%;
-                height: 50%;
-            }
-
-            .slide-content {
-                bottom: 30px;
-                left: 30px;
-                right: 30px;
-            }
-
-            .slide-content h2 {
-                font-size: 32px;
-            }
-
-            .slide-content p {
-                font-size: 16px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .login-form-section {
-                padding: 30px 20px;
-            }
-
-            .login-header h1 {
-                font-size: 24px;
-            }
-
-            .slide-content h2 {
-                font-size: 24px;
-            }
-
-            .slide-content p {
-                font-size: 14px;
+                height: 50vh;
             }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
+    <div class="forgot-container">
         <!-- Form Section - 40% -->
-        <div class="login-form-section">
-            <div class="login-form-wrapper">
-                <div class="login-header">
-                    <h1>Đăng nhập</h1>
-                    <p>Chào mừng trở lại MovieHub</p>
+        <div class="forgot-form-section">
+            <div class="forgot-form-wrapper">
+                <div class="forgot-header">
+                    <h1>Quên mật khẩu?</h1>
+                    <p>Nhập email của bạn, chúng tôi sẽ gửi link đặt lại mật khẩu</p>
                 </div>
+
+                @if (session('status'))
+                    <div class="success-message" style="margin-bottom: 20px;">
+                        <i class="fas fa-check-circle"></i>
+                        <span>{{ session('status') }}</span>
+                    </div>
+                @endif
 
                 @if ($errors->any())
                     <div class="error-message" style="margin-bottom: 20px; padding: 12px; background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 8px;">
@@ -527,7 +454,7 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('login') }}">
+                <form method="POST" action="{{ route('password.email') }}">
                     @csrf
                     
                     <div class="form-group">
@@ -552,55 +479,27 @@
                         @enderror
                     </div>
 
-                    <div class="form-group">
-                        <label for="password">Mật khẩu</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-lock"></i>
-                            <input 
-                                type="password" 
-                                id="password" 
-                                name="password" 
-                                placeholder="Nhập mật khẩu"
-                                required
-                            >
-                        </div>
-                        @error('password')
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <span>{{ $message }}</span>
-                            </div>
-                        @enderror
-                    </div>
-
-                    <button type="submit" class="login-btn">
-                        <span>Đăng nhập</span>
-                        <i class="fas fa-arrow-right"></i>
+                    <button type="submit" class="submit-btn">
+                        <span>Gửi link đặt lại mật khẩu</span>
+                        <i class="fas fa-paper-plane"></i>
                     </button>
                 </form>
 
-                <div class="register-link">
-                    <div style="margin-bottom: 12px;">
-                        Chưa có tài khoản? <a href="{{ route('register.form') }}">Đăng ký ngay</a>
-                    </div>
-                    <div>
-                        <a href="{{ route('password.request') }}" style="color: #0077c8; text-decoration: none; font-size: 14px; transition: color 0.3s ease;">
-                            <i class="fas fa-key" style="margin-right: 6px;"></i>
-                            Quên mật khẩu?
-                        </a>
-                    </div>
+                <div class="back-link">
+                    <a href="{{ route('login.form') }}">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Quay lại đăng nhập
+                    </a>
                 </div>
             </div>
         </div>
 
         <!-- Carousel Section - 60% -->
         <div class="carousel-section">
-            <!-- Spotlight effect -->
             <div class="spotlight"></div>
-            
-            <!-- Floating particles -->
             <div class="particles" id="particles"></div>
             
-            <div class="swiper login-carousel">
+            <div class="swiper forgot-carousel">
                 <div class="swiper-wrapper">
                     @forelse($movies as $movie)
                         <div class="swiper-slide">
@@ -615,11 +514,10 @@
                                     <i class="fas fa-star"></i> {{ number_format($movie->diem_danh_gia ?? 0, 1) }} / 10
                                 </div>
                                 <h2>{{ $movie->ten_phim }}</h2>
-                                <p>{{ Str::limit($movie->mo_ta ?? 'Phim đang chiếu tại rạp', 150) }}</p>
+                                <p>{{ \Illuminate\Support\Str::limit($movie->mo_ta ?? 'Phim đang chiếu tại rạp', 150) }}</p>
                             </div>
                         </div>
                     @empty
-                        <!-- Default slides if no movies -->
                         <div class="swiper-slide">
                             <img src="/images/default-poster.jpg" alt="MovieHub">
                             <div class="slide-overlay"></div>
@@ -641,8 +539,8 @@
     <!-- Swiper JS -->
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script>
-        // Initialize Swiper with enhanced effects
-        const swiper = new Swiper('.login-carousel', {
+        // Initialize Swiper
+        const swiper = new Swiper('.forgot-carousel', {
             loop: true,
             autoplay: {
                 delay: 5000,
@@ -658,19 +556,6 @@
                 dynamicBullets: true,
             },
             speed: 1200,
-            on: {
-                slideChange: function() {
-                    // Reset animations on slide change
-                    const activeSlide = this.slides[this.activeIndex];
-                    const content = activeSlide.querySelector('.slide-content');
-                    if (content) {
-                        content.style.animation = 'none';
-                        setTimeout(() => {
-                            content.style.animation = 'slideUpFadeIn 0.8s ease-out';
-                        }, 10);
-                    }
-                }
-            }
         });
 
         // Create floating particles
@@ -679,49 +564,35 @@
             if (!particlesContainer) return;
 
             const particleCount = 20;
-            
             for (let i = 0; i < particleCount; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'particle';
-                
-                // Random position and delay
                 particle.style.left = Math.random() * 100 + '%';
                 particle.style.animationDelay = Math.random() * 15 + 's';
                 particle.style.animationDuration = (10 + Math.random() * 10) + 's';
-                
-                // Random size
                 const size = 2 + Math.random() * 3;
                 particle.style.width = size + 'px';
                 particle.style.height = size + 'px';
-                
                 particlesContainer.appendChild(particle);
             }
         }
 
-        // Initialize particles on load
         window.addEventListener('load', createParticles);
 
-        // Add parallax effect on mouse move
+        // Parallax effect
         const carouselSection = document.querySelector('.carousel-section');
         if (carouselSection) {
             carouselSection.addEventListener('mousemove', (e) => {
                 const rect = carouselSection.getBoundingClientRect();
                 const x = ((e.clientX - rect.left) / rect.width - 0.5) * 20;
                 const y = ((e.clientY - rect.top) / rect.height - 0.5) * 20;
-                
                 const spotlight = carouselSection.querySelector('.spotlight');
                 if (spotlight) {
                     spotlight.style.transform = `translate(${x}px, ${y}px) scale(1)`;
-                }
-            });
-
-            carouselSection.addEventListener('mouseleave', () => {
-                const spotlight = carouselSection.querySelector('.spotlight');
-                if (spotlight) {
-                    spotlight.style.transform = 'translate(0, 0) scale(1)';
                 }
             });
         }
     </script>
 </body>
 </html>
+

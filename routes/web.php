@@ -12,10 +12,16 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\PublicController;
 
 
 // Main routes
 Route::get('/', [MovieController::class, 'index'])->name('home');
+
+// Movie listing pages (must be before /movies/{movie} to avoid route conflict)
+Route::get('/movies/category/{category}', [MovieController::class, 'category'])->name('movies.category');
+
+// Movie detail routes
 Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movie-detail');
 Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
 
@@ -27,6 +33,28 @@ Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu']
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
 
 // Booking routes (new user flow)
+Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
+Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->name('booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'getShowtimesByDate'])->name('api.booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/dates', [App\Http\Controllers\BookingFlowController::class, 'getAvailableDates'])->name('api.booking.dates');
+
+// Booking data display routes
+Route::get('/booking-data', [App\Http\Controllers\BookingDataController::class, 'index'])->name('booking.data');
+Route::get('/booking-data/movie/{id}', [App\Http\Controllers\BookingDataController::class, 'movie'])->name('booking.data.movie');
+Route::get('/booking-data/room/{id}', [App\Http\Controllers\BookingDataController::class, 'room'])->name('booking.data.room');
+Route::get('/booking-data/showtime/{id}', [App\Http\Controllers\BookingDataController::class, 'showtime'])->name('booking.data.showtime');
+Route::get('/booking-data/booking/{id}', [App\Http\Controllers\BookingDataController::class, 'booking'])->name('booking.data.booking');
+
+// Public pages
+Route::get('/phim', [PublicController::class, 'movies'])->name('public.movies');
+Route::get('/lich-chieu', [PublicController::class, 'schedule'])->name('public.schedule');
+Route::get('/combo', [PublicController::class, 'combos'])->name('public.combos');
+Route::get('/tin-tuc', [PublicController::class, 'news'])->name('public.news');
+Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->name('public.news.detail');
+
+// Debug route (remove in production)
+Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
+
 Route::middleware('auth')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
@@ -36,8 +64,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
     Route::get('/checkout/{bookingId}', [App\Http\Controllers\BookingController::class, 'checkout'])->name('booking.checkout');
     Route::post('/checkout/{bookingId}/payment', [App\Http\Controllers\BookingController::class, 'processPayment'])->name('booking.payment.process');
+    Route::post('/payment/callback', [App\Http\Controllers\BookingController::class, 'paymentCallback'])->name('booking.payment.callback');
     Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
     Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
+    Route::get('/tickets/{id}', [App\Http\Controllers\BookingController::class, 'ticketDetail'])->name('booking.ticket.detail');
 });
 
 // Legacy booking routes
@@ -55,10 +85,14 @@ Route::get('/mini-game', function () {
 
 // Auth routes
 Route::middleware('guest')->group(function () {
-    Route::get('/register', function () { return view('auth.register'); })->name('register.form');
-    Route::get('/login', function () { return view('auth.login'); })->name('login.form');
+    Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form');
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
     Route::post('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
+    Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 

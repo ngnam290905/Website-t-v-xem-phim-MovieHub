@@ -10,6 +10,7 @@ use App\Models\Combo;
 use App\Models\ChiTietDatVe;
 use App\Models\ChiTietCombo;
 use App\Models\PhongChieu;
+use App\Services\LegacySeatLockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,10 @@ use Carbon\Carbon;
 
 class BookingController extends Controller
 {
+    public function __construct(
+        private LegacySeatLockService $seatLockService
+    ) {}
+
     /**
      * Hiển thị trang chọn ghế cho suất chiếu
      */
@@ -30,13 +35,13 @@ class BookingController extends Controller
         $bookedSeatIds = DB::table('chi_tiet_dat_ve as ctdv')
             ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
             ->where('dv.id_suat_chieu', $showId)
-            ->where('dv.trang_thai', '!=', 'CANCELLED')
-            ->whereIn('dv.trang_thai', ['PAID', 'CONFIRMED', 'DRAFT'])
+            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED (nếu có)
+            ->whereIn('dv.trang_thai', [0, 1]) // 0 = DRAFT, 1 = PAID/CONFIRMED
             ->pluck('ctdv.id_ghe')
             ->toArray();
 
-        // Lấy ghế đang bị lock (trong cache)
-        $lockedSeats = $this->getLockedSeats($showId);
+        // Lấy ghế đang bị lock
+        $lockedSeats = $this->seatLockService->getLockedSeats($showId);
 
         // Kiểm tra xem có booking DRAFT đang tồn tại không
         $existingBooking = null;
@@ -44,7 +49,7 @@ class BookingController extends Controller
         if (Auth::check()) {
             $existingBooking = DatVe::where('id_nguoi_dung', Auth::id())
                 ->where('id_suat_chieu', $showId)
-                ->where('trang_thai', 'DRAFT')
+                ->where('trang_thai', 0) // 0 = DRAFT
                 ->first();
 
             if ($existingBooking) {
@@ -52,22 +57,31 @@ class BookingController extends Controller
             }
         }
 
-        // Lấy tất cả ghế trong phòng
+        // Lấy tất cả ghế trong phòng và sắp xếp đúng thứ tự
         $seats = $showtime->phongChieu->seats()
             ->with('seatType')
-            ->orderBy('so_hang')
-            ->orderBy('so_ghe')
-            ->get();
+            ->orderBy('so_hang', 'asc')
+            ->get()
+            ->sortBy(function($seat) {
+                // Extract number from seat code (A1 -> 1, B12 -> 12)
+                preg_match('/(\d+)/', $seat->so_ghe, $matches);
+                return (int)($matches[1] ?? 999); // Put invalid seats at the end
+            })
+            ->values();
 
         // Đánh dấu trạng thái ghế
         foreach ($seats as $seat) {
+            $status = $this->seatLockService->getSeatStatus($showId, $seat->id, Auth::id());
+            
             if (in_array($seat->id, $bookedSeatIds)) {
                 $seat->booking_status = 'booked';
             } elseif (in_array($seat->id, $selectedSeatIds)) {
                 $seat->booking_status = 'selected';
-            } elseif (isset($lockedSeats[$seat->id]) && $lockedSeats[$seat->id]['user_id'] != Auth::id()) {
+            } elseif ($status === 'SOLD') {
+                $seat->booking_status = 'booked';
+            } elseif ($status === 'LOCKED_BY_OTHER') {
                 $seat->booking_status = 'locked_by_other';
-            } elseif (isset($lockedSeats[$seat->id]) && $lockedSeats[$seat->id]['user_id'] == Auth::id()) {
+            } elseif ($status === 'LOCKED_BY_ME') {
                 $seat->booking_status = 'locked_by_me';
             } elseif ($seat->trang_thai == 0) {
                 $seat->booking_status = 'disabled';
@@ -113,17 +127,15 @@ class BookingController extends Controller
 
         $seatIds = $request->seat_ids;
         $userId = Auth::id();
-        $lockDuration = 300; // 5 phút
 
         // Kiểm tra xem ghế có bị đặt hoặc bị lock bởi người khác không
         $bookedSeatIds = $this->getBookedSeatIds($showId);
-        $lockedSeats = $this->getLockedSeats($showId);
 
         $conflicts = [];
         foreach ($seatIds as $seatId) {
             if (in_array($seatId, $bookedSeatIds)) {
                 $conflicts[] = ['seat_id' => $seatId, 'reason' => 'Ghế đã được đặt'];
-            } elseif (isset($lockedSeats[$seatId]) && $lockedSeats[$seatId]['user_id'] != $userId) {
+            } elseif ($this->seatLockService->isSeatLocked($showId, $seatId, $userId)) {
                 $conflicts[] = ['seat_id' => $seatId, 'reason' => 'Ghế đang được người khác chọn'];
             }
         }
@@ -136,26 +148,27 @@ class BookingController extends Controller
             ], 400);
         }
 
-        // Lock ghế
-        foreach ($seatIds as $seatId) {
-            $cacheKey = "seat_lock:{$showId}:{$seatId}";
-            Cache::put($cacheKey, [
-                'user_id' => $userId,
-                'locked_at' => now()->timestamp,
-                'expires_at' => now()->addSeconds($lockDuration)->timestamp
-            ], $lockDuration);
+        // Lock ghế using service
+        try {
+            $this->seatLockService->lockSeats($showId, $seatIds, $userId);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể giữ ghế: ' . $e->getMessage()
+            ], 400);
         }
 
         // Tạo hoặc cập nhật booking DRAFT
+        // trang_thai: 0 = DRAFT, 1 = PAID/CONFIRMED
+        // Không set tong_tien vì có thể cột này không tồn tại, sẽ tính từ chi tiết
         $booking = DatVe::updateOrCreate(
             [
                 'id_nguoi_dung' => $userId,
                 'id_suat_chieu' => $showId,
-                'trang_thai' => 'DRAFT'
+                'trang_thai' => 0 // 0 = DRAFT (đang chọn ghế)
             ],
             [
-                'tong_tien' => 0,
-                'created_at' => now()
+                // Không set tong_tien ở đây, sẽ tính từ chi_tiet_dat_ve và chi_tiet_combo
             ]
         );
 
@@ -180,11 +193,14 @@ class BookingController extends Controller
         $total = $booking->chiTietDatVe()->sum('gia');
         $booking->update(['tong_tien' => $total]);
 
+        // Update locks with booking ID
+        $this->seatLockService->updateLocksWithBookingId($showId, $seatIds, $booking->id);
+
         return response()->json([
             'success' => true,
             'booking_id' => $booking->id,
             'locked_seats' => $seatIds,
-            'expires_at' => now()->addSeconds($lockDuration)->timestamp
+            'expires_at' => now()->addMinutes(5)->timestamp
         ]);
     }
 
@@ -200,19 +216,13 @@ class BookingController extends Controller
         $userId = Auth::id();
         $seatIds = $request->seat_ids ?? [];
 
-        foreach ($seatIds as $seatId) {
-            $cacheKey = "seat_lock:{$showId}:{$seatId}";
-            $lock = Cache::get($cacheKey);
-            
-            if ($lock && $lock['user_id'] == $userId) {
-                Cache::forget($cacheKey);
-            }
-        }
+        // Unlock seats using service
+        $this->seatLockService->unlockSeats($showId, $seatIds, $userId);
 
         // Xóa ghế khỏi booking DRAFT nếu có
         $booking = DatVe::where('id_nguoi_dung', $userId)
             ->where('id_suat_chieu', $showId)
-            ->where('trang_thai', 'DRAFT')
+            ->where('trang_thai', 0) // 0 = DRAFT
             ->first();
 
         if ($booking && !empty($seatIds)) {
@@ -238,24 +248,31 @@ class BookingController extends Controller
         $showtime = SuatChieu::findOrFail($showId);
         
         $bookedSeatIds = $this->getBookedSeatIds($showId);
-        $lockedSeats = $this->getLockedSeats($showId);
 
         $seats = $showtime->phongChieu->seats()
             ->with('seatType')
             ->get();
 
         $status = [];
+        $userId = Auth::id();
+        
         foreach ($seats as $seat) {
             if (in_array($seat->id, $bookedSeatIds)) {
                 $status[$seat->id] = 'booked';
-            } elseif (isset($lockedSeats[$seat->id])) {
-                $status[$seat->id] = $lockedSeats[$seat->id]['user_id'] == Auth::id() 
-                    ? 'locked_by_me' 
-                    : 'locked_by_other';
+            } else {
+                $seatStatus = $this->seatLockService->getSeatStatus($showId, $seat->id, $userId);
+                
+                if ($seatStatus === 'SOLD') {
+                    $status[$seat->id] = 'booked';
+                } elseif ($seatStatus === 'LOCKED_BY_ME') {
+                    $status[$seat->id] = 'locked_by_me';
+                } elseif ($seatStatus === 'LOCKED_BY_OTHER' || $seatStatus === 'LOCKED') {
+                    $status[$seat->id] = 'locked_by_other';
             } elseif ($seat->trang_thai == 0) {
                 $status[$seat->id] = 'disabled';
             } else {
                 $status[$seat->id] = 'available';
+                }
             }
         }
 
@@ -275,7 +292,7 @@ class BookingController extends Controller
             ->findOrFail($bookingId);
 
         // Kiểm tra quyền truy cập
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 'DRAFT') {
+        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
             abort(403);
         }
 
@@ -283,11 +300,10 @@ class BookingController extends Controller
         $showId = $booking->id_suat_chieu;
         $seatIds = $booking->chiTietDatVe()->pluck('id_ghe')->toArray();
         $allLocksValid = true;
+        $userId = Auth::id();
 
         foreach ($seatIds as $seatId) {
-            $cacheKey = "seat_lock:{$showId}:{$seatId}";
-            $lock = Cache::get($cacheKey);
-            if (!$lock || $lock['user_id'] != Auth::id()) {
+            if (!$this->seatLockService->isSeatLocked($showId, $seatId, $userId)) {
                 $allLocksValid = false;
                 break;
             }
@@ -321,7 +337,7 @@ class BookingController extends Controller
     {
         $booking = DatVe::findOrFail($bookingId);
 
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 'DRAFT') {
+        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
@@ -376,7 +392,7 @@ class BookingController extends Controller
             'suatChieu.phongChieu'
         ])->findOrFail($bookingId);
 
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 'DRAFT') {
+        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
             abort(403);
         }
 
@@ -396,7 +412,7 @@ class BookingController extends Controller
     {
         $booking = DatVe::with('chiTietDatVe')->findOrFail($bookingId);
 
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 'DRAFT') {
+        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
@@ -429,22 +445,46 @@ class BookingController extends Controller
         // Nếu là thanh toán online, redirect đến cổng thanh toán
         if (in_array($request->payment_method, ['vnpay', 'momo', 'credit_card'])) {
             // TODO: Implement payment gateway integration
-            // Tạm thời giả lập redirect
-            $paymentUrl = route('booking.payment.process', [
-                'booking_id' => $bookingId,
-                'method' => $request->payment_method
+            // Tạm thời giả lập thanh toán thành công ngay lập tức
+            // Trong production, sẽ redirect đến cổng thanh toán thật
+            
+            // Giải phóng lock
+            $this->seatLockService->releaseLocksForBooking($booking->id);
+            
+            // Cập nhật trạng thái
+            $booking->update(['trang_thai' => 'PAID']);
+            
+            // Tạo thanh toán record
+            DB::table('thanh_toan')->insert([
+                'id_dat_ve' => $booking->id,
+                'phuong_thuc' => $request->payment_method,
+                'so_tien' => $booking->tong_tien,
+                'trang_thai' => 'success',
+                'thoi_gian' => now()
             ]);
 
             return response()->json([
                 'success' => true,
-                'redirect' => $paymentUrl
+                'redirect' => route('booking.result', ['booking_id' => $bookingId])
             ]);
         }
 
         // Thanh toán tại quầy
         $booking->update(['trang_thai' => 'PENDING']);
 
-        return redirect()->route('booking.result', ['booking_id' => $bookingId]);
+        // Tạo thanh toán record
+        DB::table('thanh_toan')->insert([
+            'id_dat_ve' => $booking->id,
+            'phuong_thuc' => 'cash',
+            'so_tien' => $booking->tong_tien,
+            'trang_thai' => 'pending',
+            'thoi_gian' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'redirect' => route('booking.result', ['booking_id' => $bookingId])
+        ]);
     }
 
     /**
@@ -459,13 +499,7 @@ class BookingController extends Controller
 
         if ($status === 'SUCCESS') {
             // Giải phóng lock
-            $showId = $booking->id_suat_chieu;
-            $seatIds = $booking->chiTietDatVe()->pluck('id_ghe')->toArray();
-            
-            foreach ($seatIds as $seatId) {
-                $cacheKey = "seat_lock:{$showId}:{$seatId}";
-                Cache::forget($cacheKey);
-            }
+            $this->seatLockService->releaseLocksForBooking($booking->id);
 
             // Cập nhật trạng thái
             $booking->update(['trang_thai' => 'PAID']);
@@ -509,31 +543,76 @@ class BookingController extends Controller
     /**
      * Danh sách vé của tôi
      */
-    public function tickets(Request $request)
+        public function tickets(Request $request)
     {
         $user = Auth::user();
         
-        $bookings = DatVe::where('id_nguoi_dung', $user->id)
-            ->whereIn('trang_thai', ['PAID', 'CONFIRMED'])
+        $query = DatVe::where('id_nguoi_dung', $user->id)
             ->with([
                 'chiTietDatVe.ghe.seatType',
                 'chiTietCombo.combo',
                 'suatChieu.phim',
-                'suatChieu.phongChieu'
+                'suatChieu.phongChieu',
+                'thanhToan'
             ])
             ->orderBy('created_at', 'desc');
 
-        // Lọc theo ngày
+        // Filter by status
+        $status = $request->get('status', 'all');
+        if ($status !== 'all') {
+            if ($status === 'paid') {
+                $query->where('trang_thai', 1); // 1 = PAID/CONFIRMED
+            } elseif ($status === 'draft') {
+                $query->where('trang_thai', 0); // 0 = DRAFT
+            } elseif ($status === 'cancelled') {
+                $query->where('trang_thai', 2); // 2 = CANCELLED
+            }
+        }
+
+        // Filter by date
         if ($request->date) {
             $date = Carbon::parse($request->date);
-            $bookings->whereHas('suatChieu', function($query) use ($date) {
-                $query->whereDate('thoi_gian_bat_dau', $date);
+            $query->whereHas('suatChieu', function($q) use ($date) {
+                $q->whereDate('thoi_gian_bat_dau', $date);
             });
         }
 
-        $bookings = $bookings->paginate(10);
+        // Search by movie name
+        if ($request->search) {
+            $query->whereHas('suatChieu.phim', function($q) use ($request) {
+                $q->where('ten_phim', 'like', '%' . $request->search . '%');
+            });
+        }
 
-        return view('booking.tickets', compact('bookings'));
+        $bookings = $query->paginate(12);
+
+        // Statistics
+        $stats = [
+            'total' => DatVe::where('id_nguoi_dung', $user->id)->count(),
+            'paid' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 1)->count(),
+            'draft' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 0)->count(),
+            'cancelled' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 2)->count(),
+        ];
+
+        return view('booking.tickets', compact('bookings', 'stats', 'status'));
+    }
+
+    public function ticketDetail($id)
+    {
+        $booking = DatVe::with([
+            'chiTietDatVe.ghe.seatType',
+            'chiTietCombo.combo',
+            'suatChieu.phim',
+            'suatChieu.phongChieu',
+            'thanhToan',
+            'nguoiDung'
+        ])->findOrFail($id);
+
+        if (Auth::id() != $booking->id_nguoi_dung) {
+            abort(403);
+        }
+
+        return view('booking.ticket-detail', compact('booking'));
     }
 
     /**
@@ -544,38 +623,11 @@ class BookingController extends Controller
         return DB::table('chi_tiet_dat_ve as ctdv')
             ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
             ->where('dv.id_suat_chieu', $showId)
-            ->where('dv.trang_thai', '!=', 'CANCELLED')
+            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED (nếu có)
             ->whereIn('dv.trang_thai', ['PAID', 'CONFIRMED', 'PENDING'])
             ->pluck('ctdv.id_ghe')
             ->toArray();
     }
 
-    /**
-     * Helper: Lấy danh sách ghế đang bị lock
-     */
-    private function getLockedSeats($showId)
-    {
-        $showtime = SuatChieu::with('phongChieu.seats')->find($showId);
-        if (!$showtime || !$showtime->phongChieu) {
-            return [];
-        }
-
-        $seatIds = $showtime->phongChieu->seats->pluck('id')->toArray();
-
-        $locked = [];
-        foreach ($seatIds as $seatId) {
-            $cacheKey = "seat_lock:{$showId}:{$seatId}";
-            $lock = Cache::get($cacheKey);
-            
-            if ($lock && isset($lock['expires_at']) && $lock['expires_at'] > now()->timestamp) {
-                $locked[$seatId] = $lock;
-            } else {
-                // Xóa lock hết hạn
-                Cache::forget($cacheKey);
-            }
-        }
-
-        return $locked;
-    }
 }
 

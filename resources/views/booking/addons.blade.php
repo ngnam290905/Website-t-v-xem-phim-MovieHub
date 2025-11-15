@@ -30,8 +30,8 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               @foreach($combos as $combo)
                 <div class="combo-card bg-[#1a1d24] border border-[#262833] rounded-lg p-4 hover:border-[#F53003] transition-all duration-300">
-                  @if($combo->anh)
-                    <img src="{{ asset('storage/' . $combo->anh) }}" alt="{{ $combo->ten }}" 
+                  @if($combo->anh ?? $combo->hinh_anh ?? false)
+                    <img src="{{ filter_var($combo->anh ?? $combo->hinh_anh, FILTER_VALIDATE_URL) ? ($combo->anh ?? $combo->hinh_anh) : asset('storage/' . ($combo->anh ?? $combo->hinh_anh)) }}" alt="{{ $combo->ten }}" 
                          class="w-full h-32 object-cover rounded-lg mb-3">
                   @else
                     <div class="w-full h-32 bg-gradient-to-br from-[#F53003] to-orange-400 rounded-lg mb-3 flex items-center justify-center">

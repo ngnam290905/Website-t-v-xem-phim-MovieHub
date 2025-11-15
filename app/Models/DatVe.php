@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo as EloquentBelongsTo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DatVe extends Model
 {
@@ -21,7 +22,7 @@ class DatVe extends Model
         'ten_khach_hang',
         'so_dien_thoai',
         'email',
-        'tong_tien',
+        'tong_tien', // Có thể không tồn tại trong DB, nhưng giữ lại để tương thích
         'trang_thai'
     ];
 
@@ -30,6 +31,42 @@ class DatVe extends Model
         'trang_thai' => 'integer',
         'created_at' => 'datetime',
     ];
+    
+    // Cache để kiểm tra cột tong_tien có tồn tại không
+    protected static $hasTongTienColumn = null;
+    
+    // Override để không insert/update tong_tien nếu cột không tồn tại
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($model) {
+            $model->removeTongTienIfNotExists();
+        });
+        
+        static::updating(function ($model) {
+            $model->removeTongTienIfNotExists();
+        });
+    }
+    
+    // Helper method để xóa tong_tien nếu cột không tồn tại
+    protected function removeTongTienIfNotExists()
+    {
+        if (isset($this->attributes['tong_tien'])) {
+            if (static::$hasTongTienColumn === null) {
+                try {
+                    $columns = Schema::getColumnListing($this->getTable());
+                    static::$hasTongTienColumn = in_array('tong_tien', $columns);
+                } catch (\Exception $e) {
+                    static::$hasTongTienColumn = false;
+                }
+            }
+            
+            if (!static::$hasTongTienColumn) {
+                unset($this->attributes['tong_tien']);
+            }
+        }
+    }
 
     // Relationship with NguoiDung
     public function nguoiDung(): BelongsTo

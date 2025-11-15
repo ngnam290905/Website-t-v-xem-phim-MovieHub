@@ -20,7 +20,7 @@
             <div>
               <label class="block text-sm font-semibold text-white mb-2">Họ tên <span class="text-red-400">*</span></label>
               <input type="text" name="customer_name" required
-                     value="{{ $booking->ten_khach_hang ?? Auth::user()->ten ?? '' }}"
+                     value="{{ $booking->ten_khach_hang ?? (Auth::user() ? (Auth::user()->name ?? Auth::user()->ho_ten ?? '') : '') }}"
                      class="w-full px-4 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
             </div>
 
@@ -28,7 +28,7 @@
               <div>
                 <label class="block text-sm font-semibold text-white mb-2">Số điện thoại <span class="text-red-400">*</span></label>
                 <input type="tel" name="customer_phone" required
-                       value="{{ $booking->so_dien_thoai ?? Auth::user()->so_dien_thoai ?? '' }}"
+                       value="{{ $booking->so_dien_thoai ?? (Auth::user() ? (Auth::user()->phone ?? Auth::user()->sdt ?? '') : '') }}"
                        class="w-full px-4 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
               </div>
 

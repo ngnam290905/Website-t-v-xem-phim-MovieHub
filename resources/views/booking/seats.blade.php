@@ -17,12 +17,14 @@
         <!-- Movie Poster -->
         <div class="shrink-0">
           <div class="relative group">
-            <img 
-              src="{{ $showtime->phim->poster ?? asset('images/no-poster.svg') }}" 
-              alt="{{ $showtime->phim->ten_phim }}" 
-              class="w-32 h-48 md:w-40 md:h-60 object-cover rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300"
-              loading="lazy">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <x-image 
+              src="{{ $showtime->phim->poster_url ?? $showtime->phim->poster }}" 
+              alt="{{ $showtime->phim->ten_phim }}"
+              aspectRatio="2/3"
+              class="w-32 md:w-40 rounded-xl shadow-lg"
+              quality="high"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"></div>
           </div>
         </div>
         
@@ -97,130 +99,288 @@
             @endif
           </div>
 
-          <!-- Screen Bar -->
-          <div class="text-center mb-8 -mt-2 relative">
-            <div class="inline-block bg-gradient-to-r from-[#FF784E]/20 via-[#FFB25E]/30 to-[#FF784E]/20 text-[#E6E7EB] px-12 py-3 rounded-full text-sm font-bold shadow-2xl border border-[#FF784E]/30 relative overflow-hidden">
-              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
-              <span class="relative z-10 flex items-center gap-2">
-                <i class="fas fa-film"></i>
-                <span>MÀN HÌNH</span>
-              </span>
+          <!-- Enhanced Screen Visualization -->
+          <div class="text-center mb-12 relative">
+            <!-- Screen 3D Effect -->
+            <div class="relative mx-auto max-w-4xl">
+              <!-- Screen Shadow -->
+              <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent rounded-t-full blur-2xl transform translate-y-8"></div>
+              
+              <!-- Main Screen -->
+              <div class="relative bg-gradient-to-b from-[#1a1a1a] via-[#0a0a0a] to-[#1a1a1a] rounded-t-[40px] border-2 border-[#FF784E]/40 shadow-[0_20px_60px_rgba(255,120,78,0.3)] overflow-hidden">
+                <!-- Screen Reflection -->
+                <div class="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent"></div>
+                
+                <!-- Screen Content -->
+                <div class="relative px-16 py-8">
+                  <div class="flex items-center justify-center gap-3 mb-2">
+                    <div class="w-2 h-2 rounded-full bg-[#FF784E] animate-pulse"></div>
+                    <span class="text-[#FF784E] font-bold text-lg tracking-wider">MÀN HÌNH</span>
+                    <div class="w-2 h-2 rounded-full bg-[#FF784E] animate-pulse"></div>
+                  </div>
+                  <div class="h-1 bg-gradient-to-r from-transparent via-[#FF784E]/60 to-transparent rounded-full"></div>
+                </div>
+                
+                <!-- Screen Bottom Edge -->
+                <div class="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-b from-[#FF784E]/20 to-transparent"></div>
+              </div>
+              
+              <!-- Screen Stand -->
+              <div class="mx-auto mt-2 w-32 h-4 bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-b-lg border border-[#FF784E]/20"></div>
             </div>
-            <div class="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#FF784E]/50 to-transparent -z-10"></div>
+            
+            <!-- Distance Indicator -->
+            <div class="mt-6 flex items-center justify-center gap-4 text-xs text-[#a6a6b0]">
+              <div class="flex items-center gap-2">
+                <div class="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#FF784E]/50 to-transparent"></div>
+                <span>Khoảng cách tối ưu</span>
+                <div class="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#FF784E]/50 to-transparent"></div>
+              </div>
+            </div>
           </div>
 
-          <!-- Seat Map -->
-          <div class="relative overflow-x-auto mb-4" id="seat-map-container">
-            <!-- Column Numbers (Top) -->
+          <!-- Seat Map Container -->
+          <div class="relative overflow-x-auto mb-6" id="seat-map-container">
+            <!-- Column Numbers (Top) - Enhanced -->
             @php
-              $rows = $seats->groupBy('so_hang');
-              $maxCols = $rows->map(fn($row) => $row->count())->max();
-              $colNumbers = range(1, $maxCols);
+              // Group seats by row và sắp xếp lại
+              $rows = $seats->groupBy('so_hang')->sortKeys();
+              
+              // Tính toán số cột tối đa và tạo ma trận
+              $maxCols = 0;
+              $seatMatrix = [];
+              
+              foreach($rows as $rowLabel => $rowSeats) {
+                // Sắp xếp ghế trong hàng theo số
+                $sortedSeats = $rowSeats->sortBy(function($seat) {
+                  // Extract number from seat code (A1 -> 1, B12 -> 12)
+                  preg_match('/(\d+)/', $seat->so_ghe, $matches);
+                  return (int)($matches[1] ?? 0);
+                });
+                
+                $seatMatrix[$rowLabel] = $sortedSeats->values();
+                $maxCols = max($maxCols, $sortedSeats->count());
+              }
+              
+              // Detect VIP rows
+              $vipRows = [];
+              foreach($seatMatrix as $rowLabel => $rowSeats) {
+                $firstSeat = $rowSeats->first();
+                if($firstSeat && $firstSeat->seatType && strpos(strtolower($firstSeat->seatType->ten_loai ?? ''), 'vip') !== false) {
+                  $vipRows[] = $rowLabel;
+                }
+              }
+              
+              // Tạo danh sách số cột (với spacing cho lối đi)
+              $colNumbers = [];
+              $aislePositions = [5, 10]; // Vị trí lối đi (sau cột 5 và 10)
+              for ($i = 1; $i <= $maxCols; $i++) {
+                $colNumbers[] = $i;
+                if (in_array($i, $aislePositions)) {
+                  $colNumbers[] = 'aisle'; // Marker cho lối đi
+                }
+              }
             @endphp
-            <div class="flex items-center gap-1 mb-2 pl-10">
-              @foreach($colNumbers as $colNum)
-                <div class="w-9 text-center text-xs font-bold text-[#a6a6b0]">{{ $colNum }}</div>
+            
+            <div class="flex items-center gap-1 mb-4 pl-12">
+              <div class="w-10"></div>
+              @foreach($colNumbers as $colItem)
+                @if($colItem === 'aisle')
+                  <div class="w-4"></div>
+                @else
+                <div class="w-10 h-10 flex items-center justify-center text-xs font-bold text-[#a6a6b0] bg-[#1a1d24] rounded border border-[#2a2d3a]">
+                    {{ $colItem }}
+                </div>
+                @endif
               @endforeach
             </div>
             
-            <div class="inline-block min-w-full">
-              @foreach($rows as $rowLabel => $rowSeats)
-                <div class="flex items-center gap-2 mb-2">
-                  <!-- Row Label -->
-                  <div class="w-8 text-center text-sm font-bold text-[#a6a6b0] shrink-0">
-                    {{ $rowLabel }}
-                  </div>
+            <!-- Seat Grid - Ma trận cải tiến -->
+            <div class="inline-block min-w-full space-y-3">
+              @foreach($seatMatrix as $rowLabel => $rowSeats)
+                @php
+                  $isVipRow = in_array($rowLabel, $vipRows);
+                  $rowIndex = array_search($rowLabel, array_keys($seatMatrix));
                   
-                  <!-- Seats -->
-                  <div class="flex gap-1 flex-wrap">
-                    @foreach($rowSeats as $seat)
-                      @php
-                        $status = $seat->booking_status ?? 'available';
-                        $seatType = $seat->seatType ?? null;
-                        $seatPrice = $seatType->he_so_gia ?? 1;
-                        $basePrice = 50000;
-                        $price = $basePrice * $seatPrice;
-                        $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
-                      @endphp
-                      
-                      <button 
-                        type="button"
-                        class="seat-btn relative group
-                        @if($status === 'booked') seat-sold
-                        @elseif($status === 'locked_by_other') seat-locked
-                        @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
-                        @elseif($status === 'disabled') seat-disabled
-                        @elseif($seatType && strpos(strtolower($seatType->ten_loai), 'vip') !== false) seat-vip
-                        @else seat-available
-                        @endif"
-                        data-seat-id="{{ $seat->id }}"
-                        data-seat-code="{{ $seat->so_ghe }}"
-                        data-seat-price="{{ $price }}"
-                        data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
-                        @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
+                  // Tạo map ghế theo vị trí để align đúng cột
+                  $seatMap = [];
+                  foreach($rowSeats as $seat) {
+                    preg_match('/(\d+)/', $seat->so_ghe, $matches);
+                    $colNum = (int)($matches[1] ?? 0);
+                    $seatMap[$colNum] = $seat;
+                  }
+                @endphp
+                
+                <!-- Row Container -->
+                <div class="relative seat-row-container" data-row="{{ $rowLabel }}">
+                  <!-- VIP Row Badge -->
+                  @if($isVipRow)
+                    <div class="absolute -left-20 top-1/2 transform -translate-y-1/2 flex items-center gap-2 z-10">
+                      <div class="px-3 py-1 bg-gradient-to-r from-yellow-600/20 to-yellow-700/20 border border-yellow-500/50 rounded-full">
+                        <span class="text-yellow-400 text-xs font-bold flex items-center gap-1">
+                          <i class="fas fa-crown text-[10px]"></i>
+                          <span>VIP</span>
+                        </span>
+                      </div>
+                    </div>
+                  @endif
+                  
+                  <!-- Row Separator (for every 3 rows) -->
+                  @if($rowIndex > 0 && $rowIndex % 3 == 0)
+                    <div class="absolute -left-4 -right-4 top-0 h-px bg-gradient-to-r from-transparent via-[#FF784E]/30 to-transparent mb-3"></div>
+                  @endif
+                  
+                  <div class="flex items-center gap-3">
+                    <!-- Row Label -->
+                    <div class="w-10 h-10 flex items-center justify-center text-sm font-bold text-[#E6E7EB] bg-gradient-to-br from-[#2a2d3a] to-[#1a1d24] rounded-lg border border-[#3a3d4a] shadow-lg shrink-0 {{ $isVipRow ? 'ring-2 ring-yellow-500/50' : '' }}">
+                      {{ $rowLabel }}
+                    </div>
+                    
+                    <!-- Seats Row - Ma trận với spacing -->
+                    <div class="flex gap-1 items-center">
+                      @for($col = 1; $col <= $maxCols; $col++)
+                        @if(in_array($col, [6, 11])) {{-- Lối đi sau cột 5 và 10 --}}
+                          <div class="w-4"></div>
                         @endif
-                        onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
-                        aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
-                        tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
-                        <span class="seat-number">{{ $seatNumber }}</span>
-                        <!-- Enhanced Tooltip -->
-                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-2 bg-gradient-to-r from-[#1a1d24] to-[#2a2d3a] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-30 shadow-2xl border border-[#FF784E]/30 pointer-events-none">
-                          <div class="font-semibold mb-1 text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
-                          <div class="text-[#E6E7EB]">{{ number_format($price) }}đ</div>
-                          <div class="text-[#A0A6B1] text-[10px] mt-1">{{ $seatType->ten_loai ?? 'Thường' }}</div>
-                          <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
-                        </div>
-                      </button>
-                    @endforeach
+                        
+                        @if(isset($seatMap[$col]))
+                        @php
+                            $seat = $seatMap[$col];
+                          $status = $seat->booking_status ?? 'available';
+                          $seatType = $seat->seatType ?? null;
+                          $seatPrice = $seatType->he_so_gia ?? 1;
+                          $basePrice = 50000;
+                          $price = $basePrice * $seatPrice;
+                          $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
+                            $isVipSeat = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
+                        @endphp
+                        
+                        <button 
+                          type="button"
+                          class="seat-btn-enhanced relative group
+                          @if($status === 'booked') seat-sold
+                          @elseif($status === 'locked_by_other') seat-locked
+                          @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
+                          @elseif($status === 'disabled') seat-disabled
+                          @elseif($isVipSeat) seat-vip
+                          @else seat-available
+                          @endif"
+                          data-seat-id="{{ $seat->id }}"
+                          data-seat-code="{{ $seat->so_ghe }}"
+                          data-seat-price="{{ $price }}"
+                          data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
+                          @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
+                          @endif
+                          onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
+                          aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
+                          tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
+                          
+                          <!-- Seat Glow Effect -->
+                          <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
+                            @if($isVipSeat) bg-yellow-500/30
+                            @elseif($status === 'selected') bg-[#FF784E]/30
+                            @else bg-[#FF784E]/20
+                            @endif"></div>
+                          
+                          <!-- Seat Content -->
+                          <div class="relative z-10 flex flex-col items-center justify-center h-full w-full">
+                            <span class="seat-number block leading-none">{{ $seatNumber }}</span>
+                            @if($isVipSeat && $status !== 'booked' && $status !== 'locked_by_other')
+                              <i class="fas fa-crown text-[9px] text-yellow-300 mt-0.5 drop-shadow-lg"></i>
+                            @endif
+                          </div>
+                          
+                          <!-- Seat Border Glow -->
+                          <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                            @if($isVipSeat) border-yellow-400/50
+                            @elseif($status === 'selected') border-[#FF784E]/50
+                            @else border-[#FF784E]/30
+                            @endif"></div>
+                          
+                          <!-- Enhanced Tooltip -->
+                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
+                            <div class="flex items-center gap-2 mb-2">
+                              <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
+                              <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                            </div>
+                            <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
+                            <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
+                              <i class="fas fa-tag text-[8px]"></i>
+                              <span>{{ $seatType->ten_loai ?? 'Thường' }}</span>
+                            </div>
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
+                          </div>
+                        </button>
+                        @else
+                          {{-- Empty cell để giữ alignment --}}
+                          <div class="w-10 h-10"></div>
+                        @endif
+                      @endfor
+                    </div>
                   </div>
                 </div>
               @endforeach
             </div>
             
-            <!-- Zoom Controls -->
-            <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
-              <button onclick="zoomIn()" class="w-8 h-8 bg-[#1a1d24] border border-[#262833] rounded text-white hover:bg-[#2a2d3a] transition-colors flex items-center justify-center">
-                <i class="fas fa-plus text-xs"></i>
+            <!-- Zoom Controls - Enhanced -->
+            <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-20">
+              <button onclick="zoomIn()" class="w-10 h-10 bg-gradient-to-br from-[#1a1d24] to-[#2a2d3a] border border-[#3a3d4a] rounded-lg text-white hover:bg-gradient-to-br hover:from-[#FF784E] hover:to-[#FFB25E] transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-[#FF784E]/50 hover:scale-110">
+                <i class="fas fa-plus text-sm"></i>
               </button>
-              <button onclick="zoomOut()" class="w-8 h-8 bg-[#1a1d24] border border-[#262833] rounded text-white hover:bg-[#2a2d3a] transition-colors flex items-center justify-center">
-                <i class="fas fa-minus text-xs"></i>
+              <button onclick="zoomOut()" class="w-10 h-10 bg-gradient-to-br from-[#1a1d24] to-[#2a2d3a] border border-[#3a3d4a] rounded-lg text-white hover:bg-gradient-to-br hover:from-[#FF784E] hover:to-[#FFB25E] transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-[#FF784E]/50 hover:scale-110">
+                <i class="fas fa-minus text-sm"></i>
               </button>
             </div>
           </div>
 
-          <!-- Legend -->
-          <div class="flex flex-wrap gap-3 justify-center text-xs pt-4 border-t border-[#2A2F3A]">
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#2a2d3a] border border-[#3a3d4a]"></div>
-              <span class="text-[#a6a6b0]">Trống</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-700 border border-yellow-500"></div>
-              <span class="text-[#a6a6b0]">VIP</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-gradient-to-br from-[#F53003] to-orange-500 border border-[#F53003]"></div>
-              <span class="text-[#a6a6b0]">Đã chọn</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-gray-700 opacity-50 border border-gray-600 relative">
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <i class="fas fa-clock text-[8px] text-gray-400"></i>
+          <!-- Enhanced Legend -->
+          <div class="bg-gradient-to-r from-[#151822] via-[#1a1d24] to-[#151822] rounded-xl p-6 border border-[#2A2F3A]">
+            <h4 class="text-sm font-bold text-[#E6E7EB] mb-4 text-center flex items-center justify-center gap-2">
+              <i class="fas fa-info-circle text-[#FF784E]"></i>
+              <span>Chú thích</span>
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-[#3a3d4a] transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-[#2a2d3a] border-2 border-[#3a3d4a] flex items-center justify-center shadow-lg">
+                  <div class="w-8 h-8 rounded bg-[#2a2d3a] border border-[#3a3d4a]"></div>
                 </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Trống</span>
               </div>
-              <span class="text-[#a6a6b0]">Đang chọn</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-red-600 border border-red-700 relative">
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <span class="text-[8px] text-white font-bold">✕</span>
+              
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-yellow-500/50 transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-yellow-600 to-yellow-700 border-2 border-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
+                  <i class="fas fa-crown text-yellow-200 text-sm"></i>
                 </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">VIP</span>
               </div>
-              <span class="text-[#a6a6b0]">Đã bán</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-gray-800 opacity-30 border border-gray-700 border-dashed"></div>
-              <span class="text-[#a6a6b0]">Vô hiệu</span>
+              
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-[#FF784E]/50 transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-[#FF784E] to-[#FFB25E] border-2 border-[#FF784E] flex items-center justify-center shadow-lg shadow-[#FF784E]/30">
+                  <i class="fas fa-check text-white text-sm"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Đã chọn</span>
+              </div>
+              
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-gray-500/50 transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center shadow-lg">
+                  <i class="fas fa-clock text-gray-400 text-sm animate-pulse"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Đang chọn</span>
+              </div>
+              
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-red-500/50 transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-red-600/80 border-2 border-red-700 flex items-center justify-center shadow-lg">
+                  <i class="fas fa-times text-white text-sm"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Đã bán</span>
+              </div>
+              
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-gray-600/50 transition-colors">
+                <div class="w-12 h-12 rounded-lg bg-gray-800/30 border-2 border-dashed border-gray-700 flex items-center justify-center">
+                  <i class="fas fa-ban text-gray-600 text-sm"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Vô hiệu</span>
+              </div>
             </div>
           </div>
         </div>
@@ -558,7 +718,7 @@ function animatePriceUpdate(element, newValue) {
 
 function updateUI() {
   // Update seat buttons
-  document.querySelectorAll('.seat-btn').forEach(btn => {
+  document.querySelectorAll('.seat-btn, .seat-btn-enhanced').forEach(btn => {
     const id = parseInt(btn.dataset.seatId);
     if (selectedSeats.has(id)) {
       btn.classList.remove('seat-available', 'seat-vip');
@@ -731,7 +891,13 @@ async function lockSeats() {
   if (selectedSeats.size === 0) return;
   
   const seatIds = Array.from(selectedSeats.keys());
-  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  
+  if (!token) {
+    console.error('CSRF token not found');
+    alert('Có lỗi xảy ra. Vui lòng tải lại trang.');
+    return;
+  }
 
   try {
     const response = await fetch(`/shows/${showId}/seats/lock`, {
@@ -739,10 +905,21 @@ async function lockSeats() {
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': token,
+        'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json'
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ seat_ids: seatIds })
     });
+
+    if (!response.ok) {
+      if (response.status === 419) {
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng tải lại trang.');
+        window.location.reload();
+        return;
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
     const data = await response.json();
     
@@ -766,24 +943,36 @@ async function lockSeats() {
     }
   } catch (error) {
     console.error('Error locking seats:', error);
+    alert('Có lỗi xảy ra khi giữ ghế. Vui lòng thử lại.');
   }
 }
 
 async function unlockSeats(seatIds) {
   if (!seatIds || seatIds.length === 0) return;
   
-  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  
+  if (!token) {
+    console.error('CSRF token not found');
+    return;
+  }
 
   try {
-    await fetch(`/shows/${showId}/seats/unlock`, {
+    const response = await fetch(`/shows/${showId}/seats/unlock`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': token,
+        'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json'
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ seat_ids: seatIds })
     });
+
+    if (!response.ok && response.status === 419) {
+      console.warn('CSRF token expired during unlock');
+    }
   } catch (error) {
     console.error('Error unlocking seats:', error);
   }
@@ -902,7 +1091,7 @@ let currentFocusedSeat = null;
 const seatButtons = [];
 
 function initKeyboardNavigation() {
-  const seats = document.querySelectorAll('.seat-btn:not([disabled])');
+    const seats = document.querySelectorAll('.seat-btn:not([disabled]), .seat-btn-enhanced:not([disabled])');
   seats.forEach((seat, index) => {
     seatButtons.push(seat);
     seat.addEventListener('keydown', (e) => {
@@ -923,7 +1112,7 @@ function initKeyboardNavigation() {
           const currentRow = seat.closest('.flex.items-center');
           const nextRow = currentRow?.nextElementSibling;
           if (nextRow) {
-            const nextSeat = nextRow.querySelector('.seat-btn:not([disabled])');
+            const nextSeat = nextRow.querySelector('.seat-btn:not([disabled]), .seat-btn-enhanced:not([disabled])');
             if (nextSeat) {
               nextIndex = seatButtons.indexOf(nextSeat);
             }
@@ -933,7 +1122,7 @@ function initKeyboardNavigation() {
         case 'ArrowUp':
           const prevRow = seat.closest('.flex.items-center')?.previousElementSibling;
           if (prevRow) {
-            const prevSeat = prevRow.querySelector('.seat-btn:not([disabled])');
+            const prevSeat = prevRow.querySelector('.seat-btn:not([disabled]), .seat-btn-enhanced:not([disabled])');
             if (prevSeat) {
               nextIndex = seatButtons.indexOf(prevSeat);
             }

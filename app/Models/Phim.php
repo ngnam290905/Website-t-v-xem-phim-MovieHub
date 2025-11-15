@@ -90,6 +90,10 @@ class Phim extends Model
     public function getPosterUrlAttribute()
     {
         if ($this->poster) {
+            // Check if it's a full URL (external) or local path
+            if (filter_var($this->poster, FILTER_VALIDATE_URL)) {
+                return $this->poster;
+            }
             return asset('storage/' . $this->poster);
         }
         return asset('images/no-poster.svg');
