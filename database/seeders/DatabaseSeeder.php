@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             CinemaDataSeeder::class, // New comprehensive seeder
             LoaiGheSeeder::class,
+            AiTrainingSeeder::class,
         ]);
 
     }

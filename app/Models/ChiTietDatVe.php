@@ -3,12 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChiTietDatVe extends Model
 {
     protected $table = 'chi_tiet_dat_ve';
-    public $timestamps = false;
     
     /**
      * Giải thích các cột:
@@ -31,13 +29,12 @@ class ChiTietDatVe extends Model
     ];
 
     // Relationship with DatVe
-    public function datVe(): BelongsTo
+    public function datVe()
     {
         return $this->belongsTo(DatVe::class, 'id_dat_ve');
     }
 
-    // Relationship with Ghe
-    public function ghe(): BelongsTo
+    public function ghe()
     {
         return $this->belongsTo(Ghe::class, 'id_ghe');
     }

@@ -10,7 +10,18 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('khuyen_mai', function (Blueprint $table) {
+        if (!Schema::hasTable('khuyen_mai') || Schema::hasColumn('khuyen_mai', 'loai_giam')) {
+            return;
+        }
+
+        $driver = Schema::getConnection()->getDriverName();
+
+        Schema::table('khuyen_mai', function (Blueprint $table) use ($driver) {
+            if ($driver === 'sqlite') {
+                $table->string('loai_giam')->default('phantram');
+                return;
+            }
+
             $table->enum('loai_giam', ['phantram', 'codinh'])->default('phantram')->after('gia_tri_giam');
         });
     }
@@ -20,6 +31,10 @@ return new class extends Migration {
      */
     public function down(): void
     {
+        if (!Schema::hasTable('khuyen_mai') || !Schema::hasColumn('khuyen_mai', 'loai_giam')) {
+            return;
+        }
+
         Schema::table('khuyen_mai', function (Blueprint $table) {
             $table->dropColumn('loai_giam');
         });

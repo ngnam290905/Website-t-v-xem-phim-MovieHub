@@ -3,16 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsTo as EloquentBelongsTo;
 use Illuminate\Support\Facades\DB;
 
 class DatVe extends Model
 {
     protected $table = 'dat_ve';
-    public $timestamps = false;
     
     protected $fillable = [
         'id_nguoi_dung',
@@ -44,50 +39,36 @@ class DatVe extends Model
     ];
 
     // Relationship with NguoiDung
-    public function nguoiDung(): BelongsTo
+    public function nguoiDung()
     {
         return $this->belongsTo(NguoiDung::class, 'id_nguoi_dung');
     }
 
-    // Relationship with SuatChieu
-    public function suatChieu(): BelongsTo
+    public function suatChieu()
     {
         return $this->belongsTo(SuatChieu::class, 'id_suat_chieu');
     }
 
-    // Relationship with ChiTietDatVe
-    public function chiTietDatVe(): HasMany
-    {
-        return $this->hasMany(ChiTietDatVe::class, 'id_dat_ve');
-    }
-
-    // Relationship with ChiTietCombo
-    public function chiTietCombo(): HasMany
-    {
-        return $this->hasMany(ChiTietCombo::class, 'id_dat_ve');
-    }
-
-    // Relationship with ThanhToan
-    public function thanhToan(): HasOne
-    {
-        return $this->hasOne(ThanhToan::class, 'id_dat_ve');
-    }
-
-    // Relationship with KhuyenMai
-    public function khuyenMai(): EloquentBelongsTo
+    public function khuyenMai()
     {
         return $this->belongsTo(KhuyenMai::class, 'id_khuyen_mai');
     }
 
-    // Computed: tổng tiền hiển thị nếu cột tong_tien chưa được lưu
-    public function getTongTienHienThiAttribute(): float
+    public function chiTietDatVe()
     {
-        // Nếu đã có tong_tien thì dùng luôn
+        return $this->hasMany(ChiTietDatVe::class, 'id_dat_ve');
+    }
+
+    /**
+     * Nếu đã có tong_tien lưu trong bảng thì trả về giá trị đó,
+     * ngược lại tính toán theo logic hiện tại.
+     */
+    public function getTongTienAttribute()
+    {
         if (isset($this->attributes['tong_tien']) && $this->attributes['tong_tien'] > 0) {
             return (float) $this->attributes['tong_tien'];
         }
 
-        // Nếu chưa có thì tính toán
         return $this->tinhTongTien();
     }
 
