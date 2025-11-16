@@ -13,6 +13,7 @@ use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\UserProfileController;
 
 
 // Main routes
@@ -62,6 +63,19 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+// User routes (profile, bookings) — requires authentication
+Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
+    Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
+    Route::get('/profile/edit', [UserProfileController::class, 'edit'])->name('edit');
+    Route::put('/profile', [UserProfileController::class, 'update'])->name('update');
+
+    Route::get('/profile/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password.form');
+    Route::post('/profile/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
+
+    Route::get('/bookings', [UserProfileController::class, 'bookingHistory'])->name('bookings');
+    Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
+});
 
 
 // Admin routes - cả Admin và Staff
