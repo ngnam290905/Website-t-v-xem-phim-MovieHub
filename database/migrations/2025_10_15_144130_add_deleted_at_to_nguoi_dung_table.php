@@ -9,25 +9,18 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        if (!Schema::hasTable('nguoi_dung') || Schema::hasColumn('nguoi_dung', 'deleted_at')) {
-            return;
-        }
+    public function up()
+{
+    Schema::table('nguoi_dung', function (Blueprint $table) {
+        $table->softDeletes(); // Tạo cột deleted_at
+    });
+}
 
-        Schema::table('nguoi_dung', function (Blueprint $table) {
-            $table->softDeletes();
-        });
-    }
+public function down()
+{
+    Schema::table('nguoi_dung', function (Blueprint $table) {
+        $table->dropSoftDeletes();
+    });
+}
 
-    public function down(): void
-    {
-        if (!Schema::hasTable('nguoi_dung') || !Schema::hasColumn('nguoi_dung', 'deleted_at')) {
-            return;
-        }
-
-        Schema::table('nguoi_dung', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
-    }
 };

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Hash;
+
 
 
 class NguoiDung extends Authenticatable
@@ -31,27 +31,14 @@ class NguoiDung extends Authenticatable
     ];
 
     // Ẩn mật khẩu khi trả về JSON
-    protected $hidden = ['mat_khau', 'remember_token'];
+    protected $hidden = ['mat_khau'];
 
     /**
-     * Get the password for the user.
-     *
-     * @return string
+     * Dùng cho Laravel Auth để biết cột nào là mật khẩu
      */
     public function getAuthPassword()
     {
         return $this->mat_khau;
-    }
-
-    /**
-     * Automatically hash the password when setting it.
-     *
-     * @param  string  $value
-     * @return void
-     */
-    public function setMatKhauAttribute($value)
-    {
-        $this->attributes['mat_khau'] = Hash::make($value);
     }
 
     /**

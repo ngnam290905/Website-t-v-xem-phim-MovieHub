@@ -21,6 +21,11 @@ class AdminController extends Controller
    */
   public function dashboard()
   {
+    // Check if this is staff route
+    if (request()->is('staff/*')) {
+      return view('staff.dashboard');
+    }
+
     // Thống kê doanh thu
     $todayRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
         ->where('dat_ve.trang_thai', 1)

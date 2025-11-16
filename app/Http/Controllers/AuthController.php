@@ -47,10 +47,20 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        try {
-            // First find the user by email
-            $user = NguoiDung::where('email', $credentials['email'])->first();
-            \Log::info('User found:', $user ? ['id' => $user->id, 'email' => $user->email] : ['user' => 'not found']);
+        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']])) {
+            $request->session()->regenerate();
+            
+            $user = Auth::user();
+            $userRole = optional($user->vaiTro)->ten;
+            
+            if ($userRole === 'admin') {
+                return redirect()->intended(route('admin.dashboard'));
+            } elseif ($userRole === 'staff') {
+                return redirect()->intended(route('staff.dashboard'));
+            } else {
+                return redirect()->intended(route('home'));
+            }
+        }
 
             if ($user) {
                 // Debug: Check password hash

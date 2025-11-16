@@ -187,7 +187,6 @@
       </div>
 
       @php $listShowtimes = isset($suatChieu) ? $suatChieu : $movie->suatChieu; @endphp
-      
       @if($listShowtimes->count() > 0)
         <div class="overflow-x-auto">
           <table class="min-w-full">
@@ -256,30 +255,6 @@
       const grid = document.getElementById('seatmap-grid');
       const roomInfo = document.getElementById('seatmap-room');
 
-      // Handle date navigation
-      function handleDateNavigation() {
-        const dateLinks = document.querySelectorAll('a[href*="date="]');
-        dateLinks.forEach(link => {
-          link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const url = new URL(this.href);
-            const date = url.searchParams.get('date');
-            
-            // Update URL without reload
-            const currentUrl = new URL(window.location);
-            if (date) {
-              currentUrl.searchParams.set('date', date);
-            } else {
-              currentUrl.searchParams.delete('date');
-            }
-            window.history.pushState({}, '', currentUrl);
-            
-            // Reload page to get new data
-            window.location.reload();
-          });
-        });
-      }
-
       function openModal() { modal.classList.remove('hidden'); }
       function closeModal() { modal.classList.add('hidden'); grid.innerHTML = ''; roomInfo.textContent=''; }
       if (btnClose) btnClose.addEventListener('click', closeModal);
@@ -337,9 +312,6 @@
           }
         });
       });
-
-      // Initialize date navigation
-      handleDateNavigation();
     });
   </script>
 @endsection

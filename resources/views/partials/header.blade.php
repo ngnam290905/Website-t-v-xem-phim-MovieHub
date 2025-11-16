@@ -7,21 +7,50 @@
 
     <nav class="hidden md:flex items-center gap-10 text-[15px]">
       <a href="{{ route('home') }}" class="hover:text-[#F53003] transition">Trang chủ</a>
-      <a href="#phim" class="hover:text-[#F53003] transition">Phim</a>
-      <a href="#gio-ve" class="hover:text-[#F53003] transition">Giờ vé</a>
-      <div class="relative group">
-        <button class="inline-flex items-center gap-2 hover:text-[#F53003] transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm2 3h8l-4 5-4-5z"/></svg>
-          <span>Thể loại</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.958a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-        </button>
-        <div class="absolute left-0 mt-3 hidden group-hover:block bg-[#0f0f12] border border-[#262833] rounded-md shadow-xl min-w-[180px] p-2">
-          <a href="#" class="block px-3 py-2 rounded hover:bg-[#222533]">Hành động</a>
-          <a href="#" class="block px-3 py-2 rounded hover:bg-[#222533]">Tình cảm</a>
-          <a href="#" class="block px-3 py-2 rounded hover:bg-[#222533]">Hài</a>
-          <a href="#" class="block px-3 py-2 rounded hover:bg-[#222533]">Kinh dị</a>
-        </div>
-      </div>
+      <a href="{{ route('movies.index') }}" class="hover:text-[#F53003] transition">Phim</a>
+      <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition">Giờ vé</a>
+      @php
+    // Get all unique genres from the database
+    $allGenres = \App\Models\Phim::select('the_loai')
+        ->distinct()
+        ->whereNotNull('the_loai')
+        ->where('the_loai', '!=', '')
+        ->orderBy('the_loai')
+        ->pluck('the_loai')
+        ->filter()
+        ->values();
+        
+    // Split comma-separated genres and get unique values
+    $uniqueGenres = [];
+    foreach ($allGenres as $genreString) {
+        $genres = array_map('trim', explode(',', $genreString));
+        $uniqueGenres = array_merge($uniqueGenres, $genres);
+    }
+    $uniqueGenres = array_unique($uniqueGenres);
+    sort($uniqueGenres);
+@endphp
+
+<div class="relative group">
+    <button class="inline-flex items-center gap-2 hover:text-[#F53003] transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm2 3h8l-4 5-4-5z"/>
+        </svg>
+        <span>Thể loại</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.958a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+        </svg>
+    </button>
+    @if(!empty($uniqueGenres))
+    <div class="absolute left-0 mt-3 hidden group-hover:block bg-[#0f0f12] border border-[#262833] rounded-md shadow-xl min-w-[180px] max-h-96 overflow-y-auto">
+        @foreach($uniqueGenres as $genre)
+            <a href="{{ route('movies.by-genre', ['genre' => urlencode($genre)]) }}" 
+               class="block px-4 py-2 text-sm hover:bg-[#222533] hover:text-[#F53003] transition-colors whitespace-nowrap">
+                {{ $genre }}
+            </a>
+        @endforeach
+    </div>
+    @endif
+</div>
     </nav>
 
     <div class="flex items-center gap-4 text-[15px]">

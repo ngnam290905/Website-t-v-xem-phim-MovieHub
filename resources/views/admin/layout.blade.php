@@ -14,9 +14,6 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
     <!-- Global Dark Mode CSS Fixes -->
     <style>
     /* Fix dark mode dropdown options visibility - More aggressive approach */
@@ -90,7 +87,7 @@
       <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40 lg:z-auto">
         <!-- Header -->
         <div class="p-6 border-b border-[#262833]">
-          <a href="{{ request()->routeIs('staff.*') ? route('staff.movies.index') : route('admin.dashboard') }}" class="flex items-center gap-3">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3">
             <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
             <div>
               <span class="text-xl font-bold text-white">MovieHub</span>
@@ -101,13 +98,11 @@
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-2">
-          @if(request()->routeIs('admin.*'))
-            <!-- Admin Dashboard -->
-            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-              <i class="fas fa-tachometer-alt w-5"></i>
-              <span>Bảng điều khiển</span>
-            </a>
-          @endif
+          <!-- Dashboard -->
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+            <i class="fas fa-tachometer-alt w-5"></i>
+            <span>Bảng điều khiển</span>
+          </a>
           
           @if(request()->routeIs('admin.*'))
             <!-- Admin only menu items -->
@@ -153,40 +148,16 @@
           @else
             <!-- Staff only menu items -->
             <div class="space-y-1">
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Quản lý</div>
-              <a href="{{ route('staff.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-film w-5"></i>
-                <span>Phim</span>
-              </a>
-              <a href="{{ route('staff.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-users w-5"></i>
-                <span>Người dùng</span>
-              </a>
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Xem thông tin</div>
               <a href="{{ route('staff.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-clock w-5"></i>
+                <i class="fas fa-calendar-alt w-5"></i>
                 <span>Suất chiếu</span>
               </a>
               <a href="{{ route('staff.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-door-open w-5"></i>
+                <i class="fas fa-video w-5"></i>
                 <span>Phòng chiếu</span>
               </a>
-              <a href="{{ route('staff.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.ghe.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-chair w-5"></i>
-                <span>Ghế ngồi</span>
-              </a>
-              <a href="{{ route('staff.combos.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.combos.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-popcorn w-5"></i>
-                <span>Combo</span>
-              </a>
-              <a href="{{ route('staff.dat-ve.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.dat-ve.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-ticket-alt w-5"></i>
-                <span>Đặt vé</span>
-              </a>
-              <a href="{{ route('staff.khuyen-mai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.khuyen-mai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-tags w-5"></i>
-                <span>Khuyến mãi</span>
-              </a>
-            </div>
+                </div>
           @endif
             </nav>
 
