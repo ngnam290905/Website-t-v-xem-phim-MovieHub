@@ -3,116 +3,272 @@
 @section('title', 'Chỉnh sửa vé')
 
 @section('content')
-<div class="bg-[#151822] p-6 rounded-xl border border-[#262833]">
-  <h2 class="text-xl font-semibold mb-4">✏️ Chỉnh sửa Đặt Vé #{{ $booking->id }}</h2>
+    <div class="bg-[#151822] p-6 rounded-xl border border-[#262833]">
+        <h2 class="text-xl font-semibold mb-4">✏️ Chỉnh sửa Đặt Vé #{{ $booking->id }}</h2>
+        @if ($errors->any())
+            <div class="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg mb-4" role="alert">
+                <strong class="font-bold">Có lỗi xảy ra!</strong>
+                <ul class="mt-2 list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg mb-4" role="alert">
+                <strong class="font-bold">Lỗi!</strong>
+                <span class="block sm:inline">{{ session('error') }}</span>
+            </div>
+        @endif
 
-  <form action="{{ route('admin.bookings.update', $booking->id) }}" method="POST" class="space-y-4" id="edit-booking-form">
-      @csrf
-      @method('PUT')
+        <form action="{{ route('admin.bookings.update', $booking->id) }}" method="POST" class="space-y-6"
+            id="edit-booking-form">
+            @csrf
+            @method('PUT')
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block mb-1 text-sm text-gray-300">Thay đổi suất chiếu</label>
-          <select id="suat-chieu-select" name="suat_chieu_id" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200"></select>
-          <p class="text-xs text-gray-400 mt-1">Chỉ hiển thị suất cùng phim, còn hiệu lực.</p>
-        </div>
+            {{-- Giữ nguyên Suất chiếu, Ghi chú, Trạng thái, Mã giảm giá --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block mb-1 text-sm text-gray-300">Thay đổi suất chiếu</label>
+                    <select id="suat-chieu-select" name="suat_chieu_id"
+                        class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200"></select>
+                    <p class="text-xs text-gray-400 mt-1">Chỉ hiển thị suất cùng phim, còn hiệu lực.</p>
+                </div>
 
-        <div>
-          <label class="block mb-1 text-sm text-gray-300">Ghi chú nội bộ</label>
-          <textarea name="ghi_chu_noi_bo" rows="3" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" placeholder="Ghi chú nội bộ...">{{ $booking->ghi_chu_noi_bo ?? '' }}</textarea>
-        </div>
-      </div>
+                <div>
+                    <label class="block mb-1 text-sm text-gray-300">Ghi chú nội bộ</label>
+                    <textarea name="ghi_chu_noi_bo" rows="3"
+                        class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200"
+                        placeholder="Ghi chú nội bộ...">{{ old('ghi_chu_noi_bo', $booking->ghi_chu_noi_bo ?? '') }}</textarea>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block mb-1 text-sm text-gray-300">Thay đổi Trạng thái</label>
+                    <select name="trang_thai"
+                        class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200">
 
-      <div>
-        <label class="block mb-1 text-sm text-gray-300">Trạng thái</label>
-        <select name="trang_thai" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200">
-          <option value="0" {{ $booking->trang_thai == 0 ? 'selected' : '' }}>Chờ xác nhận</option>
-          <option value="1" {{ $booking->trang_thai == 1 ? 'selected' : '' }}>Đã xác nhận</option>
-          <option value="3" {{ $booking->trang_thai == 3 ? 'selected' : '' }}>Yêu cầu hủy</option>
-          <option value="2" {{ $booking->trang_thai == 2 ? 'selected' : '' }}>Đã hủy</option>
-        </select>
-      </div>
+                        @switch($booking->trang_thai)
+                            @case(0)
+                                {{-- Đang: Chờ xác nhận --}}
+                                <option value="0" selected>Chờ xác nhận</option>
+                                <option value="1">✅ Xác nhận vé</option>
+                                <option value="3">⚠️ Đánh dấu Yêu cầu hủy</option>
+                                <option value="2">❌ Hủy vé</option>
+                            @break
 
-      <div>
-        <label class="block mb-1 text-sm text-gray-300">Mã giảm giá</label>
-        <input type="text" name="ma_km" value="{{ old('ma_km') }}" placeholder="Nhập mã (VD: DEMO10)"
-               class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
-        <p class="text-xs text-gray-400 mt-1">Mã hợp lệ sẽ được áp ngay khi lưu. Để bỏ mã, để trống trường này.</p>
-      </div>
+                            @case(1)
+                                {{-- Đang: Đã xác nhận --}}
+                                <option value="1" selected>Đã xác nhận</option>
+                                <option value="2">❌ Hủy vé</option>
+                            @break
 
-      <div>
-        <label class="block mb-2 text-sm text-gray-300">Thay đổi ghế</label>
-        <div id="seat-map" class="grid grid-cols-8 gap-2"></div>
-        <input type="hidden" name="ghe_ids" id="ghe-ids">
-        <p class="text-xs text-gray-400 mt-1">Chọn các ghế trống trên sơ đồ. Giá tự tính theo loại ghế.</p>
-      </div>
+                            @case(3)
+                                {{-- Đang: Yêu cầu hủy --}}
+                                <option value="3" selected>Yêu cầu hủy</option>
+                                <option value="2">👍 Chấp nhận hủy</option>
+                                <option value="1">🚫 Từ chối hủy</option>
+                            @break
 
-      <div>
-          <label class="block mb-1 text-sm text-gray-300">Chọn combo (nếu có)</label>
-          <select name="combo_ids[]" multiple class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200">
-              @foreach($combos as $combo)
-                  <option value="{{ $combo->id }}">{{ $combo->ten }}</option>
-              @endforeach
-          </select>
-      </div>
+                            @case(2)
+                                {{-- Đang: Đã hủy --}}
+                                <option value="2" selected disabled>Đã hủy</option>
+                            @break
+                        @endswitch
 
-      <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm">Lưu thay đổi</button>
-      <a href="{{ route('admin.bookings.index') }}" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white text-sm">Hủy</a>
-  </form>
+                    </select>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm text-gray-300">Mã giảm giá</label>
+                    <input type="text" name="ma_km" value="{{ old('ma_km', optional($booking->khuyenMai)->ma_km) }}"
+                        placeholder="Nhập mã (VD: DEMO10)"
+                        class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
+                    <p class="text-xs text-gray-400 mt-1">Mã hợp lệ sẽ được áp ngay khi lưu. Để bỏ mã, để trống trường
+                        này.</p>
+                </div>
+            </div>
 
-  @push('scripts')
-  <script>
-    document.addEventListener('DOMContentLoaded', async function(){
-      const bookingId = {{ $booking->id }};
-      const currentShowtimeId = {{ $booking->id_suat_chieu }};
-      const showtimeSelect = document.getElementById('suat-chieu-select');
-      const seatMap = document.getElementById('seat-map');
-      const gheIdsInput = document.getElementById('ghe-ids');
-      let selected = new Set();
+            {{-- Giữ nguyên Sơ đồ ghế --}}
+            <div>
+                <label class="block mb-2 text-sm text-gray-300">Thay đổi ghế</label>
+                <div id="seat-map-container" class="p-4 bg-[#1d202a] border border-[#262833] rounded-lg">
+                    <div id="seat-map" class="grid grid-cols-10 md:grid-cols-12 lg:grid-cols-16 gap-2 place-items-center">
+                        <p class="col-span-10 text-gray-400">Đang tải sơ đồ ghế...</p>
+                    </div>
+                </div>
+                <input type="hidden" name="ghe_ids" id="ghe-ids" value="{{ old('ghe_ids') }}">
+                <p class="text-xs text-gray-400 mt-1">Chọn các ghế trống trên sơ đồ. Giá tự tính theo loại ghế.</p>
+                <p class="text-xs text-gray-400 mt-1">Lưu ý: Nếu đổi suất chiếu, các ghế đã chọn sẽ được làm mới.</p>
+            </div>
 
-      async function loadShowtimes(){
-        const res = await fetch(`{{ route('admin.bookings.available-showtimes', ':id') }}`.replace(':id', bookingId));
-        const items = await res.json();
-        showtimeSelect.innerHTML = '';
-        items.forEach(it => {
-          const opt = document.createElement('option');
-          opt.value = it.id;
-          opt.textContent = it.label;
-          if (it.current) opt.selected = true;
-          showtimeSelect.appendChild(opt);
-        });
-      }
 
-      async function loadSeats(showtimeId){
-        const url = `{{ route('admin.showtimes.seats', ':sid') }}`.replace(':sid', showtimeId) + `?exclude_booking_id=${bookingId}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        seatMap.innerHTML = '';
-        selected.clear();
-        data.seats.forEach(seat => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.textContent = seat.label;
-          btn.className = 'px-2 py-1 text-xs rounded border ' + (seat.booked ? 'bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed' : 'bg-[#1d202a] border-[#262833] text-gray-200 hover:bg-[#232735]');
-          btn.disabled = !!seat.booked;
-          btn.dataset.id = seat.id;
-          btn.addEventListener('click', () => {
-            if (selected.has(seat.id)) { selected.delete(seat.id); btn.classList.remove('ring-2','ring-[#F53003]'); }
-            else { selected.add(seat.id); btn.classList.add('ring-2','ring-[#F53003]'); }
-            gheIdsInput.value = Array.from(selected).join(',');
-          });
-          seatMap.appendChild(btn);
-        });
-      }
+            <div>
+                <label class="block mb-1 text-sm text-gray-300">Chọn combo (nếu có)</label>
+                <div
+                    class="w-full bg-[#1d202a] border border-[#262833] rounded p-4 text-sm text-gray-200 h-48 overflow-y-auto space-y-3">
+                    @if (isset($combos) && $combos->count() > 0)
+                        @foreach ($combos as $combo)
+                            @php
+                                // Lấy số lượng cũ (nếu có)
+                                $oldQuantity = old(
+                                    'combo_quantities.' . $combo->id,
+                                    $selectedComboQuantities[$combo->id] ?? 1,
+                                );
+                                // Kiểm tra check cũ (nếu có)
+                                $isChecked = in_array($combo->id, old('combo_ids', $selectedComboIds ?? []));
+                            @endphp
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <input type="checkbox" name="combo_ids[]" value="{{ $combo->id }}"
+                                        id="combo_{{ $combo->id }}" class="mr-2 rounded"
+                                        {{ $isChecked ? 'checked' : '' }}>
+                                    <label for="combo_{{ $combo->id }}">
+                                        {{ $combo->ten }} - <span
+                                            class="text-yellow-400">{{ number_format($combo->gia, 0, ',', '.') }}đ</span>
+                                    </label>
+                                </div>
+                                <input type="number" name="combo_quantities[{{ $combo->id }}]"
+                                    value="{{ $oldQuantity }}" min="1"
+                                    class="w-20 bg-[#262833] border border-[#3a3d4a] rounded p-1 text-sm text-center">
+                            </div>
+                        @endforeach
+                    @else
+                        <p class="text-gray-400">Không có combo nào hợp lệ</p>
+                    @endif
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Chọn combo và nhập số lượng mong muốn.</p>
+            </div>
 
-      // Init
-      await loadShowtimes();
-      await loadSeats(showtimeSelect.value || currentShowtimeId);
-      showtimeSelect.addEventListener('change', async (e)=>{
-        await loadSeats(e.target.value);
-      });
-    });
-  </script>
-  @endpush
-</div>
+
+            <div class="flex items-center gap-4 pt-4 border-t border-[#262833]">
+                <button type="submit"
+                    class="px-5 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium">Lưu thay
+                    đổi</button>
+                <a href="{{ route('admin.bookings.index') }}"
+                    class="px-5 py-2 bg-gray-600 hover:bg-gray-700 rounded text-white text-sm">Hủy bỏ</a>
+            </div>
+        </form>
+
+        @push('scripts')
+            <script>
+                document.addEventListener('DOMContentLoaded', async function() {
+                    const bookingId = {{ $booking->id }};
+                    const currentShowtimeId = {{ $booking->id_suat_chieu }};
+                    const currentSelectedGheIds = @json($selectedGheIds ?? []);
+
+                    const showtimeSelect = document.getElementById('suat-chieu-select');
+                    const seatMap = document.getElementById('seat-map');
+                    const gheIdsInput = document.getElementById('ghe-ids');
+
+                    let selected = new Set();
+
+                    async function loadShowtimes() {
+                        try {
+                            const res = await fetch(`{{ route('admin.bookings.available-showtimes', ':id') }}`
+                                .replace(':id', bookingId));
+                            if (!res.ok) throw new Error('Không thể tải suất chiếu');
+                            const items = await res.json();
+                            showtimeSelect.innerHTML = '';
+                            items.forEach(it => {
+                                const opt = document.createElement('option');
+                                opt.value = it.id;
+                                opt.textContent = it.label;
+                                if (it.current) opt.selected = true;
+                                showtimeSelect.appendChild(opt);
+                            });
+                        } catch (error) {
+                            console.error(error);
+                            showtimeSelect.innerHTML =
+                                `<option value="${currentShowtimeId}">Lỗi tải DS suất chiếu. Giữ suất hiện tại.</option>`;
+                        }
+                    }
+
+                    async function loadSeats(showtimeId) {
+                        if (!showtimeId) {
+                            seatMap.innerHTML =
+                                '<p class="col-span-10 text-gray-400">Vui lòng chọn suất chiếu.</p>';
+                            return;
+                        }
+
+                        const url = `{{ route('admin.showtimes.seats', ':sid') }}`.replace(':sid', showtimeId) +
+                            `?exclude_booking_id=${bookingId}`;
+
+                        try {
+                            const res = await fetch(url);
+                            if (!res.ok) throw new Error('Không thể tải sơ đồ ghế');
+                            const data = await res.json();
+
+                            seatMap.innerHTML = '';
+                            selected.clear();
+
+                            // Chỉ nạp các ghế đã chọn nếu admin đang xem suất chiếu GỐC
+                            if (parseInt(showtimeId) === currentShowtimeId) {
+                                currentSelectedGheIds.forEach(id => selected.add(id));
+                            }
+
+                            // 💡 Tự động điều chỉnh số cột dựa trên dữ liệu (nếu có)
+                            // Ví dụ: tìm 'col' max trong 'seat.label' hoặc dùng 'so_cot' từ API (nếu bạn thêm)
+                            // Tạm thời giữ cố định
+                            // seatMap.className = `grid grid-cols-${data.room.cols || 12} ...`
+
+                            data.seats.forEach(seat => {
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.textContent = seat.label;
+
+                                let classes = 'w-10 h-10 text-xs rounded border ';
+                                if (seat.booked) {
+                                    classes +=
+                                        'bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed opacity-50';
+                                } else {
+                                    classes +=
+                                        'bg-[#1d202a] border-[#262833] text-gray-200 hover:bg-[#232735]';
+                                }
+                                btn.className = classes;
+                                btn.disabled = !!seat.booked;
+                                btn.dataset.id = seat.id;
+
+                                if (selected.has(seat.id) && !seat.booked) {
+                                    btn.classList.add('ring-2', 'ring-[#F53003]', 'bg-[#232735]');
+                                }
+
+                                btn.addEventListener('click', () => {
+                                    if (seat.booked) return;
+
+                                    if (selected.has(seat.id)) {
+                                        selected.delete(seat.id);
+                                        btn.classList.remove('ring-2', 'ring-[#F53003]',
+                                            'bg-[#232735]');
+                                        btn.classList.add('bg-[#1d202a]', 'border-[#262833]');
+                                    } else {
+                                        selected.add(seat.id);
+                                        btn.classList.add('ring-2', 'ring-[#F53003]',
+                                            'bg-[#232735]');
+                                        btn.classList.remove('bg-[#1d202a]', 'border-[#262833]');
+                                    }
+                                    gheIdsInput.value = Array.from(selected).join(',');
+                                });
+                                seatMap.appendChild(btn);
+                            });
+
+                            gheIdsInput.value = Array.from(selected).join(',');
+
+                        } catch (error) {
+                            console.error(error);
+                            seatMap.innerHTML = `<p class="col-span-10 text-red-400">Lỗi khi tải sơ đồ ghế.</p>`;
+                        }
+                    }
+
+                    // --- Khởi tạo ---
+                    await loadShowtimes();
+                    await loadSeats(showtimeSelect.value || currentShowtimeId);
+
+                    showtimeSelect.addEventListener('change', async (e) => {
+                        await loadSeats(e.target.value);
+                    });
+                });
+            </script>
+        @endpush
+    </div>
 @endsection

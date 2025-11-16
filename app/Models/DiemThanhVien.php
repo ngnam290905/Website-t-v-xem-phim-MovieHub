@@ -15,6 +15,7 @@ class DiemThanhVien extends Model
         'tong_diem',
         'ngay_het_han',
     ];
+    public $timestamps = false;
     public function nguoiDung()
     {
         return $this->belongsTo(NguoiDung::class, 'id_nguoi_dung');

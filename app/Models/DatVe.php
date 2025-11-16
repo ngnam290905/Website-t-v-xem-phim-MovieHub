@@ -66,7 +66,7 @@ class DatVe extends Model
     {
         return $this->belongsTo(KhuyenMai::class, 'id_khuyen_mai');
     }
-
+    
     // Computed: tổng tiền hiển thị nếu cột tong_tien chưa được lưu
     public function getTongTienHienThiAttribute(): float
     {
