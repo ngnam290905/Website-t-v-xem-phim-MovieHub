@@ -39,30 +39,57 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // Debug: Log the incoming request data
+        \Log::info('Login attempt', $request->only('email'));
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
-            'password_confirmation' => ['required', 'string', 'same:password'],
         ]);
 
-        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']])) {
-            $request->session()->regenerate();
-            
-            $user = Auth::user();
-            $userRole = optional($user->vaiTro)->ten;
-            
-            if ($userRole === 'admin') {
-                return redirect()->intended(route('admin.dashboard'));
-            } elseif ($userRole === 'staff') {
-                return redirect()->intended(route('staff.dashboard'));
-            } else {
-                return redirect()->intended(route('home'));
-            }
-        }
+        try {
+            // First find the user by email
+            $user = NguoiDung::where('email', $credentials['email'])->first();
+            \Log::info('User found:', $user ? ['id' => $user->id, 'email' => $user->email] : ['user' => 'not found']);
 
-        return back()->withErrors([
-            'email' => 'Thông tin đăng nhập không chính xác.',
-        ])->onlyInput('email');
+            if ($user) {
+                // Debug: Check password hash
+                $passwordMatches = Hash::check($credentials['password'], $user->mat_khau);
+                \Log::info('Password check:', ['matches' => $passwordMatches]);
+                
+                if ($passwordMatches) {
+                    // Manually log in the user
+                    Auth::login($user, $request->filled('remember'));
+                    
+                    $request->session()->regenerate();
+                    
+                    $userRole = optional($user->vaiTro)->ten;
+                    \Log::info('User role:', ['role' => $userRole]);
+                    
+                    if ($userRole === 'admin') {
+                        return redirect()->intended(route('admin.dashboard'))->with('success', 'Đăng nhập thành công với quyền quản trị!');
+                    } elseif ($userRole === 'staff') {
+                        return redirect()->intended(route('staff.dashboard'))->with('success', 'Đăng nhập thành công với quyền nhân viên!');
+                    } else {
+                        return redirect()->intended(route('home'))->with('success', 'Đăng nhập thành công!');
+                    }
+                }
+            }
+
+            return back()->withErrors([
+                'email' => 'Email hoặc mật khẩu không chính xác.',
+            ])->withInput($request->only('email', 'remember'));
+            
+        } catch (\Exception $e) {
+            \Log::error('Login error:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return back()->withErrors([
+                'email' => 'Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại sau.',
+            ])->withInput($request->only('email', 'remember'));
+        }
     }
 
     public function logout(Request $request)
