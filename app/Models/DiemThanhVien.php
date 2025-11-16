@@ -18,7 +18,6 @@ class DiemThanhVien extends Model
         'tong_diem',
         'ngay_het_han',
     ];
-
     protected $casts = [
         'tong_diem' => 'integer',
         'ngay_het_han' => 'date',

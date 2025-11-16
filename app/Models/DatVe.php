@@ -59,6 +59,16 @@ class DatVe extends Model
         return $this->hasMany(ChiTietDatVe::class, 'id_dat_ve');
     }
 
+    // Computed: tổng tiền hiển thị nếu cột tong_tien chưa được lưu
+    public function getTongTienHienThiAttribute(): float
+    {
+        if (isset($this->attributes['tong_tien']) && $this->attributes['tong_tien'] > 0) {
+            return (float) $this->attributes['tong_tien'];
+        }
+
+        return $this->tinhTongTien();
+    }
+
     /**
      * Nếu đã có tong_tien lưu trong bảng thì trả về giá trị đó,
      * ngược lại tính toán theo logic hiện tại.
