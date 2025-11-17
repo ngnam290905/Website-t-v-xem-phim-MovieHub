@@ -215,7 +215,7 @@
             </a>
             
             <!-- Tickets -->
-            <a href="{{ route('admin.ve.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ve.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+            <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
               <i class="fas fa-ticket-alt w-5"></i>
               <span>Vé</span>
             </a>
@@ -233,7 +233,7 @@
             </a>
             
             <!-- Promotions -->
-            <a href="{{ route('admin.khuyen-mai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyen-mai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+            <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyenmai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
               <i class="fas fa-percent w-5"></i>
               <span>Khuyến mãi</span>
             </a>
