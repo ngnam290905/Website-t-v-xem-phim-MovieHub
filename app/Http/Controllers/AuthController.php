@@ -6,6 +6,7 @@ use App\Models\NguoiDung;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
@@ -41,7 +42,7 @@ class AuthController extends Controller
     {
         try {
             // Debug: Log the incoming request data
-            \Log::info('Login attempt', $request->only('email'));
+            Log::info('Login attempt', $request->only('email'));
 
             $credentials = $request->validate([
                 'email' => ['required', 'email'],
@@ -52,15 +53,20 @@ class AuthController extends Controller
                 $request->session()->regenerate();
                 
                 $user = Auth::user();
-                $userRole = optional($user->vaiTro)->ten;
                 
-                if ($userRole === 'admin') {
-                    return redirect()->intended(route('admin.dashboard'));
-                } elseif ($userRole === 'staff') {
-                    return redirect()->intended(route('staff.dashboard'));
-                } else {
-                    return redirect()->intended(route('home'));
+                // Check if user exists and has a role
+                if ($user && $user->vaiTro) {
+                    $userRole = $user->vaiTro->ten;
+                    
+                    if ($userRole === 'admin') {
+                        return redirect()->intended(route('admin.dashboard'));
+                    } elseif ($userRole === 'staff') {
+                        return redirect()->intended(route('staff.dashboard'));
+                    }
                 }
+                
+                // Default redirect for users with no role or invalid role
+                return redirect()->intended(route('home'));
             }
 
             return back()->withErrors([
@@ -68,7 +74,7 @@ class AuthController extends Controller
             ])->withInput($request->only('email', 'remember'));
             
         } catch (\Exception $e) {
-            \Log::error('Login error:', [
+            Log::error('Login error:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

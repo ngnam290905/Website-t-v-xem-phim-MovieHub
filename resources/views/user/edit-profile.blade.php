@@ -19,8 +19,9 @@
 
     <!-- Edit Form -->
     <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <form action="{{ route('user.update-profile') }}" method="POST" class="space-y-6">
+        <form action="{{ route('user.update') }}" method="POST" class="space-y-6">
             @csrf
+            @method('PUT')
             
             <!-- Avatar Section -->
             <div class="text-center mb-6">
@@ -100,7 +101,7 @@
             <div class="border-t border-gray-700 pt-6">
                 <h3 class="text-lg font-medium text-white mb-4">Thao tác tài khoản</h3>
                 <div class="space-y-3">
-                    <a href="{{ route('user.change-password') }}" class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    <a href="{{ route('user.change-password.form') }}" class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
                         <i class="fas fa-key mr-2"></i>Đổi mật khẩu
                     </a>
                 </div>

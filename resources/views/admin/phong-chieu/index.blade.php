@@ -176,38 +176,33 @@
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div class="flex flex-wrap gap-2">
+                  <div class="flex justify-center gap-1.5">
                     <a href="{{ route('admin.phong-chieu.show', $phong) }}" 
-                       class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                       class="btn-table-action btn-table-view" 
                        title="Xem chi tiết">
-                      <i class="fas fa-eye mr-1"></i>
-                      <span class="hidden sm:inline">Xem</span>
+                      <i class="fas fa-eye text-xs"></i>
                     </a>
                     <a href="{{ route('admin.phong-chieu.edit', $phong) }}" 
-                       class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                       class="btn-table-action btn-table-edit" 
                        title="Chỉnh sửa">
-                      <i class="fas fa-edit mr-1"></i>
-                      <span class="hidden sm:inline">Sửa</span>
+                      <i class="fas fa-edit text-xs"></i>
                     </a>
                     <button type="button" 
-                            class="inline-flex items-center px-3 py-1.5 {{ $phong->status === 'active' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }} text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                            class="btn-table-action {{ $phong->status === 'active' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }}" 
                             onclick="attemptPause({{ $phong->id }}, '{{ $phong->status === 'active' ? 'inactive' : 'active' }}')" 
                             title="{{ $phong->status === 'active' ? 'Tạm dừng' : 'Kích hoạt' }}">
-                      <i class="fas fa-{{ $phong->status === 'active' ? 'pause' : 'play' }} mr-1"></i>
-                      <span class="hidden sm:inline">{{ $phong->status === 'active' ? 'Dừng' : 'Bật' }}</span>
+                      <i class="fas fa-{{ $phong->status === 'active' ? 'pause' : 'play' }} text-xs"></i>
                     </button>
                     <form action="{{ route('admin.phong-chieu.destroy', $phong) }}" 
                           method="POST" 
-                          style="display: inline-block;" 
-                          class="room-delete-form" 
-                          data-room-id="{{ $phong->id }}">
+                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này?')" 
+                          class="inline">
                       @csrf
                       @method('DELETE')
                       <button type="submit" 
-                              class="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                              class="btn-table-action btn-table-delete" 
                               title="Xóa">
-                        <i class="fas fa-trash mr-1"></i>
-                        <span class="hidden sm:inline">Xóa</span>
+                        <i class="fas fa-trash text-xs"></i>
                       </button>
                     </form>
                   </div>

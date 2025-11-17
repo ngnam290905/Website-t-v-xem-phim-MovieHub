@@ -12,9 +12,12 @@ class CheckRole
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @param  string  ...$roles
+     * @return mixed
      */
-    public function handle(Request $request, Closure $next, ...$roles): Response
+    public function handle($request, Closure $next, ...$roles)
     {
         if (!Auth::check()) {
             return redirect()->route('login.form');
@@ -22,17 +25,25 @@ class CheckRole
 
         $user = Auth::user();
         
-        // Kiểm tra nếu user có vai trò
+        // Check if user has a role
         if (!$user->vaiTro) {
             abort(403, 'Người dùng chưa được phân quyền.');
         }
         
         $userRole = $user->vaiTro->ten;
 
-        if (!in_array($userRole, $roles)) {
-            abort(403, 'Bạn không có quyền truy cập trang này. Yêu cầu quyền: ' . implode(', ', $roles) . '. Bạn có quyền: ' . $userRole);
+        // If no roles specified, allow access
+        if (empty($roles)) {
+            return $next($request);
         }
 
-        return $next($request);
+        // Check if user has any of the required roles
+        foreach ($roles as $role) {
+            if ($userRole === $role) {
+                return $next($request);
+            }
+        }
+
+        abort(403, 'Bạn không có quyền truy cập trang này. Yêu cầu quyền: ' . implode(', ', $roles) . '. Bạn có quyền: ' . $userRole);
     }
 }

@@ -16,6 +16,46 @@
     
     <!-- Global Dark Mode CSS Fixes -->
     <style>
+    /* Admin Action Buttons */
+    .btn-action {
+        @apply px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 flex items-center justify-center gap-1.5;
+    }
+    
+    .btn-view {
+        @apply bg-green-600 text-white hover:bg-green-700;
+    }
+    
+    .btn-edit {
+        @apply bg-blue-600 text-white hover:bg-blue-700;
+    }
+    
+    .btn-delete {
+        @apply bg-red-600 text-white hover:bg-red-700;
+    }
+    
+    .btn-action i {
+        @apply text-sm;
+    }
+    
+    /* Table action buttons */
+    .btn-table-action {
+        @apply inline-flex items-center justify-center p-1.5 rounded-md transition-colors duration-200;
+        min-width: 28px;
+        height: 28px;
+    }
+    
+    .btn-table-view {
+        @apply bg-green-600 text-white hover:bg-green-700;
+    }
+    
+    .btn-table-edit {
+        @apply bg-blue-600 text-white hover:bg-blue-700;
+    }
+    
+    .btn-table-delete {
+        @apply bg-red-600 text-white hover:bg-red-700;
+    }
+    
     /* Fix dark mode dropdown options visibility - More aggressive approach */
     select {
         color: white !important;
@@ -148,16 +188,57 @@
           @else
             <!-- Staff only menu items -->
             <div class="space-y-1">
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Xem thông tin</div>
-              <a href="{{ route('staff.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-calendar-alt w-5"></i>
-                <span>Suất chiếu</span>
-              </a>
-              <a href="{{ route('staff.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('staff.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                <i class="fas fa-video w-5"></i>
-                <span>Phòng chiếu</span>
-              </a>
-                </div>
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">{{ auth()->user()->vaiTro->ten === 'admin' ? 'Quản lý' : 'Xem thông tin' }}</div>
+            
+            <!-- Movies -->
+            <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-film w-5"></i>
+              <span>Phim</span>
+            </a>
+            
+            <!-- Showtimes -->
+            <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-calendar-alt w-5"></i>
+              <span>Suất chiếu</span>
+            </a>
+            
+            <!-- Rooms -->
+            <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-video w-5"></i>
+              <span>Phòng chiếu</span>
+            </a>
+            
+            <!-- Seats -->
+            <a href="{{ route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ghe.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-chair w-5"></i>
+              <span>Ghế</span>
+            </a>
+            
+            <!-- Tickets -->
+            <a href="{{ route('admin.ve.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ve.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-ticket-alt w-5"></i>
+              <span>Vé</span>
+            </a>
+            
+            <!-- Users -->
+            <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-users w-5"></i>
+              <span>Tài khoản</span>
+            </a>
+            
+            <!-- Combos -->
+            <a href="{{ route('admin.combos.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.combos.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-tags w-5"></i>
+              <span>Combo</span>
+            </a>
+            
+            <!-- Promotions -->
+            <a href="{{ route('admin.khuyen-mai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyen-mai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-percent w-5"></i>
+              <span>Khuyến mãi</span>
+            </a>
+          </div>
+            </div>
           @endif
             </nav>
 

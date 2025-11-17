@@ -171,26 +171,18 @@
 
                                         {{-- Xem chi tiết --}}
                                         <a href="{{ route('admin.bookings.show', $booking->id) }}"
-                                            class="p-1.5 rounded-md bg-blue-600/80 hover:bg-blue-600 transition"
-                                            title="Xem vé">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                            </svg>
+                                            class="btn-table-action btn-table-view"
+                                            title="Xem chi tiết">
+                                            <i class="fas fa-eye text-xs"></i>
                                         </a>
 
                                         {{-- Chỉnh sửa (admin + chưa hủy) --}}
                                         @auth
                                             @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $booking->trang_thai != 2)
                                                 <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                    class="p-1.5 rounded-md bg-yellow-500/80 hover:bg-yellow-500 transition"
+                                                    class="btn-table-action btn-table-edit"
                                                     title="Chỉnh sửa">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a2 2 0 01-.828.5L7 15l1.172-4a2 2 0 01.5-.828z" />
-                                                    </svg>
+                                                    <i class="fas fa-edit text-xs"></i>
                                                 </a>
                                             @endif
                                         @endauth

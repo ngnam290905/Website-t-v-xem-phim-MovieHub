@@ -379,7 +379,7 @@ class QuanLyDatVeController extends Controller
             }
 
             // Tính lại tổng tiền để hiển thị chính xác ở danh sách
-            $this->recomputeBookingTotal($booking);
+            // $this->recomputeBookingTotal($booking);
 
             return redirect()->route('admin.bookings.index')
                 ->with('success', 'Vé đã được xác nhận thành công.');

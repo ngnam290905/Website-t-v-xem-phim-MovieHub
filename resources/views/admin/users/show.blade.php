@@ -33,7 +33,7 @@
       </div>
       <div>
         <div class="text-sm text-gray-400">Lần đăng nhập cuối</div>
-        <div>{{ $lastActive ? \Carbon\Carbon::parse($lastActive)->format('d/m/Y H:i') : '—' }}</div>
+        <div>{{ $user->last_active ? \Carbon\Carbon::parse($user->last_active)->format('d/m/Y H:i') : '—' }}</div>
       </div>
       <div>
         <div class="text-sm text-gray-400">Hạng thành viên</div>
@@ -45,11 +45,11 @@
       </div>
       <div>
         <div class="text-sm text-gray-400">Tổng đơn hàng</div>
-        <div>{{ $totalOrders }}</div>
+        <div>{{ $user->total_orders }}</div>
       </div>
       <div>
         <div class="text-sm text-gray-400">Tổng chi tiêu</div>
-        <div>{{ number_format($totalSpent, 0) }} VNĐ</div>
+        <div>{{ number_format($user->total_spent) }} VNĐ</div>
       </div>
     </div>
   </div>

@@ -11,7 +11,7 @@
                 <h1 class="text-2xl font-bold text-white">Thông tin tài khoản</h1>
                 <p class="text-[#a6a6b0] mt-1">Quản lý thông tin cá nhân và lịch sử đặt vé</p>
             </div>
-            <a href="{{ route('user.edit-profile') }}" class="inline-flex items-center px-4 py-2 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg transition">
+            <a href="{{ route('user.edit') }}" class="inline-flex items-center px-4 py-2 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg transition">
                 <i class="fas fa-edit mr-2"></i>Chỉnh sửa hồ sơ
             </a>
         </div>
@@ -119,7 +119,7 @@
                         </div>
                         <h3 class="text-lg font-semibold text-white">Lịch sử đặt vé gần đây</h3>
                     </div>
-                    <a href="{{ route('user.booking-history') }}" class="text-[#F53003] hover:text-[#e02a00] text-sm">
+                    <a href="{{ route('user.bookings') }}" class="text-[#F53003] hover:text-[#e02a00] text-sm">
                         Xem tất cả <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>

@@ -79,13 +79,19 @@
           </td>
           <td class="px-4 py-3">
             <div class="flex justify-center gap-1.5">
-              <a href="{{ route('admin.combos.show', $combo) }}" class="px-2 py-1 bg-blue-600/80 hover:bg-blue-600 rounded text-white text-xs">Xem</a>
+              <a href="{{ route('admin.combos.show', $combo) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
+                <i class="fas fa-eye text-xs"></i>
+              </a>
               @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
-                <a href="{{ route('admin.combos.edit', $combo) }}" class="px-2 py-1 bg-yellow-500/80 hover:bg-yellow-500 rounded text-black text-xs">Sửa</a>
-                <form action="{{ route('admin.combos.destroy', $combo) }}" method="POST" onsubmit="return confirm('Xóa combo này?')">
+                <a href="{{ route('admin.combos.edit', $combo) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
+                  <i class="fas fa-edit text-xs"></i>
+                </a>
+                <form action="{{ route('admin.combos.destroy', $combo) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa combo này?')">
                   @csrf
                   @method('DELETE')
-                  <button type="submit" class="px-2 py-1 bg-red-600/80 hover:bg-red-600 rounded text-white text-xs">Xóa</button>
+                  <button type="submit" class="btn-table-action btn-table-delete" title="Xóa">
+                    <i class="fas fa-trash text-xs"></i>
+                  </button>
                 </form>
               @endif
             </div>

@@ -18,14 +18,14 @@ class UserProfileController extends Controller
         
         // Load relationships safely
         try {
-            $user->load('diemThanhVien', 'datVeu.suatChieu.phim', 'datVeu.suatChieu.phongChieu');
+            $user->load('diemThanhVien', 'datVe.suatChieu.phim', 'datVe.suatChieu.phongChieu');
         } catch (\Exception $e) {
             // If relationships don't exist, continue without them
         }
         
         // Get recent bookings
         try {
-            $recentBookings = $user->datVeu()
+            $recentBookings = $user->datVe()
                 ->with(['suatChieu.phim', 'suatChieu.phongChieu'])
                 ->orderBy('created_at', 'desc')
                 ->take(5)
@@ -36,9 +36,9 @@ class UserProfileController extends Controller
             
         // Get booking stats
         try {
-            $totalBookings = $user->datVeu()->count();
-            $confirmedBookings = $user->datVeu()->where('trang_thai', 1)->count();
-            $totalSpent = $user->datVeu()->where('trang_thai', 1)->sum('tong_tien');
+            $totalBookings = $user->datVe()->count();
+            $confirmedBookings = $user->datVe()->where('trang_thai', 1)->count();
+            $totalSpent = $user->datVe()->where('trang_thai', 1)->sum('tong_tien') ?? 0;
         } catch (\Exception $e) {
             $totalBookings = 0;
             $confirmedBookings = 0;
@@ -46,13 +46,20 @@ class UserProfileController extends Controller
         }
         
         // Format user data safely
+        // Gender conversion map
+        $genderDisplay = [
+            1 => 'Nam',
+            2 => 'Nữ',
+            3 => 'Khác',
+        ];
+        
         $userData = [
             'id' => $user->id,
             'ho_ten' => $user->ho_ten,
             'email' => $user->email,
-            'so_dien_thoai' => $user->so_dien_thoai,
+            'so_dien_thoai' => $user->sdt,
             'ngay_sinh' => $user->ngay_sinh,
-            'gioi_tinh' => $user->gioi_tinh,
+            'gioi_tinh' => $genderDisplay[$user->gioi_tinh] ?? 'Chưa cập nhật',
             'created_at' => $user->created_at,
         ];
         
@@ -95,14 +102,24 @@ class UserProfileController extends Controller
             'ngay_sinh' => 'nullable|date|before:today',
             'gioi_tinh' => 'nullable|in:Nam,Nữ,Khác',
         ]);
-        
-        $user->update([
+        // Map form fields to DB columns and normalize values
+        $genderMap = [
+            'Nam' => 1,
+            'Nữ' => 2,
+            'Khác' => 3,
+        ];
+
+        $userData = [
             'ho_ten' => $request->ho_ten,
             'email' => $request->email,
-            'so_dien_thoai' => $request->so_dien_thoai,
-            'ngay_sinh' => $request->ngay_sinh,
-            'gioi_tinh' => $request->gioi_tinh,
-        ]);
+            // DB column is 'sdt'
+            'sdt' => $request->so_dien_thoai,
+            'ngay_sinh' => $request->ngay_sinh ?: null,
+            // store gender as tinyInteger per migration
+            'gioi_tinh' => $request->gioi_tinh ? ($genderMap[$request->gioi_tinh] ?? null) : null,
+        ];
+
+        $user->update($userData);
         
         return redirect()->route('user.profile')
             ->with('success', 'Cập nhật thông tin thành công!');
@@ -151,7 +168,7 @@ class UserProfileController extends Controller
         $user = Auth::user();
         
         try {
-            $bookings = $user->datVeu()
+            $bookings = $user->datVe()
                 ->with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo.combo'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
@@ -170,7 +187,7 @@ class UserProfileController extends Controller
         $user = Auth::user();
         
         try {
-            $booking = $user->datVeu()->findOrFail($id);
+            $booking = $user->datVe()->findOrFail($id);
             
             // Only allow cancellation if booking is pending or confirmed
             if (!in_array($booking->trang_thai, [0, 1])) {
