@@ -14,6 +14,7 @@ use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\ThanhVienController;
 
 
 // Main routes
@@ -77,10 +78,93 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
 });
 
+// Thành viên routes (loyalty program)
+Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
+    Route::get('/register', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
+    Route::post('/register', [ThanhVienController::class, 'register'])->name('register');
+    Route::get('/profile', [ThanhVienController::class, 'profile'])->name('profile');
+});
+
 
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+
+    // Các route mà staff có thể xem và xem chi tiết
+    Route::middleware(['role:admin,staff'])->group(function () {
+        // Phim
+        Route::get('/movies', [MovieController::class, 'adminIndex'])->name('movies.index');
+        Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
+
+        // Suất chiếu
+        Route::get('/suat-chieu', [SuatChieuController::class, 'index'])->name('suat-chieu.index');
+        Route::get('/suat-chieu/{suatChieu}', [SuatChieuController::class, 'show'])->name('suat-chieu.show');
+
+        // Ghế
+        Route::get('/ghe', [GheController::class, 'index'])->name('ghe.index');
+        Route::get('/ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
+
+        // Vé
+        Route::get('/ve', [DatVeController::class, 'index'])->name('ve.index');
+        Route::get('/ve/{ve}', [DatVeController::class, 'show'])->name('ve.show');
+
+        // Tài khoản
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
+
+        // Combo
+        Route::get('/combos', [ComboController::class, 'index'])->name('combos.index');
+        Route::get('/combos/{combo}', [ComboController::class, 'show'])->name('combos.show');
+
+        // Khuyến mãi
+        Route::get('/khuyen-mai', [KhuyenMaiController::class, 'index'])->name('khuyen-mai.index');
+        Route::get('/khuyen-mai/{khuyenMai}', [KhuyenMaiController::class, 'show'])->name('khuyen-mai.show');
+    });
+
+    // Các route chỉ dành cho admin
+    Route::middleware(['role:admin'])->group(function () {
+        // Các route tạo, sửa, xóa phim
+        Route::get('/movies/create', [MovieController::class, 'create'])->name('movies.create');
+        Route::post('/movies', [MovieController::class, 'store'])->name('movies.store');
+        Route::get('/movies/{movie}/edit', [MovieController::class, 'edit'])->name('movies.edit');
+        Route::put('/movies/{movie}', [MovieController::class, 'update'])->name('movies.update');
+        Route::delete('/movies/{movie}', [MovieController::class, 'destroy'])->name('movies.destroy');
+
+        // Các route tạo, sửa, xóa suất chiếu
+        Route::get('/suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
+        Route::post('/suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
+        Route::get('/suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
+        Route::put('/suat-chieu/{suatChieu}', [SuatChieuController::class, 'update'])->name('suat-chieu.update');
+        Route::delete('/suat-chieu/{suatChieu}', [SuatChieuController::class, 'destroy'])->name('suat-chieu.destroy');
+
+        // Các route tạo, sửa, xóa ghế
+        Route::get('/ghe/create', [GheController::class, 'create'])->name('ghe.create');
+        Route::post('/ghe', [GheController::class, 'store'])->name('ghe.store');
+        Route::get('/ghe/{ghe}/edit', [GheController::class, 'edit'])->name('ghe.edit');
+        Route::put('/ghe/{ghe}', [GheController::class, 'update'])->name('ghe.update');
+        Route::delete('/ghe/{ghe}', [GheController::class, 'destroy'])->name('ghe.destroy');
+
+        // Các route tạo, sửa, xóa tài khoản
+        Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+        // Các route tạo, sửa, xóa combo
+        Route::get('/combos/create', [ComboController::class, 'create'])->name('combos.create');
+        Route::post('/combos', [ComboController::class, 'store'])->name('combos.store');
+        Route::get('/combos/{combo}/edit', [ComboController::class, 'edit'])->name('combos.edit');
+        Route::put('/combos/{combo}', [ComboController::class, 'update'])->name('combos.update');
+        Route::delete('/combos/{combo}', [ComboController::class, 'destroy'])->name('combos.destroy');
+
+        // Các route tạo, sửa, xóa khuyến mãi
+        Route::get('/khuyen-mai/create', [KhuyenMaiController::class, 'create'])->name('khuyen-mai.create');
+        Route::post('/khuyen-mai', [KhuyenMaiController::class, 'store'])->name('khuyen-mai.store');
+        Route::get('/khuyen-mai/{khuyenMai}/edit', [KhuyenMaiController::class, 'edit'])->name('khuyen-mai.edit');
+        Route::put('/khuyen-mai/{khuyenMai}', [KhuyenMaiController::class, 'update'])->name('khuyen-mai.update');
+        Route::delete('/khuyen-mai/{khuyenMai}', [KhuyenMaiController::class, 'destroy'])->name('khuyen-mai.destroy');
+    });
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
@@ -96,7 +180,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     });
 
     // Quản lý người dùng
-    Route::prefix('users')->name('users.')->group(function () {
+    Route::prefix('users')->name('users.')->middleware(['role:admin'])->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/create', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
