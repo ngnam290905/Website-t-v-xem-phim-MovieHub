@@ -10,13 +10,30 @@ class Phim extends Model
     
     protected $fillable = [
         'ten_phim',
+        'ten_goc',
         'do_dai',
         'poster',
         'mo_ta',
         'dao_dien',
         'dien_vien',
         'trailer',
+        'the_loai',
+        'quoc_gia',
+        'ngon_ngu',
+        'do_tuoi',
+        'ngay_khoi_chieu',
+        'ngay_ket_thuc',
+        'diem_danh_gia',
+        'so_luot_danh_gia',
+        'hot',
         'trang_thai'
+    ];
+
+    protected $casts = [
+        'hot' => 'boolean',
+        'ngay_khoi_chieu' => 'date',
+        'ngay_ket_thuc' => 'date',
+        'diem_danh_gia' => 'float',
     ];
 
     public function suatChieu()
