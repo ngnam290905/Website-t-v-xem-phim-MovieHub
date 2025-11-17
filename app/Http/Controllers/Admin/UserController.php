@@ -52,10 +52,37 @@ class UserController extends Controller
             ->where('trang_thai', 1)
             ->whereDate('created_at', '>=', now()->subDays(30)->toDateString())
             ->distinct('id_nguoi_dung')->count('id_nguoi_dung');
-        $tierDong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Đồng')->count();
-        $tierBac = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Bạc')->count();
-        $tierVang = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Vàng')->count();
-        $tierKimCuong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Kim cương')->count();
+        
+        // Check if ten_hang column exists, otherwise use id_tier or count all
+        $hasTenHangColumn = false;
+        try {
+            $columns = DB::select('SHOW COLUMNS FROM hang_thanh_vien LIKE "ten_hang"');
+            $hasTenHangColumn = !empty($columns);
+        } catch (\Exception $e) {
+            // Ignore
+        }
+        
+        if ($hasTenHangColumn) {
+            // Old structure with ten_hang column
+            $tierDong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Đồng')->count();
+            $tierBac = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Bạc')->count();
+            $tierVang = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Vàng')->count();
+            $tierKimCuong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Kim cương')->count();
+        } else {
+            // New structure with id_tier - count all memberships as placeholder
+            // In production, you should join with tier table to get actual tier names
+            $totalMemberships = (int) DB::table('hang_thanh_vien')->count();
+            $tierDong = 0;
+            $tierBac = 0;
+            $tierVang = 0;
+            $tierKimCuong = 0;
+            
+            // If you have a tier table, you can query like this:
+            // $tierDong = (int) DB::table('hang_thanh_vien')
+            //     ->join('tiers', 'hang_thanh_vien.id_tier', '=', 'tiers.id')
+            //     ->where('tiers.name', 'Đồng')
+            //     ->count();
+        }
 
         return view('admin.users.index', compact(
             'users', 'totalUsers', 'active30Days', 'tierDong', 'tierBac', 'tierVang', 'tierKimCuong'

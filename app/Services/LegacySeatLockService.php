@@ -142,11 +142,12 @@ class LegacySeatLockService
     public function getSeatStatus(int $showId, int $seatId, ?int $userId = null): string
     {
         // Check if seat is sold (booked and paid)
+        // trang_thai: 0 = DRAFT, 1 = PAID/CONFIRMED, 2 = CANCELLED
         $sold = DB::table('chi_tiet_dat_ve as ctdv')
             ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
             ->where('dv.id_suat_chieu', $showId)
             ->where('ctdv.id_ghe', $seatId)
-            ->whereIn('dv.trang_thai', ['PAID', 'CONFIRMED', 'PENDING'])
+            ->where('dv.trang_thai', 1) // 1 = PAID/CONFIRMED
             ->exists();
         
         if ($sold) {

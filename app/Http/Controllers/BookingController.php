@@ -451,8 +451,8 @@ class BookingController extends Controller
             // Giải phóng lock
             $this->seatLockService->releaseLocksForBooking($booking->id);
             
-            // Cập nhật trạng thái
-            $booking->update(['trang_thai' => 'PAID']);
+            // Cập nhật trạng thái: 1 = PAID/CONFIRMED
+            $booking->update(['trang_thai' => 1]);
             
             // Tạo thanh toán record
             DB::table('thanh_toan')->insert([
@@ -469,8 +469,8 @@ class BookingController extends Controller
             ]);
         }
 
-        // Thanh toán tại quầy
-        $booking->update(['trang_thai' => 'PENDING']);
+        // Thanh toán tại quầy - vẫn là PAID (1) vì đã xác nhận
+        $booking->update(['trang_thai' => 1]);
 
         // Tạo thanh toán record
         DB::table('thanh_toan')->insert([
@@ -501,8 +501,8 @@ class BookingController extends Controller
             // Giải phóng lock
             $this->seatLockService->releaseLocksForBooking($booking->id);
 
-            // Cập nhật trạng thái
-            $booking->update(['trang_thai' => 'PAID']);
+            // Cập nhật trạng thái: 1 = PAID/CONFIRMED
+            $booking->update(['trang_thai' => 1]);
 
             // Tạo thanh toán record
             DB::table('thanh_toan')->insert([
@@ -512,8 +512,9 @@ class BookingController extends Controller
                 'trang_thai' => 'success',
                 'thoi_gian' => now()
             ]);
-        } else {
-            $booking->update(['trang_thai' => strtoupper($status)]);
+        } elseif ($status === 'CANCELLED' || $status === 'FAILED') {
+            // 2 = CANCELLED
+            $booking->update(['trang_thai' => 2]);
         }
 
         return redirect()->route('booking.result', ['booking_id' => $bookingId]);
@@ -623,8 +624,8 @@ class BookingController extends Controller
         return DB::table('chi_tiet_dat_ve as ctdv')
             ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
             ->where('dv.id_suat_chieu', $showId)
-            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED (nếu có)
-            ->whereIn('dv.trang_thai', ['PAID', 'CONFIRMED', 'PENDING'])
+            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED
+            ->whereIn('dv.trang_thai', [0, 1]) // 0 = DRAFT, 1 = PAID/CONFIRMED
             ->pluck('ctdv.id_ghe')
             ->toArray();
     }
