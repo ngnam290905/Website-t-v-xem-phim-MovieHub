@@ -163,11 +163,13 @@ class MovieController extends Controller
     
     public function show(Phim $movie)
     {
+        // Phân trang lịch chiếu (7 suất chiếu/trang)
+        $suatChieuPaginate = $movie->suatChieu()->with('phongChieu')->orderByDesc('thoi_gian_bat_dau')->paginate(7);
         $movie->load(['suatChieu.phongChieu']);
         if (request()->routeIs('movie-detail')) {
-            return view('movie-detail', compact('movie'));
+            return view('movie-detail', compact('movie', 'suatChieuPaginate'));
         }
-        return view('admin.movies.show', compact('movie'));
+        return view('admin.movies.show', compact('movie', 'suatChieuPaginate'));
     }
 
     

@@ -260,12 +260,20 @@ class DatVe extends Model
             // Nếu có người dùng thì tích điểm
             if ($this->id_nguoi_dung && $this->diem_tich_luy > 0) {
                 $diemThanhVien = DiemThanhVien::where('id_nguoi_dung', $this->id_nguoi_dung)->first();
-                
                 if ($diemThanhVien) {
                     $diemThanhVien->themDiem(
                         $this->diem_tich_luy, 
                         "Tích điểm từ đơn đặt vé #" . $this->id
                     );
+                }
+            }
+
+            // Cập nhật doanh thu/lợi nhuận phim
+            $suatChieu = $this->suatChieu;
+            if ($suatChieu && $suatChieu->id_phim) {
+                $phim = \App\Models\Phim::find($suatChieu->id_phim);
+                if ($phim) {
+                    $phim->updateDoanhThuLoiNhuan();
                 }
             }
 

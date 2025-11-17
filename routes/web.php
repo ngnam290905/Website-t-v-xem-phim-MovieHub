@@ -34,6 +34,10 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
 
+// Lịch sử đặt vé của người dùng
+use App\Http\Controllers\UserBookingController;
+Route::get('/lich-su-dat-ve', [UserBookingController::class, 'index'])->name('user.booking_history');
+
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');

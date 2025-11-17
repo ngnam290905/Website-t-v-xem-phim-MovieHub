@@ -253,7 +253,7 @@
         <h2 class="text-lg font-semibold text-white">Lịch chiếu</h2>
       </div>
 
-      @if($movie->suatChieu->count() > 0)
+      @if($suatChieuPaginate->count() > 0)
         <div class="overflow-x-auto">
           <table class="min-w-full">
             <thead class="bg-[#1a1d24]">
@@ -265,7 +265,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-[#262833]">
-              @foreach($movie->suatChieu as $showtime)
+              @foreach($suatChieuPaginate as $showtime)
                 <tr class="hover:bg-[#1a1d24]">
                   <td class="px-4 py-3 text-white">{{ $showtime->phongChieu->ten_phong ?? 'N/A' }}</td>
                   <td class="px-4 py-3 text-white">{{ $showtime->thoi_gian_bat_dau ? $showtime->thoi_gian_bat_dau->format('d/m/Y H:i') : 'N/A' }}</td>
@@ -281,6 +281,9 @@
               @endforeach
             </tbody>
           </table>
+        </div>
+        <div class="mt-4 flex justify-center">
+          {{ $suatChieuPaginate->links('pagination::tailwind') }}
         </div>
       @else
         <div class="text-[#a6a6b0] flex items-center gap-2"><i class="fas fa-info-circle"></i> Phim này chưa có lịch chiếu nào.</div>

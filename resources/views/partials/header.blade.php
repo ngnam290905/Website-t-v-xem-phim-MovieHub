@@ -25,7 +25,7 @@
     </nav>
 
     <div class="flex items-center gap-4 text-[15px]">
-      <a href="#ve" class="hidden sm:inline-flex items-center gap-2 hover:text-[#F53003]">
+      <a href="{{ route('user.booking_history') }}" class="hidden sm:inline-flex items-center gap-2 hover:text-[#F53003]">
         <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#1b1d24] font-bold">✓</span>
         Vé
       </a>
