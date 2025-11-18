@@ -333,29 +333,33 @@ class BookingController extends Controller
                 ->where('dat_ve.id_suat_chieu', $data['showtime'])
                 ->whereIn('dat_ve.trang_thai', [0, 1]);
             
-            // Check each seat
+            // Check each seat (support both couple formats: "G11-12" or "G11,G12")
             $existingBase = $existingBookings; // base query to clone per-check
             foreach ($data['seats'] as $seat) {
-                if (strpos($seat, ',') !== false) {
-                    // Couple seat - check both individual seats
-                    $seatCodes = explode(',', $seat);
-                    foreach ($seatCodes as $code) {
-                        $row = substr($code, 0, 1);
-                        $col = substr($code, 1);
-                        $exists = (clone $existingBase)
-                            ->where('ghe.so_ghe', $row.$col)
-                            ->exists();
-                        if ($exists) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Ghế đôi đã được đặt. Vui lòng chọn ghế khác!'
-                            ]);
-                        }
+                $seat = trim($seat);
+                if ($seat === '') continue;
+
+                $pairs = [];
+                if (strpos($seat, '-') !== false) {
+                    // Format: R11-12
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seat, $m)) {
+                        $rowLetter = strtoupper($m[1]);
+                        $start = (int)$m[2];
+                        $end = (int)$m[3];
+                        for ($c = $start; $c <= $end; $c++) { $pairs[] = $rowLetter.$c; }
                     }
+                } elseif (strpos($seat, ',') !== false) {
+                    // Format: R11,R12
+                    $parts = array_filter(array_map('trim', explode(',', $seat)));
+                    foreach ($parts as $code) { $pairs[] = strtoupper($code); }
                 } else {
-                    // Regular seat
-                    $row = substr($seat, 0, 1);
-                    $col = substr($seat, 1);
+                    // Single seat like R11
+                    $pairs[] = strtoupper($seat);
+                }
+
+                foreach ($pairs as $code) {
+                    $row = substr($code, 0, 1);
+                    $col = substr($code, 1);
                     $exists = (clone $existingBase)
                         ->where('ghe.so_ghe', $row.$col)
                         ->exists();
@@ -467,46 +471,44 @@ class BookingController extends Controller
                 'phuong_thuc_thanh_toan' => $methodCode,
             ]);
             
-            // Save seat details
+            // Save seat details (also lock seats by setting trang_thai = 0)
             foreach ($data['seats'] as $seatCode) {
+                $seatCode = trim($seatCode);
+                if ($seatCode === '') continue;
+
+                $codesToSave = [];
                 if (strpos($seatCode, '-') !== false) {
-                    // Couple seat - save both individual seats (format: G11-12)
-                    preg_match('/^([A-Z])(\d+)-(\d+)$/', $seatCode, $matches);
-                    if ($matches) {
-                        $row = $matches[1];
-                        $col1 = $matches[2];
-                        $col2 = $matches[3];
-                        
-                        for ($c = $col1; $c <= $col2; $c++) {
-                            $seatFull = Ghe::where('id_phong', $showtime->id_phong)
-                                ->where('so_ghe', $row . $c)
-                                ->first();
-                                
-                            if ($seatFull) {
-                                ChiTietDatVe::create([
-                                    'id_dat_ve' => $booking->id,
-                                    'id_ghe' => $seatFull->id,
-                                    'gia' => 100000 // Half of couple seat price for each seat
-                                ]);
-                            }
-                        }
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seatCode, $matches)) {
+                        $row = strtoupper($matches[1]);
+                        $col1 = (int)$matches[2];
+                        $col2 = (int)$matches[3];
+                        for ($c = $col1; $c <= $col2; $c++) { $codesToSave[] = $row.$c; }
                     }
+                } elseif (strpos($seatCode, ',') !== false) {
+                    $parts = array_filter(array_map('trim', explode(',', $seatCode)));
+                    foreach ($parts as $code) { $codesToSave[] = strtoupper($code); }
                 } else {
-                    // Regular seat
-                    $row = substr($seatCode, 0, 1);
-                    $number = substr($seatCode, 1);
-                    
+                    $codesToSave[] = strtoupper($seatCode);
+                }
+
+                foreach ($codesToSave as $code) {
+                    $row = substr($code, 0, 1);
+                    $number = substr($code, 1);
                     $seat = Ghe::where('id_phong', $showtime->id_phong)
                         ->where('so_ghe', $row . $number)
+                        ->with('loaiGhe')
                         ->first();
-                        
                     if ($seat) {
-                        $price = $this->isVipSeat($seat) ? 120000 : 80000;
+                        // Determine price
+                        $price = $this->isCoupleSeat($seat) ? 100000 : ($this->isVipSeat($seat) ? 120000 : 80000);
                         ChiTietDatVe::create([
                             'id_dat_ve' => $booking->id,
                             'id_ghe' => $seat->id,
                             'gia' => $price
                         ]);
+                        // Lock seat
+                        $seat->trang_thai = 0;
+                        $seat->save();
                     }
                 }
             }
