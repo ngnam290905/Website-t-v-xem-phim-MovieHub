@@ -24,9 +24,11 @@ class FinalRoleMiddleware
         }
         
         $userRole = $user->vaiTro->ten;
+        $userRoleNorm = is_string($userRole) ? mb_strtolower(trim($userRole)) : '';
+        $rolesNorm = array_map(function($r){ return is_string($r) ? mb_strtolower(trim($r)) : $r; }, $roles);
 
         // Kiểm tra quyền
-        if (!in_array($userRole, $roles)) {
+        if (!empty($rolesNorm) && !in_array($userRoleNorm, $rolesNorm, true)) {
             abort(403, 'Bạn không có quyền truy cập trang này. Yêu cầu quyền: ' . implode(', ', $roles) . '. Bạn có quyền: ' . $userRole);
         }
 
