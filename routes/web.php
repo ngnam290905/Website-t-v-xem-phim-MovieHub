@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\SuatChieuController;
@@ -11,12 +12,18 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
+use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\PublicController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\ThanhVienController;
+use App\Http\Controllers\BookingController;
 
 
 // Main routes
-Route::get('/', [MovieController::class, 'index'])->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/ve', function(){ return View::make('tickets.check'); })->name('tickets.check');
 
 // Movie listing pages (must be before /movies/{movie} to avoid route conflict)
 Route::get('/movies/category/{category}', [MovieController::class, 'category'])->name('movies.category');
@@ -25,12 +32,33 @@ Route::get('/movies/category/{category}', [MovieController::class, 'category'])-
 Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movie-detail');
 Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
 
+// Client Movie Routes
+Route::prefix('phim')->name('movies.')->group(function () {
+    // Static routes first
+    Route::get('/', [MovieController::class, 'list'])->name('index');
+    Route::get('/dang-chieu', [MovieController::class, 'nowShowing'])->name('now-showing');
+    Route::get('/sap-chieu', [MovieController::class, 'comingSoon'])->name('coming-soon');
+    Route::get('/phim-hot', [MovieController::class, 'hotMovies'])->name('hot');
+    Route::get('/gio-chieu', [MovieController::class, 'showtimes'])->name('showtimes');
+    
+    // Dynamic routes with parameters should come after static routes
+    Route::get('/the-loai/{genre}', [MovieController::class, 'byGenre'])->name('by-genre');
+    
+    // Catch-all route for movie details should be last
+    Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
+});
+
+// Public Chatbot endpoint (mirror of routes/api.php) to prevent 404 in some deployments
+Route::middleware('api')->post('/api/chat', [ChatController::class, 'chat'])->name('chat.api');
+
 // API routes for AJAX calls
 Route::get('/api/movies', [MovieController::class, 'getMovies'])->name('api.movies');
 Route::get('/api/featured-movies', [MovieController::class, 'getFeaturedMovies'])->name('api.featured-movies');
 Route::get('/api/search', [MovieController::class, 'search'])->name('api.search');
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
+Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
+Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
 
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
@@ -55,6 +83,14 @@ Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->name('pu
 // Debug route (remove in production)
 Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
 
+// Public booking store route to allow saving booking after clicking "Tôi đã thanh toán" without login
+Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store.public');
+
+// New booking system routes
+Route::middleware('auth')->prefix('booking')->name('booking.')->group(function () {
+    Route::post('/store', [BookingController::class, 'store'])->name('store');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
@@ -71,9 +107,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Legacy booking routes
-Route::get('/dat-ve/{id?}', function ($id = 1) {
-    return view('booking', ['id' => $id]);
-})->name('booking');
+Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
@@ -96,6 +130,26 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
+// User profile routes
+Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
+    Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
+    Route::get('/edit-profile', [UserProfileController::class, 'edit'])->name('edit-profile');
+    Route::put('/update-profile', [UserProfileController::class, 'update'])->name('update-profile');
+    Route::get('/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password');
+    Route::post('/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
+    Route::get('/booking-history', [UserProfileController::class, 'bookingHistory'])->name('booking-history');
+    Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking');
+    
+    // Additional routes from master
+    Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
+    Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
+});
+
+// Thành viên routes (loyalty program) — bỏ đăng ký thành viên
+Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
+    Route::get('/profile', [ThanhVienController::class, 'profile'])->name('profile');
+});
+
 
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
@@ -116,21 +170,29 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
     // Quản lý người dùng
     Route::prefix('users')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::get('/create', [UserController::class, 'create'])->name('create');
-        Route::post('/', [UserController::class, 'store'])->name('store');
-        // Show đặt TRƯỚC các route có {id}/edit để tránh nuốt 'create'
-        Route::get('/{id}', [UserController::class, 'show'])->whereNumber('id')->name('show');
-        Route::get('/{id}/edit', [UserController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [UserController::class, 'update'])->name('update');
-        Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
-        Route::get('/trash', [UserController::class, 'trash'])->name('trash');
-        Route::post('/restore/{id}', [UserController::class, 'restore'])->name('restore');
+        // Route xem chi tiết người dùng - cho cả admin và staff
+        Route::get('/{id}', [UserController::class, 'show'])
+            ->whereNumber('id')
+            ->name('show')
+            ->middleware('role:admin,staff');
+            
+        // Các route quản lý người dùng - chỉ dành cho admin
+        Route::middleware(['role:admin'])->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::get('/create', [UserController::class, 'create'])->name('create');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{id}', [UserController::class, 'destroy'])->name('destroy');
+            Route::get('/trash', [UserController::class, 'trash'])->name('trash');
+            Route::post('/restore/{id}', [UserController::class, 'restore'])->name('restore');
+        });
     });
 
     // Quản lý suất chiếu
     // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
     Route::middleware('role:admin')->group(function () {
+        Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
@@ -157,6 +219,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         // Fallback route to handle POST requests that should be DELETE
         Route::post('phong-chieu/{phongChieu}/delete', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy.post');
         Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
+        Route::get('phong-chieu/{phongChieu}/can-modify', [PhongChieuController::class, 'canModify'])->name('phong-chieu.can-modify');
         Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
         Route::get('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'showSeat'])->name('phong-chieu.seats.show');

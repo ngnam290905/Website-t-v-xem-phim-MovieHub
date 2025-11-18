@@ -3,725 +3,159 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Đăng nhập - MovieHub</title>
-    
-    <!-- Swiper CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        // Tự động refresh CSRF token nếu trang load lâu (tránh lỗi 419)
+        setTimeout(function() {
+            fetch('{{ route('login.form') }}', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.text())
+              .then(html => {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, 'text/html');
+                  const newToken = doc.querySelector('meta[name="csrf-token"]');
+                  if (newToken) {
+                      document.querySelector('meta[name="csrf-token"]').content = newToken.content;
+                      const tokenInput = document.querySelector('input[name="_token"]');
+                      if (tokenInput) {
+                          tokenInput.value = newToken.content;
+                      }
+                  }
+              });
+        }, 60000); // Refresh sau 1 phút
+    </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0a1a2f;
-            color: #ffffff;
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        .login-container {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-        }
-
-        /* Form Section - 40% */
-        .login-form-section {
-            width: 40%;
+            background-color: #0d0f14;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px;
-            background: linear-gradient(135deg, #0a1a2f 0%, #0f1f3a 100%);
-            position: relative;
-            z-index: 10;
+            padding: 1rem;
         }
-
-        .login-form-wrapper {
+        .form-container {
+            background-color: #151822;
+            border: 1px solid #262833;
+            border-radius: 1rem;
+            padding: 2rem;
             width: 100%;
-            max-width: 420px;
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .login-header h1 {
-            font-size: 32px;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-
-        .login-header p {
-            color: #a0a6b1;
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 24px;
-            position: relative;
-        }
-
-        .form-group label {
-            display: block;
-            color: #e6e7eb;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .input-wrapper {
-            position: relative;
-        }
-
-        .input-wrapper i {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #a0a6b1;
-            font-size: 16px;
-            z-index: 1;
-        }
-
-        .input-wrapper input {
-            width: 100%;
-            padding: 14px 16px 14px 48px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: #ffffff;
-            font-size: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .input-wrapper input:focus {
-            outline: none;
-            border-color: #0077c8;
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 3px rgba(0, 119, 200, 0.1);
-        }
-
-        .input-wrapper input::placeholder {
-            color: #6b7280;
-        }
-
-        .error-message {
-            color: #ff6b6b;
-            font-size: 13px;
-            margin-top: 6px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .error-message i {
-            font-size: 12px;
-        }
-
-        .login-btn {
-            width: 100%;
-            padding: 16px;
-            background: #0077c8;
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .login-btn:hover {
-            background: #0088e0;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 119, 200, 0.3);
-        }
-
-        .login-btn:active {
-            transform: translateY(0);
-        }
-
-        .register-link {
-            text-align: center;
-            margin-top: 24px;
-            color: #a0a6b1;
-            font-size: 14px;
-        }
-
-        .register-link a {
-            color: #ffcc00;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s ease;
-        }
-
-        .register-link a:hover {
-            color: #ffd633;
-        }
-
-        /* Carousel Section - 60% */
-        .carousel-section {
-            width: 60%;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .swiper {
-            width: 100%;
-            height: 100%;
-        }
-
-        .swiper-slide {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .swiper-slide img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scale(1.1);
-            transition: transform 8s ease-out;
-            animation: zoomIn 8s ease-out infinite;
-        }
-
-        .swiper-slide-active img {
-            transform: scale(1);
-            animation: zoomOut 8s ease-out infinite;
-        }
-
-        @keyframes zoomIn {
-            0% {
-                transform: scale(1.1);
-            }
-            100% {
-                transform: scale(1.15);
-            }
-        }
-
-        @keyframes zoomOut {
-            0% {
-                transform: scale(1.15);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .slide-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                to bottom, 
-                rgba(10, 26, 47, 0.3) 0%, 
-                rgba(10, 26, 47, 0.5) 50%,
-                rgba(10, 26, 47, 0.7) 100%
-            );
-            z-index: 1;
-            animation: overlayPulse 4s ease-in-out infinite;
-        }
-
-        @keyframes overlayPulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.9;
-            }
-        }
-
-        .slide-content {
-            position: absolute;
-            bottom: 60px;
-            left: 60px;
-            right: 60px;
-            z-index: 2;
-            color: #ffffff;
-            opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.8s ease-out;
-        }
-
-        .swiper-slide-active .slide-content {
-            opacity: 1;
-            transform: translateY(0);
-            animation: slideUpFadeIn 0.8s ease-out;
-        }
-
-        @keyframes slideUpFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .slide-content h2 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-            line-height: 1.2;
-            animation: textGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes textGlow {
-            0%, 100% {
-                text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 204, 0, 0.3);
-            }
-            50% {
-                text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 204, 0, 0.5);
-            }
-        }
-
-        .slide-content p {
-            font-size: 18px;
-            color: #e6e7eb;
-            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
-            max-width: 600px;
-            animation: fadeInDelay 1s ease-out 0.3s both;
-        }
-
-        @keyframes fadeInDelay {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .slide-badge {
-            display: inline-block;
-            background: rgba(255, 204, 0, 0.2);
-            border: 1px solid #ffcc00;
-            color: #ffcc00;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            animation: badgePulse 2s ease-in-out infinite;
-            backdrop-filter: blur(10px);
-        }
-
-        @keyframes badgePulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.4);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 8px rgba(255, 204, 0, 0);
-            }
-        }
-
-        /* Floating particles effect */
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(255, 204, 0, 0.6);
-            border-radius: 50%;
-            animation: float 15s infinite linear;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translateY(100vh) translateX(0) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100px) translateX(100px) rotate(360deg);
-                opacity: 0;
-            }
-        }
-
-        /* Spotlight effect */
-        .spotlight {
-            position: absolute;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(255, 204, 0, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            top: 20%;
-            right: 10%;
-            z-index: 1;
-            animation: spotlightMove 10s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        @keyframes spotlightMove {
-            0%, 100% {
-                transform: translate(0, 0) scale(1);
-            }
-            25% {
-                transform: translate(-50px, 50px) scale(1.2);
-            }
-            50% {
-                transform: translate(50px, -30px) scale(0.8);
-            }
-            75% {
-                transform: translate(-30px, -50px) scale(1.1);
-            }
-        }
-
-        .swiper-pagination {
-            bottom: 30px !important;
-            z-index: 10;
-        }
-
-        .swiper-pagination-bullet {
-            background: rgba(255, 255, 255, 0.5);
-            opacity: 1;
-            width: 12px;
-            height: 12px;
-            margin: 0 6px;
-        }
-
-        .swiper-pagination-bullet-active {
-            background: #ffcc00;
-            width: 32px;
-            border-radius: 6px;
-            animation: bulletPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes bulletPulse {
-            0%, 100% {
-                box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7);
-            }
-            50% {
-                box-shadow: 0 0 0 8px rgba(255, 204, 0, 0);
-            }
-        }
-
-        /* Gradient border animation */
-        .carousel-section::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            padding: 2px;
-            background: linear-gradient(45deg, #0077c8, #ffcc00, #0077c8);
-            background-size: 200% 200%;
-            border-radius: 0;
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            z-index: 5;
-            animation: gradientBorder 3s ease infinite;
-            pointer-events: none;
-        }
-
-        @keyframes gradientBorder {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .login-container {
-                flex-direction: column;
-            }
-
-            .login-form-section {
-                width: 100%;
-                height: 50%;
-            }
-
-            .carousel-section {
-                width: 100%;
-                height: 50%;
-            }
-
-            .slide-content {
-                bottom: 30px;
-                left: 30px;
-                right: 30px;
-            }
-
-            .slide-content h2 {
-                font-size: 32px;
-            }
-
-            .slide-content p {
-                font-size: 16px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .login-form-section {
-                padding: 30px 20px;
-            }
-
-            .login-header h1 {
-                font-size: 24px;
-            }
-
-            .slide-content h2 {
-                font-size: 24px;
-            }
-
-            .slide-content p {
-                font-size: 14px;
-            }
+            max-width: 28rem;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <!-- Form Section - 40% -->
-        <div class="login-form-section">
-            <div class="login-form-wrapper">
-                <div class="login-header">
-                    <h1>Đăng nhập</h1>
-                    <p>Chào mừng trở lại MovieHub</p>
-                </div>
-
-                @if ($errors->any())
-                    <div class="error-message" style="margin-bottom: 20px; padding: 12px; background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); border-radius: 8px;">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>{{ $errors->first() }}</span>
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('login') }}">
-                    @csrf
-                    
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-envelope"></i>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                name="email" 
-                                value="{{ old('email') }}" 
-                                placeholder="Nhập email của bạn"
-                                required
-                                autofocus
-                            >
+    <div class="w-full max-w-md">
+        <!-- Logo và Tiêu đề -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-24 h-24 mb-4">
+                <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="w-full h-full object-contain rounded">
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Đăng nhập MovieHub</h1>
+            <p class="text-gray-400">Chào mừng trở lại!</p>
+        </div>
+        <!-- Form đăng nhập -->
+        <div class="form-container rounded-xl p-8">
+            @if ($errors->any())
+                <div class="mb-6 p-4 bg-red-500 bg-opacity-20 border border-red-400 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-circle text-red-400 mt-1 mr-3"></i>
+                        <div>
+                            <p class="text-red-200 font-medium mb-2">Có lỗi xảy ra:</p>
+                            <ul class="text-red-100 text-sm space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>• {{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
-                        @error('email')
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <span>{{ $message }}</span>
-                            </div>
-                        @enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label for="password">Mật khẩu</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-lock"></i>
-                            <input 
-                                type="password" 
-                                id="password" 
-                                name="password" 
-                                placeholder="Nhập mật khẩu"
-                                required
-                            >
-                        </div>
-                        @error('password')
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <span>{{ $message }}</span>
-                            </div>
-                        @enderror
-                    </div>
-
-                    <button type="submit" class="login-btn">
-                        <span>Đăng nhập</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </button>
-                </form>
-
-                <div class="register-link">
-                    <div style="margin-bottom: 12px;">
-                        Chưa có tài khoản? <a href="{{ route('register.form') }}">Đăng ký ngay</a>
-                    </div>
-                    <div>
-                        <a href="{{ route('password.request') }}" style="color: #0077c8; text-decoration: none; font-size: 14px; transition: color 0.3s ease;">
-                            <i class="fas fa-key" style="margin-right: 6px;"></i>
-                            Quên mật khẩu?
-                        </a>
                     </div>
                 </div>
+            @endif
+
+            <form method="POST" action="{{ route('login') }}" class="space-y-5">
+                @csrf
+                
+                <!-- Email -->
+                <div>
+                    <label class="block text-white text-sm font-medium mb-2">
+                        <i class="fas fa-envelope mr-2"></i>Email
+                    </label>
+                    <input type="email" 
+                           name="email" 
+                           value="{{ old('email') }}" 
+                           required
+                           class="w-full px-4 py-3 bg-[#1b1e28] border border-[#262833] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition duration-300"
+                           placeholder="email@example.com">
+                </div>
+
+                <!-- Mật khẩu -->
+                <div>
+                    <label class="block text-white text-sm font-medium mb-2">
+                        <i class="fas fa-lock mr-2"></i>Mật khẩu
+                    </label>
+                    <input type="password" 
+                           name="password" 
+                           required
+                           class="w-full px-4 py-3 bg-[#1b1e28] border border-[#262833] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition duration-300"
+                           placeholder="Nhập mật khẩu">
+                </div>
+
+                <!-- Xác nhận mật khẩu -->
+                <div>
+                    <label class="block text-white text-sm font-medium mb-2">
+                        <i class="fas fa-lock mr-2"></i>Xác nhận mật khẩu
+                    </label>
+                    <input type="password" 
+                           name="password_confirmation" 
+                           required
+                           class="w-full px-4 py-3 bg-[#1b1e28] border border-[#262833] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition duration-300"
+                           placeholder="Nhập lại mật khẩu">
+                </div>
+
+                <!-- Ghi nhớ đăng nhập -->
+                <div class="flex items-center">
+                    <input type="checkbox" 
+                           name="remember" 
+                           id="remember"
+                           class="w-4 h-4 text-[#F53003] bg-[#1b1e28] border-[#262833] rounded focus:ring-[#F53003] focus:ring-2">
+                    <label for="remember" class="ml-2 text-sm text-gray-300">
+                        Ghi nhớ đăng nhập
+                    </label>
+                </div>
+
+                <!-- Nút đăng nhập -->
+                <button type="submit" 
+                        class="w-full bg-[#F53003] hover:bg-[#e02a00] text-white font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:ring-opacity-50">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Đăng nhập
+                </button>
+            </form>
+
+            <!-- Link đăng ký -->
+            <div class="mt-6 text-center">
+                <p class="text-gray-400">
+                    Chưa có tài khoản? 
+                    <a href="{{ route('register.form') }}" 
+                       class="text-[#F53003] hover:text-[#e02a00] font-medium transition duration-300">
+                        Đăng ký ngay
+                    </a>
+                </p>
             </div>
         </div>
 
-        <!-- Carousel Section - 60% -->
-        <div class="carousel-section">
-            <!-- Spotlight effect -->
-            <div class="spotlight"></div>
-            
-            <!-- Floating particles -->
-            <div class="particles" id="particles"></div>
-            
-            <div class="swiper login-carousel">
-                <div class="swiper-wrapper">
-                    @forelse($movies as $movie)
-                        <div class="swiper-slide">
-                            <img 
-                                src="{{ $movie->poster_url ?? $movie->hinh_anh ?? '/images/default-poster.jpg' }}" 
-                                alt="{{ $movie->ten_phim }}"
-                                onerror="this.src='/images/default-poster.jpg'"
-                            >
-                            <div class="slide-overlay"></div>
-                            <div class="slide-content">
-                                <div class="slide-badge">
-                                    <i class="fas fa-star"></i> {{ number_format($movie->diem_danh_gia ?? 0, 1) }} / 10
-                                </div>
-                                <h2>{{ $movie->ten_phim }}</h2>
-                                <p>{{ Str::limit($movie->mo_ta ?? 'Phim đang chiếu tại rạp', 150) }}</p>
-                            </div>
-                        </div>
-                    @empty
-                        <!-- Default slides if no movies -->
-                        <div class="swiper-slide">
-                            <img src="/images/default-poster.jpg" alt="MovieHub">
-                            <div class="slide-overlay"></div>
-                            <div class="slide-content">
-                                <div class="slide-badge">
-                                    <i class="fas fa-film"></i> Đang chiếu
-                                </div>
-                                <h2>Chào mừng đến MovieHub</h2>
-                                <p>Trải nghiệm điện ảnh tuyệt vời nhất</p>
-                            </div>
-                        </div>
-                    @endforelse
-                </div>
-                <div class="swiper-pagination"></div>
-            </div>
+        <!-- Footer -->
+        <div class="mt-8 text-center">
+            <p class="text-gray-400 text-sm">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Đăng nhập an toàn và bảo mật
+            </p>
         </div>
     </div>
-
-    <!-- Swiper JS -->
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script>
-        // Initialize Swiper with enhanced effects
-        const swiper = new Swiper('.login-carousel', {
-            loop: true,
-            autoplay: {
-                delay: 5000,
-                disableOnInteraction: false,
-            },
-            effect: 'fade',
-            fadeEffect: {
-                crossFade: true
-            },
-            pagination: {
-                el: '.swiper-pagination',
-                clickable: true,
-                dynamicBullets: true,
-            },
-            speed: 1200,
-            on: {
-                slideChange: function() {
-                    // Reset animations on slide change
-                    const activeSlide = this.slides[this.activeIndex];
-                    const content = activeSlide.querySelector('.slide-content');
-                    if (content) {
-                        content.style.animation = 'none';
-                        setTimeout(() => {
-                            content.style.animation = 'slideUpFadeIn 0.8s ease-out';
-                        }, 10);
-                    }
-                }
-            }
-        });
-
-        // Create floating particles
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            if (!particlesContainer) return;
-
-            const particleCount = 20;
-            
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                
-                // Random position and delay
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDelay = Math.random() * 15 + 's';
-                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
-                
-                // Random size
-                const size = 2 + Math.random() * 3;
-                particle.style.width = size + 'px';
-                particle.style.height = size + 'px';
-                
-                particlesContainer.appendChild(particle);
-            }
-        }
-
-        // Initialize particles on load
-        window.addEventListener('load', createParticles);
-
-        // Add parallax effect on mouse move
-        const carouselSection = document.querySelector('.carousel-section');
-        if (carouselSection) {
-            carouselSection.addEventListener('mousemove', (e) => {
-                const rect = carouselSection.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width - 0.5) * 20;
-                const y = ((e.clientY - rect.top) / rect.height - 0.5) * 20;
-                
-                const spotlight = carouselSection.querySelector('.spotlight');
-                if (spotlight) {
-                    spotlight.style.transform = `translate(${x}px, ${y}px) scale(1)`;
-                }
-            });
-
-            carouselSection.addEventListener('mouseleave', () => {
-                const spotlight = carouselSection.querySelector('.spotlight');
-                if (spotlight) {
-                    spotlight.style.transform = 'translate(0, 0) scale(1)';
-                }
-            });
-        }
-    </script>
 </body>
 </html>
+
+

@@ -6,43 +6,6 @@
 
 @section('content')
   <div class="space-y-6">
-    <!-- Success/Error Messages -->
-    @if(session('success'))
-      <div id="successMessage" class="bg-green-500 border-l-4 border-green-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
-        <div class="flex items-center">
-          <i class="fas fa-check-circle text-2xl mr-3"></i>
-          <div>
-            <p class="font-semibold">Thành công!</p>
-            <p class="text-sm">{{ session('success') }}</p>
-          </div>
-        </div>
-        <button onclick="document.getElementById('successMessage').remove()" class="ml-4 text-white hover:text-gray-200">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    @endif
-
-    @if(session('error') || $errors->any())
-      <div id="errorMessage" class="bg-red-500 border-l-4 border-red-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down">
-        <div class="flex items-center">
-          <i class="fas fa-exclamation-circle text-2xl mr-3"></i>
-          <div>
-            <p class="font-semibold">Có lỗi xảy ra!</p>
-            <p class="text-sm">
-              @if(session('error'))
-                {{ session('error') }}
-              @else
-                {{ $errors->first() }}
-              @endif
-            </p>
-          </div>
-        </div>
-        <button onclick="document.getElementById('errorMessage').remove()" class="ml-4 text-white hover:text-gray-200">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    @endif
-
     <!-- Header Actions -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
       <div>
@@ -213,37 +176,33 @@
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div class="flex flex-wrap gap-2">
+                  <div class="flex justify-center gap-1.5">
                     <a href="{{ route('admin.phong-chieu.show', $phong) }}" 
-                       class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                       class="btn-table-action btn-table-view" 
                        title="Xem chi tiết">
-                      <i class="fas fa-eye mr-1"></i>
-                      <span class="hidden sm:inline">Xem</span>
+                      <i class="fas fa-eye text-xs"></i>
                     </a>
                     <a href="{{ route('admin.phong-chieu.edit', $phong) }}" 
-                       class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                       class="btn-table-action btn-table-edit" 
                        title="Chỉnh sửa">
-                      <i class="fas fa-edit mr-1"></i>
-                      <span class="hidden sm:inline">Sửa</span>
+                      <i class="fas fa-edit text-xs"></i>
                     </a>
                     <button type="button" 
-                            class="inline-flex items-center px-3 py-1.5 {{ $phong->status === 'active' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }} text-white text-xs font-medium rounded-md transition-colors duration-200" 
-                            onclick="updateStatus({{ $phong->id }}, '{{ $phong->status === 'active' ? 'inactive' : 'active' }}')" 
+                            class="btn-table-action {{ $phong->status === 'active' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }}" 
+                            onclick="attemptPause({{ $phong->id }}, '{{ $phong->status === 'active' ? 'inactive' : 'active' }}')" 
                             title="{{ $phong->status === 'active' ? 'Tạm dừng' : 'Kích hoạt' }}">
-                      <i class="fas fa-{{ $phong->status === 'active' ? 'pause' : 'play' }} mr-1"></i>
-                      <span class="hidden sm:inline">{{ $phong->status === 'active' ? 'Dừng' : 'Bật' }}</span>
+                      <i class="fas fa-{{ $phong->status === 'active' ? 'pause' : 'play' }} text-xs"></i>
                     </button>
                     <form action="{{ route('admin.phong-chieu.destroy', $phong) }}" 
                           method="POST" 
-                          style="display: inline-block;" 
-                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này? Tất cả ghế và dữ liệu liên quan sẽ bị xóa!')">
+                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này?')" 
+                          class="inline">
                       @csrf
                       @method('DELETE')
                       <button type="submit" 
-                              class="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
+                              class="btn-table-action btn-table-delete" 
                               title="Xóa">
-                        <i class="fas fa-trash mr-1"></i>
-                        <span class="hidden sm:inline">Xóa</span>
+                        <i class="fas fa-trash text-xs"></i>
                       </button>
                     </form>
                   </div>
@@ -269,111 +228,99 @@
       </div>
 
       <div class="px-6 py-4 border-t border-[#262833]">
-        {{ $phongChieu->links('pagination.custom') }}
+        {{ $phongChieu->links() }}
       </div>
     </div>
   </div>
 
-@push('styles')
-<style>
-@keyframes slide-down {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-slide-down {
-    animation: slide-down 0.3s ease-out;
-}
-</style>
-@endpush
+<!-- Modal cảnh báo không thể thao tác -->
+<div id="roomBlockModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/60"></div>
+  <div class="relative z-10 max-w-lg mx-auto my-24 bg-[#151822] border border-[#262833] rounded-xl shadow-xl">
+    <div class="px-5 py-4 border-b border-[#262833] flex items-center justify-between">
+      <h3 class="text-white font-semibold text-lg"><i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>Không thể thực hiện</h3>
+      <button type="button" class="text-[#a6a6b0] hover:text-white" onclick="closeBlockModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-5">
+      <p id="roomBlockMessage" class="text-[#d1d5db]"></p>
+      <div class="mt-5 text-right">
+        <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm" onclick="closeBlockModal()">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+  </div>
 
 <script>
-// Auto-hide success message after 5 seconds
-document.addEventListener('DOMContentLoaded', function() {
-    const successMsg = document.getElementById('successMessage');
-    if (successMsg) {
-        setTimeout(function() {
-            successMsg.style.transition = 'opacity 0.3s';
-            successMsg.style.opacity = '0';
-            setTimeout(function() {
-                successMsg.remove();
-            }, 300);
-        }, 5000);
-    }
+// Sử dụng URL sinh từ Blade để tránh sai prefix
+const ROOM_STATUS_BASE = "{{ url('admin/phong-chieu') }}";
+const ROOM_CAN_MODIFY_BASE = "{{ url('admin/phong-chieu') }}";
 
-    const errorMsg = document.getElementById('errorMessage');
-    if (errorMsg) {
-        setTimeout(function() {
-            errorMsg.style.transition = 'opacity 0.3s';
-            errorMsg.style.opacity = '0';
-            setTimeout(function() {
-                errorMsg.remove();
-            }, 300);
-        }, 7000);
-    }
-});
-
-function updateStatus(id, status) {
-    if (confirm('Bạn có chắc chắn muốn thay đổi trạng thái phòng chiếu?')) {
-        fetch(`/admin/phong-chieu/${id}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                status: status
-            })
-        })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
-            }
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                // Show success message
-                const successDiv = document.createElement('div');
-                successDiv.id = 'statusUpdateSuccess';
-                successDiv.className = 'bg-green-500 border-l-4 border-green-700 text-white p-4 rounded-lg shadow-lg flex items-center justify-between animate-slide-down fixed top-4 right-4 z-50';
-                successDiv.innerHTML = `
-                    <div class="flex items-center">
-                        <i class="fas fa-check-circle text-2xl mr-3"></i>
-                        <div>
-                            <p class="font-semibold">Thành công!</p>
-                            <p class="text-sm">${data.message || 'Cập nhật trạng thái thành công!'}</p>
-                        </div>
-                    </div>
-                    <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-                document.body.appendChild(successDiv);
-                
-                // Auto remove after 3 seconds
-                setTimeout(() => {
-                    successDiv.remove();
-                    location.reload();
-                }, 2000);
-            } else {
-                throw new Error(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Có lỗi xảy ra: ' + error.message);
-        });
-    }
+function showBlockModal(msg){
+  const m = document.getElementById('roomBlockModal');
+  const p = document.getElementById('roomBlockMessage');
+  if (p) p.textContent = msg || 'Phòng chiếu đang có suất chiếu sắp diễn ra.';
+  if (m) m.classList.remove('hidden');
 }
+function closeBlockModal(){
+  const m = document.getElementById('roomBlockModal');
+  if (m) m.classList.add('hidden');
+}
+
+async function attemptPause(id, status){
+  try{
+    const res = await fetch(`${ROOM_CAN_MODIFY_BASE}/${id}/can-modify`, { headers:{'X-Requested-With':'XMLHttpRequest'} });
+    const data = await res.json();
+    if (!data.success) { showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); return; }
+    if (!data.can_pause) { showBlockModal('Không thể dừng phòng chiếu vì đang có suất chiếu sắp diễn ra.'); return; }
+    updateStatus(id, status);
+  }catch(e){ showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); }
+}
+
+async function updateStatus(id, status) {
+  if (!confirm('Bạn có chắc chắn muốn thay đổi trạng thái phòng chiếu?')) return;
+  const url = `${ROOM_STATUS_BASE}/${id}/status`;
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify({ status })
+    });
+    let data = null;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { success: res.ok, message: text || 'Unknown' }; }
+    if (!res.ok || !data.success) {
+      alert(data.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+      return;
+    }
+    location.reload();
+  } catch (e) {
+    console.error(e);
+    alert('Không thể kết nối máy chủ khi cập nhật trạng thái.');
+  }
+}
+
+// Intercept delete to pre-check
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.room-delete-form').forEach(function(form){
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const id = form.getAttribute('data-room-id');
+      if (!id) { form.submit(); return; }
+      try{
+        const res = await fetch(`${ROOM_CAN_MODIFY_BASE}/${id}/can-modify`, { headers:{'X-Requested-With':'XMLHttpRequest'} });
+        const data = await res.json();
+        if (!data.success) { showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); return; }
+        if (!data.can_delete) { showBlockModal('Không thể xóa phòng chiếu vì đang có suất chiếu sắp diễn ra.'); return; }
+        if (confirm('Bạn có chắc chắn muốn xóa phòng chiếu này? Tất cả ghế và dữ liệu liên quan sẽ bị xóa!')) {
+          form.submit();
+        }
+      }catch(err){ showBlockModal('Không thể kiểm tra trạng thái phòng chiếu.'); }
+    });
+  });
+});
 </script>
 @endsection
 

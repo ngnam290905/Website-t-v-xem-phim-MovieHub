@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,12 +10,10 @@ use Carbon\Carbon;
 
 class SuatChieu extends Model
 {
-    use HasFactory;
-
     protected $table = 'suat_chieu';
-
+    
     public $timestamps = false;
-
+    
     protected $fillable = [
         'id_phim',
         'id_phong',

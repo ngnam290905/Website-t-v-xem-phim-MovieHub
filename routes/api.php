@@ -1,20 +1,12 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\ShowController;
-use App\Http\Controllers\Api\BookingController;
-use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\BookingController;
 
-Route::prefix('api/v1')->group(function () {
-    Route::get('shows/{showId}/seat-map', [ShowController::class, 'getSeatMap']);
-    Route::get('movies/{movieId}/shows', [ShowController::class, 'getShowsByMovie']);
-    
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::post('bookings', [BookingController::class, 'create']);
-        Route::get('bookings/{id}', [BookingController::class, 'show']);
-    });
-    
-    Route::post('payments/webhook', [PaymentController::class, 'webhook']);
-    Route::get('payments/return', [PaymentController::class, 'return']);
-});
+Route::post('/chat', [ChatController::class, 'chat']);
 
+Route::get('/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats']);
+Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
+Route::get('/ticket/{id}', [BookingController::class, 'getTicket']);

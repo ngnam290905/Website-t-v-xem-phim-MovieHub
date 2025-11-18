@@ -2,633 +2,598 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DatVe;
+use App\Models\Combo;
+use App\Models\KhuyenMai;
 use App\Models\Phim;
 use App\Models\SuatChieu;
-use App\Models\DatVe;
-use App\Models\Ghe;
-use App\Models\Combo;
 use App\Models\ChiTietDatVe;
-use App\Models\ChiTietCombo;
-use App\Models\PhongChieu;
-use App\Services\LegacySeatLockService;
+use App\Models\Ghe;
+use App\Models\LoaiGhe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class BookingController extends Controller
 {
-    public function __construct(
-        private LegacySeatLockService $seatLockService
-    ) {}
-
     /**
-     * Hiển thị trang chọn ghế cho suất chiếu
+     * Helper method to check if seat is VIP
      */
-    public function showSeats($showId)
+    private function isVipSeat($seat)
     {
-        $showtime = SuatChieu::with(['phim', 'phongChieu.seats.seatType'])
-            ->findOrFail($showId);
-
-        // Lấy danh sách ghế đã đặt cho suất chiếu này
-        $bookedSeatIds = DB::table('chi_tiet_dat_ve as ctdv')
-            ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
-            ->where('dv.id_suat_chieu', $showId)
-            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED (nếu có)
-            ->whereIn('dv.trang_thai', [0, 1]) // 0 = DRAFT, 1 = PAID/CONFIRMED
-            ->pluck('ctdv.id_ghe')
-            ->toArray();
-
-        // Lấy ghế đang bị lock
-        $lockedSeats = $this->seatLockService->getLockedSeats($showId);
-
-        // Kiểm tra xem có booking DRAFT đang tồn tại không
-        $existingBooking = null;
-        $selectedSeatIds = [];
-        if (Auth::check()) {
-            $existingBooking = DatVe::where('id_nguoi_dung', Auth::id())
-                ->where('id_suat_chieu', $showId)
-                ->where('trang_thai', 0) // 0 = DRAFT
-                ->first();
-
-            if ($existingBooking) {
-                $selectedSeatIds = $existingBooking->chiTietDatVe()->pluck('id_ghe')->toArray();
-            }
+        // Database uses id_loai = 2 for VIP seats
+        if ($seat->id_loai == 2) {
+            return true;
         }
-
-        // Lấy tất cả ghế trong phòng và sắp xếp đúng thứ tự
-        $seats = $showtime->phongChieu->seats()
-            ->with('seatType')
-            ->orderBy('so_hang', 'asc')
-            ->get()
-            ->sortBy(function($seat) {
-                // Extract number from seat code (A1 -> 1, B12 -> 12)
-                preg_match('/(\d+)/', $seat->so_ghe, $matches);
-                return (int)($matches[1] ?? 999); // Put invalid seats at the end
-            })
-            ->values();
-
-        // Đánh dấu trạng thái ghế
-        foreach ($seats as $seat) {
-            $status = $this->seatLockService->getSeatStatus($showId, $seat->id, Auth::id());
-            
-            if (in_array($seat->id, $bookedSeatIds)) {
-                $seat->booking_status = 'booked';
-            } elseif (in_array($seat->id, $selectedSeatIds)) {
-                $seat->booking_status = 'selected';
-            } elseif ($status === 'SOLD') {
-                $seat->booking_status = 'booked';
-            } elseif ($status === 'LOCKED_BY_OTHER') {
-                $seat->booking_status = 'locked_by_other';
-            } elseif ($status === 'LOCKED_BY_ME') {
-                $seat->booking_status = 'locked_by_me';
-            } elseif ($seat->trang_thai == 0) {
-                $seat->booking_status = 'disabled';
-            } else {
-                $seat->booking_status = 'available';
-            }
+        
+        // Or check by name if id_loai has different values
+        if ($seat->loaiGhe && stripos($seat->loaiGhe->ten_loai, 'vip') !== false) {
+            return true;
         }
-
-        // Get available combos
-        $combos = Combo::where('trang_thai', true)
-            ->where(function($query) {
-                $query->whereNull('ngay_bat_dau')
-                      ->orWhere('ngay_bat_dau', '<=', now());
-            })
-            ->where(function($query) {
-                $query->whereNull('ngay_ket_thuc')
-                      ->orWhere('ngay_ket_thuc', '>=', now());
-            })
-            ->get();
-
-        // Get selected combos if booking exists
-        $selectedCombos = collect();
-        if ($existingBooking) {
-            $selectedCombos = $existingBooking->chiTietCombo()->with('combo')->get();
-        }
-
-        return view('booking.seats', compact('showtime', 'seats', 'existingBooking', 'combos', 'selectedCombos'));
+        
+        return false;
     }
-
+    
     /**
-     * Lock ghế (AJAX)
+     * Helper method to check if seat is Couple
      */
-    public function lockSeats(Request $request, $showId)
+    private function isCoupleSeat($seat)
     {
-        $request->validate([
-            'seat_ids' => 'required|array',
-            'seat_ids.*' => 'exists:ghe,id'
-        ]);
-
-        if (!Auth::check()) {
-            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
+        // Database uses id_loai = 3 for Couple seats
+        if ($seat->id_loai == 3) {
+            return true;
         }
-
-        $seatIds = $request->seat_ids;
-        $userId = Auth::id();
-
-        // Kiểm tra xem ghế có bị đặt hoặc bị lock bởi người khác không
-        $bookedSeatIds = $this->getBookedSeatIds($showId);
-
-        $conflicts = [];
-        foreach ($seatIds as $seatId) {
-            if (in_array($seatId, $bookedSeatIds)) {
-                $conflicts[] = ['seat_id' => $seatId, 'reason' => 'Ghế đã được đặt'];
-            } elseif ($this->seatLockService->isSeatLocked($showId, $seatId, $userId)) {
-                $conflicts[] = ['seat_id' => $seatId, 'reason' => 'Ghế đang được người khác chọn'];
-            }
+        
+        // Or check by name
+        if ($seat->loaiGhe && (stripos($seat->loaiGhe->ten_loai, 'đôi') !== false || stripos($seat->loaiGhe->ten_loai, 'doi') !== false)) {
+            return true;
         }
-
-        if (!empty($conflicts)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Một số ghế không còn khả dụng',
-                'conflicts' => $conflicts
-            ], 400);
-        }
-
-        // Lock ghế using service
-        try {
-            $this->seatLockService->lockSeats($showId, $seatIds, $userId);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Không thể giữ ghế: ' . $e->getMessage()
-            ], 400);
-        }
-
-        // Tạo hoặc cập nhật booking DRAFT
-        // trang_thai: 0 = DRAFT, 1 = PAID/CONFIRMED
-        // Không set tong_tien vì có thể cột này không tồn tại, sẽ tính từ chi tiết
-        $booking = DatVe::updateOrCreate(
-            [
-                'id_nguoi_dung' => $userId,
-                'id_suat_chieu' => $showId,
-                'trang_thai' => 0 // 0 = DRAFT (đang chọn ghế)
-            ],
-            [
-                // Không set tong_tien ở đây, sẽ tính từ chi_tiet_dat_ve và chi_tiet_combo
-            ]
-        );
-
-        // Xóa chi tiết cũ
-        $booking->chiTietDatVe()->delete();
-
-        // Thêm chi tiết mới
-        $basePrice = 50000; // Giá cơ bản
-        foreach ($seatIds as $seatId) {
-            $seat = Ghe::with('seatType')->find($seatId);
-            $coefficient = $seat->seatType->he_so_gia ?? 1;
-            $price = $basePrice * $coefficient;
-            
-            ChiTietDatVe::create([
-                'id_dat_ve' => $booking->id,
-                'id_ghe' => $seatId,
-                'gia' => $price
-            ]);
-        }
-
-        // Tính lại tổng tiền
-        $total = $booking->chiTietDatVe()->sum('gia');
-        $booking->update(['tong_tien' => $total]);
-
-        // Update locks with booking ID
-        $this->seatLockService->updateLocksWithBookingId($showId, $seatIds, $booking->id);
-
-        return response()->json([
-            'success' => true,
-            'booking_id' => $booking->id,
-            'locked_seats' => $seatIds,
-            'expires_at' => now()->addMinutes(5)->timestamp
-        ]);
+        
+        return false;
     }
-
+    
     /**
-     * Unlock ghế (AJAX)
+     * Helper method to get seat price
      */
-    public function unlockSeats(Request $request, $showId)
+    private function getSeatPrice($roomId, $row, $col)
     {
-        if (!Auth::check()) {
-            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
-        }
-
-        $userId = Auth::id();
-        $seatIds = $request->seat_ids ?? [];
-
-        // Unlock seats using service
-        $this->seatLockService->unlockSeats($showId, $seatIds, $userId);
-
-        // Xóa ghế khỏi booking DRAFT nếu có
-        $booking = DatVe::where('id_nguoi_dung', $userId)
-            ->where('id_suat_chieu', $showId)
-            ->where('trang_thai', 0) // 0 = DRAFT
+        // Find seat in database
+        $seat = Ghe::where('id_phong', $roomId)
+            ->where('so_ghe', $row . $col)
+            ->with('loaiGhe')
             ->first();
-
-        if ($booking && !empty($seatIds)) {
-            $booking->chiTietDatVe()->whereIn('id_ghe', $seatIds)->delete();
-            
-            // Nếu không còn ghế nào, xóa booking
-            if ($booking->chiTietDatVe()->count() == 0) {
-                $booking->delete();
-            } else {
-                $total = $booking->chiTietDatVe()->sum('gia');
-                $booking->update(['tong_tien' => $total]);
-            }
+        
+        if (!$seat) {
+            return 80000; // Default price
         }
-
-        return response()->json(['success' => true]);
+        
+        // Check if couple seat
+        if ($this->isCoupleSeat($seat)) {
+            return 200000;
+        }
+        
+        // Check if VIP seat
+        if ($this->isVipSeat($seat)) {
+            return 120000;
+        }
+        
+        // Regular seat
+        return 80000;
     }
-
-    /**
-     * Refresh seat status (AJAX)
-     */
-    public function refreshSeats(Request $request, $showId)
+    
+    public function index()
     {
-        $showtime = SuatChieu::findOrFail($showId);
+        // Get booking data for user with related showtime, movie, room, and seat details
+        $bookings = DatVe::with([
+                'suatChieu.phim',
+                'suatChieu.phongChieu',
+                'chiTietDatVe.ghe',
+                'khuyenMai',
+                'chiTietCombo.combo',
+                'thanhToan'
+            ])
+            ->where('id_nguoi_dung', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+            
+        return view('user.bookings', compact('bookings'));
+    }
+    
+    public function create($id = null)
+    {
+        // Get movie data
+        $movie = null;
+        if ($id) {
+            $movie = Phim::find($id);
+        }
         
-        $bookedSeatIds = $this->getBookedSeatIds($showId);
-
-        $seats = $showtime->phongChieu->seats()
-            ->with('seatType')
-            ->get();
-
-        $status = [];
-        $userId = Auth::id();
+        // If no movie found, get first movie or create demo data
+        if (!$movie) {
+            $movie = Phim::first() ?? (object)[
+                'id' => 1,
+                'ten_phim' => 'Demo Movie',
+                'thoi_luong' => 120,
+                'poster' => 'images/default-poster.jpg'
+            ];
+        }
         
-        foreach ($seats as $seat) {
-            if (in_array($seat->id, $bookedSeatIds)) {
-                $status[$seat->id] = 'booked';
-            } else {
-                $seatStatus = $this->seatLockService->getSeatStatus($showId, $seat->id, $userId);
+        // Initialize variables to avoid undefined variable errors
+        $roomInfo = null;
+        $seats = collect();
+        $vipSeats = [];
+        $vipRows = [];
+        $coupleSeats = [];
+        
+        // Get real showtimes from database for this movie
+        $showtimes = SuatChieu::with('phongChieu')
+            ->where('id_phim', $movie->id)
+            ->where('thoi_gian_bat_dau', '>=', now()->startOfDay()) // Lấy suất chiếu từ hôm nay
+            ->where('trang_thai', 1) // Chỉ lấy suất chiếu đang hoạt động
+            ->orderBy('thoi_gian_bat_dau')
+            ->get()
+            ->map(function ($suat) {
+                return [
+                    'id' => $suat->id,
+                    'label' => date('H:i - d/m/Y', strtotime($suat->thoi_gian_bat_dau)) . ' - ' . ($suat->phongChieu->ten_phong ?? 'Phòng 1'),
+                    'time' => date('H:i', strtotime($suat->thoi_gian_bat_dau)),
+                    'date' => date('d/m/Y', strtotime($suat->thoi_gian_bat_dau)),
+                    'room' => $suat->phongChieu->ten_phong ?? 'Phòng 1'
+                ];
+            });
+            
+        // If no showtimes found, create demo data
+        
+        
+        // Get real seats from database for the first showtime's room
+        
+        
+        if ($showtimes->isNotEmpty()) {
+            $firstShowtime = $showtimes->first();
+            $suatChieu = SuatChieu::with('phongChieu')->find($firstShowtime['id']);
+            if ($suatChieu && $suatChieu->phongChieu) {
+                $roomInfo = $suatChieu->phongChieu;
+                $seats = Ghe::where('id_phong', $suatChieu->id_phong)
+                    ->with('loaiGhe')
+                    ->get();
+                    
+                // Get VIP seats - find seats with id_loai = 2 (VIP) or name contains "VIP"
+                $vipSeatData = $seats->filter(function($seat) {
+                    return $this->isVipSeat($seat);
+                });
+                $vipSeats = $vipSeatData->pluck('so_ghe')->toArray();
                 
-                if ($seatStatus === 'SOLD') {
-                    $status[$seat->id] = 'booked';
-                } elseif ($seatStatus === 'LOCKED_BY_ME') {
-                    $status[$seat->id] = 'locked_by_me';
-                } elseif ($seatStatus === 'LOCKED_BY_OTHER' || $seatStatus === 'LOCKED') {
-                    $status[$seat->id] = 'locked_by_other';
-            } elseif ($seat->trang_thai == 0) {
-                $status[$seat->id] = 'disabled';
-            } else {
-                $status[$seat->id] = 'available';
+                // Get VIP rows (extract row letter from seat code)
+                $vipRows = $vipSeatData->map(function($seat) {
+                    return substr($seat->so_ghe, 0, 1); // Get first character (A, B, C, etc.)
+                })->unique()->values()->toArray();
+                
+                // Get couple seats - find seats with id_loai = 3 (Couple) or name contains "đôi"
+                $coupleSeatData = $seats->filter(function($seat) {
+                    return $this->isCoupleSeat($seat);
+                });
+                
+                // Group couple seats by row
+                $coupleSeatGroups = $coupleSeatData->groupBy(function($seat) {
+                    return substr($seat->so_ghe, 0, 1); // Group by row letter
+                });
+                
+                $coupleSeats = [];
+                foreach ($coupleSeatGroups as $row => $seatsInRow) {
+                    $seatNumbers = $seatsInRow->pluck('so_ghe')->toArray();
+                    sort($seatNumbers); // Sort to ensure correct order
+                    
+                    // Look for pairs (like 11-12, 13-14, etc.)
+                    for ($i = 0; $i < count($seatNumbers) - 1; $i++) {
+                        $num1 = intval(substr($seatNumbers[$i], 1)); // Extract number part
+                        $num2 = intval(substr($seatNumbers[$i+1], 1));
+                        
+                        // Check if seats are adjacent (like 11 and 12)
+                        if ($num2 == $num1 + 1) {
+                            $coupleSeats[] = $row . $num1 . '-' . $num2;
+                            $i++; // Skip the next seat as it's already paired
+                        }
+                    }
                 }
             }
         }
-
-        return response()->json([
-            'success' => true,
-            'seats' => $status,
-            'timestamp' => now()->timestamp
-        ]);
-    }
-
-    /**
-     * Hiển thị trang chọn combos
-     */
-    public function addons($bookingId)
-    {
-        $booking = DatVe::with(['chiTietDatVe.ghe', 'suatChieu.phim'])
-            ->findOrFail($bookingId);
-
-        // Kiểm tra quyền truy cập
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
-            abort(403);
+        
+        // Fallback to hardcoded data if no seats found or no room info
+        if ($seats->isEmpty() || !$roomInfo) {
+            $coupleSeats = [];
+            $vipSeats = [];
+            $vipRows = [];
+            // Also set fallback room info
+            $roomInfo = (object) [
+                'so_cot' => 15,
+                'so_hang' => 10
+            ];
         }
-
-        // Kiểm tra lock còn hạn không
-        $showId = $booking->id_suat_chieu;
-        $seatIds = $booking->chiTietDatVe()->pluck('id_ghe')->toArray();
-        $allLocksValid = true;
-        $userId = Auth::id();
-
-        foreach ($seatIds as $seatId) {
-            if (!$this->seatLockService->isSeatLocked($showId, $seatId, $userId)) {
-                $allLocksValid = false;
-                break;
+        
+        return view('booking', compact('movie', 'showtimes', 'coupleSeats', 'vipSeats', 'vipRows', 'roomInfo'));
+    }
+    
+    public function getBookedSeats($showtimeId)
+    {
+        try {
+            // Validate showtime exists
+            $showtime = SuatChieu::find($showtimeId);
+            if (!$showtime) {
+                return response()->json(['seats' => []]);
             }
+            
+            // Get confirmed bookings for this showtime
+            $bookedSeats = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+                ->join('ghe', 'chi_tiet_dat_ve.id_ghe', '=', 'ghe.id')
+                ->where('dat_ve.id_suat_chieu', $showtimeId)
+                ->whereIn('dat_ve.trang_thai', [0, 1]) // 0=chờ xác nhận, 1=đã xác nhận
+                ->select('ghe.so_ghe')
+                ->get()
+                ->map(function ($seat) {
+                    return $seat->so_ghe; // seat code like 'A1'
+                });
+            
+            return response()->json(['seats' => $bookedSeats]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading booked seats: ' . $e->getMessage());
+            return response()->json(['seats' => []]);
         }
-
-        if (!$allLocksValid) {
-            return redirect()->route('booking.seats', $showId)
-                ->with('error', 'Thời gian giữ ghế đã hết hạn. Vui lòng chọn lại.');
-        }
-
-        $combos = Combo::where('trang_thai', true)
-            ->where(function($query) {
-                $query->whereNull('ngay_bat_dau')
-                      ->orWhere('ngay_bat_dau', '<=', now());
-            })
-            ->where(function($query) {
-                $query->whereNull('ngay_ket_thuc')
-                      ->orWhere('ngay_ket_thuc', '>=', now());
-            })
-            ->get();
-
-        $selectedCombos = $booking->chiTietCombo()->with('combo')->get();
-
-        return view('booking.addons', compact('booking', 'combos', 'selectedCombos'));
     }
-
-    /**
-     * Cập nhật combos (AJAX)
-     */
-    public function updateAddons(Request $request, $bookingId)
+    
+    public function getShowtimeSeats($showtimeId)
     {
-        $booking = DatVe::findOrFail($bookingId);
-
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        try {
+            \Log::info('getShowtimeSeats called with showtimeId: ' . $showtimeId);
+            
+            // Validate showtime exists
+            $showtime = SuatChieu::find($showtimeId);
+            if (!$showtime) {
+                \Log::warning('Showtime not found: ' . $showtimeId);
+                return response()->json(['seats' => []]);
+            }
+            
+            \Log::info('Showtime found, room id: ' . $showtime->id_phong);
+            
+            // Get all seats for this showtime's room
+            $seats = Ghe::where('id_phong', $showtime->id_phong)
+                ->with('loaiGhe')
+                ->get()
+                ->mapWithKeys(function ($seat) {
+                    $typeText = strtolower($seat->loaiGhe->ten_loai ?? 'thường');
+                    $isAvailable = (int)($seat->trang_thai ?? 0) === 1;
+                    
+                    // Debug logging for VIP seats
+                    if (str_contains($typeText, 'vip') || str_contains(strtolower($seat->loaiGhe->ten_loai ?? ''), 'vip')) {
+                        \Log::info('VIP seat found: ' . $seat->so_ghe . ', type: ' . ($seat->loaiGhe->ten_loai ?? 'N/A'));
+                    }
+                    
+                    // Determine price based on seat type
+                    if ($isAvailable) {
+                        if (str_contains($typeText, 'vip')) {
+                            $price = 120000;
+                        } elseif (str_contains($typeText, 'đôi') || str_contains($typeText, 'doi') || str_contains($typeText, 'couple')) {
+                            $price = 200000;
+                        } else {
+                            $price = 80000;
+                        }
+                    } else {
+                        $price = 0;
+                    }
+                    
+                    return [$seat->so_ghe => [
+                        'id' => $seat->id,
+                        'code' => $seat->so_ghe,
+                        'type' => $seat->loaiGhe->ten_loai ?? 'Thường',
+                        'available' => $isAvailable,
+                        'price' => $price
+                    ]];
+                });
+            
+            \Log::info('Seats data prepared, count: ' . $seats->count());
+            
+            return response()->json(['seats' => $seats]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading showtime seats: ' . $e->getMessage());
+            return response()->json(['seats' => []]);
         }
-
-        $request->validate([
-            'combos' => 'array',
-            'combos.*.id' => 'exists:combo,id',
-            'combos.*.quantity' => 'integer|min:1'
-        ]);
-
-        // Xóa combos cũ
-        $booking->chiTietCombo()->delete();
-
-        // Thêm combos mới
-        $comboTotal = 0;
-        if ($request->combos) {
-            foreach ($request->combos as $comboData) {
-                $combo = Combo::find($comboData['id']);
-                $quantity = $comboData['quantity'] ?? 1;
-
-                ChiTietCombo::create([
-                    'id_dat_ve' => $booking->id,
-                    'id_combo' => $combo->id,
-                    'so_luong' => $quantity,
-                    'gia_ap_dung' => $combo->gia
+    }
+    
+    public function store(Request $request)
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            
+            // Validate required fields
+            if (!isset($data['seats']) || empty($data['seats'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn ghế!'
                 ]);
-
-                $comboTotal += $combo->gia * $quantity;
             }
-        }
-
-        // Tính lại tổng tiền
-        $seatTotal = $booking->chiTietDatVe()->sum('gia');
-        $total = $seatTotal + $comboTotal;
-        $booking->update(['tong_tien' => $total]);
-
-        return response()->json([
-            'success' => true,
-            'total' => $total,
-            'combo_total' => $comboTotal
-        ]);
-    }
-
-    /**
-     * Hiển thị trang checkout
-     */
-    public function checkout($bookingId)
-    {
-        $booking = DatVe::with([
-            'chiTietDatVe.ghe.seatType',
-            'chiTietCombo.combo',
-            'suatChieu.phim',
-            'suatChieu.phongChieu'
-        ])->findOrFail($bookingId);
-
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
-            abort(403);
-        }
-
-        // Tính lại tổng tiền
-        $seatTotal = $booking->chiTietDatVe()->sum('gia');
-        $comboTotal = $booking->chiTietCombo()->sum(DB::raw('gia_ap_dung * so_luong'));
-        $total = $seatTotal + $comboTotal;
-        $booking->update(['tong_tien' => $total]);
-
-        return view('booking.checkout', compact('booking'));
-    }
-
-    /**
-     * Xử lý thanh toán
-     */
-    public function processPayment(Request $request, $bookingId)
-    {
-        $booking = DatVe::with('chiTietDatVe')->findOrFail($bookingId);
-
-        if (Auth::id() != $booking->id_nguoi_dung || $booking->trang_thai != 0) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'payment_method' => 'required|in:vnpay,momo,credit_card,cash',
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'nullable|email|max:255'
-        ]);
-
-        // Cập nhật thông tin khách hàng
-        $booking->update([
-            'ten_khach_hang' => $request->customer_name,
-            'so_dien_thoai' => $request->customer_phone,
-            'email' => $request->customer_email
-        ]);
-
-        // Kiểm tra lại ghế có còn khả dụng không
-        $showId = $booking->id_suat_chieu;
-        $seatIds = $booking->chiTietDatVe()->pluck('id_ghe')->toArray();
-        $bookedSeatIds = $this->getBookedSeatIds($showId);
-
-        foreach ($seatIds as $seatId) {
-            if (in_array($seatId, $bookedSeatIds)) {
-                return redirect()->route('booking.seats', $showId)
-                    ->with('error', 'Một số ghế đã được đặt bởi người khác. Vui lòng chọn lại.');
+            
+            // Validate showtime exists
+            if (!isset($data['showtime']) || !$data['showtime']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn suất chiếu!'
+                ]);
             }
-        }
+            
+            $showtime = SuatChieu::find($data['showtime']);
+            if (!$showtime) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Suất chiếu không tồn tại!'
+                ]);
+            }
+            
+            // Check if seats are already booked
+            $existingBookings = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+                ->join('ghe', 'chi_tiet_dat_ve.id_ghe', '=', 'ghe.id')
+                ->where('dat_ve.id_suat_chieu', $data['showtime'])
+                ->whereIn('dat_ve.trang_thai', [0, 1]);
+            
+            // Check each seat (support both couple formats: "G11-12" or "G11,G12")
+            $existingBase = $existingBookings; // base query to clone per-check
+            foreach ($data['seats'] as $seat) {
+                $seat = trim($seat);
+                if ($seat === '') continue;
 
-        // Nếu là thanh toán online, redirect đến cổng thanh toán
-        if (in_array($request->payment_method, ['vnpay', 'momo', 'credit_card'])) {
-            // TODO: Implement payment gateway integration
-            // Tạm thời giả lập thanh toán thành công ngay lập tức
-            // Trong production, sẽ redirect đến cổng thanh toán thật
+                $pairs = [];
+                if (strpos($seat, '-') !== false) {
+                    // Format: R11-12
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seat, $m)) {
+                        $rowLetter = strtoupper($m[1]);
+                        $start = (int)$m[2];
+                        $end = (int)$m[3];
+                        for ($c = $start; $c <= $end; $c++) { $pairs[] = $rowLetter.$c; }
+                    }
+                } elseif (strpos($seat, ',') !== false) {
+                    // Format: R11,R12
+                    $parts = array_filter(array_map('trim', explode(',', $seat)));
+                    foreach ($parts as $code) { $pairs[] = strtoupper($code); }
+                } else {
+                    // Single seat like R11
+                    $pairs[] = strtoupper($seat);
+                }
+
+                foreach ($pairs as $code) {
+                    $row = substr($code, 0, 1);
+                    $col = substr($code, 1);
+                    $exists = (clone $existingBase)
+                        ->where('ghe.so_ghe', $row.$col)
+                        ->exists();
+                    if ($exists) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Một hoặc nhiều ghế đã được đặt. Vui lòng chọn ghế khác!'
+                        ]);
+                    }
+                }
+            }
             
-            // Giải phóng lock
-            $this->seatLockService->releaseLocksForBooking($booking->id);
+            // Calculate total amount
+            $seatTotal = 0;
             
-            // Cập nhật trạng thái: 1 = PAID/CONFIRMED
-            $booking->update(['trang_thai' => 1]);
+            // Get VIP rows from database for the showtime's room
+            $vipRows = [];
+            $showtime = SuatChieu::find($data['showtime']);
+            if ($showtime) {
+                $vipSeats = Ghe::where('id_phong', $showtime->id_phong)
+                    ->with('loaiGhe')
+                    ->get()
+                    ->filter(function($seat) {
+                        return $this->isVipSeat($seat);
+                    });
+                    
+                $vipRows = $vipSeats->map(function($seat) {
+                    return substr($seat->so_ghe, 0, 1); // Get row letter
+                })->unique()->toArray();
+            }
             
-            // Tạo thanh toán record
-            DB::table('thanh_toan')->insert([
-                'id_dat_ve' => $booking->id,
-                'phuong_thuc' => $request->payment_method,
-                'so_tien' => $booking->tong_tien,
-                'trang_thai' => 'success',
-                'thoi_gian' => now()
+            // Fallback to hardcoded if no VIP rows found
+            if (empty($vipRows)) {
+                $vipRows = ['C', 'D', 'E', 'F'];
+            }
+            
+            foreach ($data['seats'] as $seat) {
+                // Handle couple seats (contains dash)
+                if (strpos($seat, '-') !== false) {
+                    $seatTotal += 200000; // Couple seat price
+                } else {
+                    // Get actual seat from database to check type
+                    $row = substr($seat, 0, 1);
+                    $col = substr($seat, 1);
+                    $seatObj = Ghe::where('id_phong', $showtime->id_phong)
+                        ->where('so_ghe', $row . $col)
+                        ->with('loaiGhe')
+                        ->first();
+                    
+                    if ($seatObj && $this->isVipSeat($seatObj)) {
+                        $seatTotal += 120000;
+                    } else {
+                        $seatTotal += 80000;
+                    }
+                }
+            }
+            
+            $comboTotal = 0;
+            $selectedCombo = null;
+            if (isset($data['combo']) && $data['combo']) {
+                $selectedCombo = Combo::find($data['combo']['id'] ?? null);
+                if ($selectedCombo) {
+                    $comboTotal = (float) $selectedCombo->gia;
+                }
+            }
+            
+            $discount = 0;
+            $promotionId = null;
+            if (isset($data['promotion']) && $data['promotion']) {
+                $promotion = KhuyenMai::find($data['promotion']);
+                if ($promotion) {
+                    $promotionId = $promotion->id;
+                    $subtotal = $seatTotal + $comboTotal;
+                    // Parse min condition from dieu_kien (e.g., "...500000")
+                    $min = 0;
+                    if (!empty($promotion->dieu_kien)) {
+                        $minDigits = preg_replace('/\D+/', '', (string)$promotion->dieu_kien);
+                        if ($minDigits !== '') $min = (float)$minDigits;
+                    }
+                    if ($subtotal >= $min) {
+                        if ($promotion->loai_giam === 'phantram') {
+                            $discount = round($subtotal * ((float)$promotion->gia_tri_giam / 100));
+                        } else { // codinh
+                            $val = (float)$promotion->gia_tri_giam;
+                            $fixed = $val >= 1000 ? $val : $val * 1000; // treat as thousands if small
+                            $discount = round($fixed);
+                        }
+                        if ($discount > $subtotal) $discount = $subtotal;
+                    }
+                }
+            }
+            
+            $totalAmount = max(0, $seatTotal + $comboTotal - $discount);
+            
+            // Create booking
+            $paymentMethod = $data['payment_method'] ?? 'offline';
+            $bookingStatus = ($paymentMethod === 'online') ? 1 : 0; // 1 = đã thanh toán, 0 = chờ thanh toán tại quầy
+            $methodCode = ($paymentMethod === 'online') ? 1 : 2; // 1=online, 2=tai quay
+            
+            $booking = DatVe::create([
+                'id_nguoi_dung'   => Auth::id(),
+                'id_suat_chieu'   => $data['showtime'] ?? null,
+                'id_khuyen_mai'   => $promotionId,
+                // Optional totals by schema (have defaults); we at least set tong_tien
+                // 'tong_tien_goc'    => $seatTotal + $comboTotal,
+                // 'tien_giam_khuyen_mai' => $discount,
+                'tong_tien'       => $totalAmount,
+                'trang_thai'      => $bookingStatus,
+                'phuong_thuc_thanh_toan' => $methodCode,
             ]);
+            
+            // Save seat details (also lock seats by setting trang_thai = 0)
+            foreach ($data['seats'] as $seatCode) {
+                $seatCode = trim($seatCode);
+                if ($seatCode === '') continue;
+
+                $codesToSave = [];
+                if (strpos($seatCode, '-') !== false) {
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seatCode, $matches)) {
+                        $row = strtoupper($matches[1]);
+                        $col1 = (int)$matches[2];
+                        $col2 = (int)$matches[3];
+                        for ($c = $col1; $c <= $col2; $c++) { $codesToSave[] = $row.$c; }
+                    }
+                } elseif (strpos($seatCode, ',') !== false) {
+                    $parts = array_filter(array_map('trim', explode(',', $seatCode)));
+                    foreach ($parts as $code) { $codesToSave[] = strtoupper($code); }
+                } else {
+                    $codesToSave[] = strtoupper($seatCode);
+                }
+
+                foreach ($codesToSave as $code) {
+                    $row = substr($code, 0, 1);
+                    $number = substr($code, 1);
+                    $seat = Ghe::where('id_phong', $showtime->id_phong)
+                        ->where('so_ghe', $row . $number)
+                        ->with('loaiGhe')
+                        ->first();
+                    if ($seat) {
+                        // Determine price
+                        $price = $this->isCoupleSeat($seat) ? 100000 : ($this->isVipSeat($seat) ? 120000 : 80000);
+                        ChiTietDatVe::create([
+                            'id_dat_ve' => $booking->id,
+                            'id_ghe' => $seat->id,
+                            'gia' => $price
+                        ]);
+                        // Lock seat
+                        $seat->trang_thai = 0;
+                        $seat->save();
+                    }
+                }
+            }
+            
+            // Save combo detail if chosen
+            if ($selectedCombo) {
+                \App\Models\ChiTietCombo::create([
+                    'id_dat_ve'   => $booking->id,
+                    'id_combo'    => $selectedCombo->id,
+                    'so_luong'    => 1,
+                    'gia_ap_dung' => (float)$selectedCombo->gia,
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
-                'redirect' => route('booking.result', ['booking_id' => $bookingId])
+                'message' => 'Đặt vé thành công!',
+                'booking_id' => $booking->id
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Booking error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!'
             ]);
         }
-
-        // Thanh toán tại quầy - vẫn là PAID (1) vì đã xác nhận
-        $booking->update(['trang_thai' => 1]);
-
-        // Tạo thanh toán record
-        DB::table('thanh_toan')->insert([
-            'id_dat_ve' => $booking->id,
-            'phuong_thuc' => 'cash',
-            'so_tien' => $booking->tong_tien,
-            'trang_thai' => 'pending',
-            'thoi_gian' => now()
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'redirect' => route('booking.result', ['booking_id' => $bookingId])
-        ]);
     }
 
     /**
-     * Xử lý callback từ cổng thanh toán
+     * Public API: Get ticket details by id for check page
      */
-    public function paymentCallback(Request $request)
+    public function getTicket($id)
     {
-        $bookingId = $request->booking_id;
-        $status = $request->status; // SUCCESS, FAILED, CANCELLED
+        try {
+            $booking = DatVe::with([
+                'suatChieu.phim:id,ten_phim,poster',
+                'suatChieu.phongChieu:id,ten_phong',
+                'chiTietDatVe.ghe:id,so_ghe',
+                'khuyenMai:id,ma_km',
+            ])->find($id);
 
-        $booking = DatVe::findOrFail($bookingId);
-
-        if ($status === 'SUCCESS') {
-            // Giải phóng lock
-            $this->seatLockService->releaseLocksForBooking($booking->id);
-
-            // Cập nhật trạng thái: 1 = PAID/CONFIRMED
-            $booking->update(['trang_thai' => 1]);
-
-            // Tạo thanh toán record
-            DB::table('thanh_toan')->insert([
-                'id_dat_ve' => $booking->id,
-                'phuong_thuc' => $request->payment_method ?? 'online',
-                'so_tien' => $booking->tong_tien,
-                'trang_thai' => 'success',
-                'thoi_gian' => now()
-            ]);
-        } elseif ($status === 'CANCELLED' || $status === 'FAILED') {
-            // 2 = CANCELLED
-            $booking->update(['trang_thai' => 2]);
-        }
-
-        return redirect()->route('booking.result', ['booking_id' => $bookingId]);
-    }
-
-    /**
-     * Hiển thị kết quả thanh toán
-     */
-    public function result(Request $request)
-    {
-        $bookingId = $request->booking_id;
-        $booking = DatVe::with([
-            'chiTietDatVe.ghe.seatType',
-            'chiTietCombo.combo',
-            'suatChieu.phim',
-            'suatChieu.phongChieu',
-            'thanhToan'
-        ])->findOrFail($bookingId);
-
-        if (Auth::id() != $booking->id_nguoi_dung) {
-            abort(403);
-        }
-
-        return view('booking.result', compact('booking'));
-    }
-
-    /**
-     * Danh sách vé của tôi
-     */
-        public function tickets(Request $request)
-    {
-        $user = Auth::user();
-        
-        $query = DatVe::where('id_nguoi_dung', $user->id)
-            ->with([
-                'chiTietDatVe.ghe.seatType',
-                'chiTietCombo.combo',
-                'suatChieu.phim',
-                'suatChieu.phongChieu',
-                'thanhToan'
-            ])
-            ->orderBy('created_at', 'desc');
-
-        // Filter by status
-        $status = $request->get('status', 'all');
-        if ($status !== 'all') {
-            if ($status === 'paid') {
-                $query->where('trang_thai', 1); // 1 = PAID/CONFIRMED
-            } elseif ($status === 'draft') {
-                $query->where('trang_thai', 0); // 0 = DRAFT
-            } elseif ($status === 'cancelled') {
-                $query->where('trang_thai', 2); // 2 = CANCELLED
+            if (!$booking) {
+                return response()->json(['success' => false, 'message' => 'Không tìm thấy vé'], 404);
             }
+
+            $seats = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values();
+
+            $method = $booking->phuong_thuc_thanh_toan;
+            if (!$method) {
+                $map = optional($booking->thanhToan)->phuong_thuc ?? null;
+                $method = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+            }
+
+            $payloadUrl = url('/api/ticket/'.$booking->id);
+
+            return response()->json([
+                'success' => true,
+                'ticket' => [
+                    'id' => $booking->id,
+                    'code' => sprintf('MV%06d', $booking->id),
+                    'customer' => [
+                        'name' => $booking->ten_khach_hang ?? optional($booking->nguoiDung)->ten ?? '—',
+                        'phone' => $booking->so_dien_thoai ?? optional($booking->nguoiDung)->so_dien_thoai,
+                        'email' => $booking->email ?? optional($booking->nguoiDung)->email,
+                    ],
+                    'showtime' => [
+                        'movie' => optional(optional($booking->suatChieu)->phim)->ten_phim,
+                        'room' => optional(optional($booking->suatChieu)->phongChieu)->ten_phong,
+                        'start' => optional(optional($booking->suatChieu)->thoi_gian_bat_dau)->format('d/m/Y H:i'),
+                    ],
+                    'seats' => $seats,
+                    'price' => (float) ($booking->tong_tien ?? $booking->tong_tien_hien_thi ?? 0),
+                    'status' => (int) ($booking->trang_thai ?? 0),
+                    'created_at' => optional($booking->created_at)->format('d/m/Y H:i'),
+                    'payment_method' => $method, // 1 online, 2 tại quầy
+                    'qr' => [
+                        'data' => $payloadUrl,
+                        'image' => 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='.urlencode($payloadUrl)
+                    ],
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Get ticket error: '.$e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Lỗi hệ thống'], 500);
         }
-
-        // Filter by date
-        if ($request->date) {
-            $date = Carbon::parse($request->date);
-            $query->whereHas('suatChieu', function($q) use ($date) {
-                $q->whereDate('thoi_gian_bat_dau', $date);
-            });
-        }
-
-        // Search by movie name
-        if ($request->search) {
-            $query->whereHas('suatChieu.phim', function($q) use ($request) {
-                $q->where('ten_phim', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        $bookings = $query->paginate(12);
-
-        // Statistics
-        $stats = [
-            'total' => DatVe::where('id_nguoi_dung', $user->id)->count(),
-            'paid' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 1)->count(),
-            'draft' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 0)->count(),
-            'cancelled' => DatVe::where('id_nguoi_dung', $user->id)->where('trang_thai', 2)->count(),
-        ];
-
-        return view('booking.tickets', compact('bookings', 'stats', 'status'));
     }
-
-    public function ticketDetail($id)
-    {
-        $booking = DatVe::with([
-            'chiTietDatVe.ghe.seatType',
-            'chiTietCombo.combo',
-            'suatChieu.phim',
-            'suatChieu.phongChieu',
-            'thanhToan',
-            'nguoiDung'
-        ])->findOrFail($id);
-
-        if (Auth::id() != $booking->id_nguoi_dung) {
-            abort(403);
-        }
-
-        return view('booking.ticket-detail', compact('booking'));
-    }
-
-    /**
-     * Helper: Lấy danh sách ghế đã đặt
-     */
-    private function getBookedSeatIds($showId)
-    {
-        return DB::table('chi_tiet_dat_ve as ctdv')
-            ->join('dat_ve as dv', 'ctdv.id_dat_ve', '=', 'dv.id')
-            ->where('dv.id_suat_chieu', $showId)
-            ->where('dv.trang_thai', '!=', 2) // 2 = CANCELLED
-            ->whereIn('dv.trang_thai', [0, 1]) // 0 = DRAFT, 1 = PAID/CONFIRMED
-            ->pluck('ctdv.id_ghe')
-            ->toArray();
-    }
-
 }
-
