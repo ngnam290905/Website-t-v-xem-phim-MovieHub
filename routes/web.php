@@ -98,7 +98,7 @@ Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(func
 
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
-    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/', [AdminController::class, 'dashboard'])->middleware('role:admin')->name('dashboard');
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
@@ -114,15 +114,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     });
 
     // Quản lý người dùng
-    Route::prefix('users')->name('users.')->group(function () {
+    Route::prefix('users')->name('users.')->middleware('role:admin')->group(function () {
         // Route xem chi tiết người dùng - cho cả admin và staff
         Route::get('/{id}', [UserController::class, 'show'])
             ->whereNumber('id')
             ->name('show')
-            ->middleware('role:admin,staff');
+            ->middleware('role:admin');
             
-        // Các route quản lý người dùng - admin & staff
-        Route::middleware(['role:admin,staff'])->group(function () {
+        // Các route quản lý người dùng - chỉ admin
+        Route::middleware(['role:admin'])->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
             Route::get('/create', [UserController::class, 'create'])->name('create');
             Route::post('/', [UserController::class, 'store'])->name('store');
@@ -241,8 +241,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     Route::get('combos/{combo}', [ComboController::class, 'show'])->whereNumber('combo')->name('combos.show');
 });
 
-// BÁO CÁO - ADMIN & STAFF
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
+// BÁO CÁO - CHỈ ADMIN
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');

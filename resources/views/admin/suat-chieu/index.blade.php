@@ -324,7 +324,7 @@
                     <i class="fas fa-eye mr-1"></i>
                     Xem
                   </a>
-                  @if(auth()->check() && request()->is('admin/*') && optional(auth()->user()->vaiTro)->ten === 'admin')
+                  @if(auth()->check() && request()->is('admin/*') && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
                   <a href="{{ route('admin.suat-chieu.edit', $suat) }}" 
                      class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
                      title="Sửa lịch">

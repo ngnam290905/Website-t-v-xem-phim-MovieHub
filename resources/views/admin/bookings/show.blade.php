@@ -43,6 +43,30 @@
                         @default
                             <span class="px-3 py-1 rounded-full text-xs bg-gray-500/20 text-gray-300">Không xác định</span>
                     @endswitch
+
+                    @auth
+                        @if(in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
+                            @if($booking->trang_thai != 2)
+                                <a href="{{ route('admin.bookings.edit', $booking->id) }}" class="inline-flex items-center px-3 py-1.5 rounded bg-yellow-600/20 text-yellow-300 text-xs hover:bg-yellow-600/30">
+                                    <i class="fas fa-edit mr-2"></i>Chỉnh sửa
+                                </a>
+                            @endif
+                            @if($booking->trang_thai == 0)
+                                <form action="{{ route('admin.bookings.confirm', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Xác nhận đơn vé này?');">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-3 py-1.5 rounded bg-green-600/20 text-green-300 text-xs hover:bg-green-600/30">
+                                        <i class="fas fa-check mr-2"></i>Xác nhận
+                                    </button>
+                                </form>
+                                <form action="{{ route('admin.bookings.cancel', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Hủy đơn vé này?');">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-3 py-1.5 rounded bg-red-600/20 text-red-300 text-xs hover:bg-red-600/30">
+                                        <i class="fas fa-times mr-2"></i>Hủy
+                                    </button>
+                                </form>
+                            @endif
+                        @endif
+                    @endauth
                 </div>
             </div>
         </div>

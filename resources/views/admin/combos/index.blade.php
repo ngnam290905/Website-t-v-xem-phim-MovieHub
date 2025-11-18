@@ -6,7 +6,7 @@
 <div class="bg-[#151822] p-6 rounded-xl border border-[#262833]">
   <div class="flex items-center justify-between mb-4">
     <h2 class="text-xl font-semibold">🥤 Quản lý Combo</h2>
-    @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+    @if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
       <a href="{{ route('admin.combos.create') }}" class="px-3 py-2 bg-[#F53003] rounded text-white text-sm">+ Thêm combo</a>
     @endif
   </div>
@@ -82,7 +82,7 @@
               <a href="{{ route('admin.combos.show', $combo) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
                 <i class="fas fa-eye text-xs"></i>
               </a>
-              @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+              @if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
                 <a href="{{ route('admin.combos.edit', $combo) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
                   <i class="fas fa-edit text-xs"></i>
                 </a>

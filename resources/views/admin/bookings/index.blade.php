@@ -206,16 +206,31 @@
                                             <i class="fas fa-eye text-xs"></i>
                                         </a>
 
-                                        {{-- Chỉnh sửa (admin + chưa hủy) --}}
-                                        @auth
-                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $booking->trang_thai != 2)
-                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                    class="btn-table-action btn-table-edit"
-                                                    title="Chỉnh sửa">
-                                                    <i class="fas fa-edit text-xs"></i>
-                                                </a>
-                                            @endif
-                                        @endauth
+                                        {{-- Chỉnh sửa / Xác nhận / Hủy (admin + staff) --}}
+                    @auth
+                        @if (in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']) && $booking->trang_thai != 2)
+                            <a href="{{ route('admin.bookings.edit', $booking->id) }}"
+                                class="btn-table-action btn-table-edit"
+                                title="Chỉnh sửa">
+                                <i class="fas fa-edit text-xs"></i>
+                            </a>
+                        @endif
+
+                        @if (in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']) && $booking->trang_thai == 0)
+                            <form action="{{ route('admin.bookings.confirm', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Xác nhận đơn vé này?');">
+                                @csrf
+                                <button type="submit" class="btn-table-action bg-green-600 hover:bg-green-700 text-white" title="Xác nhận">
+                                    <i class="fas fa-check text-xs"></i>
+                                </button>
+                            </form>
+                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Hủy đơn vé này?');">
+                                @csrf
+                                <button type="submit" class="btn-table-action btn-table-delete" title="Hủy">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </form>
+                        @endif
+                    @endauth
 
                                     </div>
                                 </td>
