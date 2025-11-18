@@ -7,7 +7,7 @@
 <!-- Header -->
 <div class="mb-6 flex justify-between items-center">
 	<h1 class="text-2xl font-bold">Danh sách mã khuyến mãi</h1>
-	@if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+	@if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
 		<a href="{{ route('admin.khuyenmai.create') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
 			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -162,7 +162,7 @@
 						<a href="{{ route('admin.khuyenmai.show', $km->id) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
 							<i class="fas fa-eye text-xs"></i>
 						</a>
-						@if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+						@if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
 							<a href="{{ route('admin.khuyenmai.edit', $km->id) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
 								<i class="fas fa-edit text-xs"></i>
 							</a>

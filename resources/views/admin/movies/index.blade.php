@@ -16,7 +16,8 @@
         <h1 class="text-2xl font-bold text-white">Danh sách Phim</h1>
         <p class="text-[#a6a6b0] mt-1">Quản lý tất cả phim trong hệ thống</p>
       </div>
-      @if(auth()->user()->vaiTro->ten === 'admin')
+      @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+      @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
         <a href="{{ route('admin.movies.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-5 py-2.5 rounded-lg font-semibold transition-colors inline-flex items-center">
           <i class="fas fa-plus mr-2"></i> Thêm phim
         </a>
@@ -114,7 +115,8 @@
                 <a href="{{ route('admin.movies.show', $movie) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
                   <i class="fas fa-eye text-xs"></i>
                 </a>
-                @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+                @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+                @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
                   <a href="{{ route('admin.movies.edit', $movie) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
                     <i class="fas fa-edit text-xs"></i>
                   </a>
@@ -149,7 +151,8 @@
         @else
           <i class="fas fa-film text-3xl text-[#a6a6b0] mb-3"></i>
           <div class="text-[#a6a6b0]">Chưa có phim nào</div>
-          @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+          @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+          @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
             <a href="{{ route('admin.movies.create') }}" class="inline-flex items-center px-4 py-2 mt-4 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg text-sm">
               <i class="fas fa-plus mr-2"></i> Thêm phim đầu tiên
             </a>

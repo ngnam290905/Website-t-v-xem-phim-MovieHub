@@ -24,9 +24,21 @@ class FinalRoleMiddleware
         }
         
         $userRole = $user->vaiTro->ten;
+        $userRoleNorm = is_string($userRole) ? mb_strtolower(trim($userRole)) : '';
+
+        // Chuẩn hóa đồng nghĩa vai trò
+        $normalize = function(string $r): string {
+            $x = mb_strtolower(trim($r));
+            if (in_array($x, ['quản trị', 'quan tri', 'quản trị viên', 'quan tri vien', 'administrator'])) return 'admin';
+            if (in_array($x, ['nhân viên', 'nhan vien', 'nv'])) return 'staff';
+            return $x;
+        };
+
+        $userRoleNorm = $normalize($userRoleNorm);
+        $rolesNorm = array_map(function($r) use ($normalize){ return is_string($r) ? $normalize($r) : $r; }, $roles);
 
         // Kiểm tra quyền
-        if (!in_array($userRole, $roles)) {
+        if (!empty($rolesNorm) && !in_array($userRoleNorm, $rolesNorm, true)) {
             abort(403, 'Bạn không có quyền truy cập trang này. Yêu cầu quyền: ' . implode(', ', $roles) . '. Bạn có quyền: ' . $userRole);
         }
 
