@@ -535,4 +535,63 @@ class BookingController extends Controller
             ]);
         }
     }
+
+    /**
+     * Public API: Get ticket details by id for check page
+     */
+    public function getTicket($id)
+    {
+        try {
+            $booking = DatVe::with([
+                'suatChieu.phim:id,ten_phim,poster',
+                'suatChieu.phongChieu:id,ten_phong',
+                'chiTietDatVe.ghe:id,so_ghe',
+                'khuyenMai:id,ma_km',
+            ])->find($id);
+
+            if (!$booking) {
+                return response()->json(['success' => false, 'message' => 'Không tìm thấy vé'], 404);
+            }
+
+            $seats = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values();
+
+            $method = $booking->phuong_thuc_thanh_toan;
+            if (!$method) {
+                $map = optional($booking->thanhToan)->phuong_thuc ?? null;
+                $method = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+            }
+
+            $payloadUrl = url('/api/ticket/'.$booking->id);
+
+            return response()->json([
+                'success' => true,
+                'ticket' => [
+                    'id' => $booking->id,
+                    'code' => sprintf('MV%06d', $booking->id),
+                    'customer' => [
+                        'name' => $booking->ten_khach_hang ?? optional($booking->nguoiDung)->ten ?? '—',
+                        'phone' => $booking->so_dien_thoai ?? optional($booking->nguoiDung)->so_dien_thoai,
+                        'email' => $booking->email ?? optional($booking->nguoiDung)->email,
+                    ],
+                    'showtime' => [
+                        'movie' => optional(optional($booking->suatChieu)->phim)->ten_phim,
+                        'room' => optional(optional($booking->suatChieu)->phongChieu)->ten_phong,
+                        'start' => optional(optional($booking->suatChieu)->thoi_gian_bat_dau)->format('d/m/Y H:i'),
+                    ],
+                    'seats' => $seats,
+                    'price' => (float) ($booking->tong_tien ?? $booking->tong_tien_hien_thi ?? 0),
+                    'status' => (int) ($booking->trang_thai ?? 0),
+                    'created_at' => optional($booking->created_at)->format('d/m/Y H:i'),
+                    'payment_method' => $method, // 1 online, 2 tại quầy
+                    'qr' => [
+                        'data' => $payloadUrl,
+                        'image' => 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='.urlencode($payloadUrl)
+                    ],
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Get ticket error: '.$e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Lỗi hệ thống'], 500);
+        }
+    }
 }

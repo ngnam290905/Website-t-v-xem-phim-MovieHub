@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
+use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserProfileController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\BookingController;
 
 // Main routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/ve', function(){ return View::make('tickets.check'); })->name('tickets.check');
 
 // Booking routes - must be before phim routes to avoid conflicts
 Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
