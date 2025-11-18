@@ -151,7 +151,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền hủy vé.');
         }
 
@@ -181,7 +181,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền chỉnh sửa vé.');
         }
 
@@ -197,7 +197,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền cập nhật vé.');
         }
 
@@ -362,7 +362,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền xác nhận vé.');
         }
 
