@@ -14,6 +14,9 @@ class HomeController extends Controller
      */
     public function index()
     {
+        // Get all movies with pagination
+        $allMovies = Phim::orderBy('ngay_khoi_chieu', 'desc')->paginate(12);
+
         // Get hot movies
         $hotMovies = Phim::where('hot', true)
             ->whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
@@ -27,9 +30,17 @@ class HomeController extends Controller
             ->take(6)
             ->get();
 
+        // Get coming soon movies
+        $comingSoon = Phim::where('trang_thai', 'sap_chieu')
+            ->orderBy('ngay_khoi_chieu', 'desc')
+            ->take(6)
+            ->get();
+
         return view('home', [
+            'allMovies' => $allMovies,
             'hotMovies' => $hotMovies,
-            'nowShowing' => $nowShowing
+            'nowShowing' => $nowShowing,
+            'comingSoon' => $comingSoon
         ]);
     }
 }

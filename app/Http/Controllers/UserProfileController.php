@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -38,7 +39,20 @@ class UserProfileController extends Controller
         try {
             $totalBookings = $user->datVe()->count();
             $confirmedBookings = $user->datVe()->where('trang_thai', 1)->count();
-            $totalSpent = $user->datVe()->where('trang_thai', 1)->sum('tong_tien') ?? 0;
+
+            // Admin-like aggregate: sum(seat_total + combo_total) for confirmed bookings
+            $seatSub = DB::table('chi_tiet_dat_ve')
+                ->select('id_dat_ve', DB::raw('SUM(gia) as seat_total'))
+                ->groupBy('id_dat_ve');
+            $comboSub = DB::table('chi_tiet_dat_ve_combo')
+                ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong,1)) as combo_total'))
+                ->groupBy('id_dat_ve');
+            $totalSpent = (float) DB::table('dat_ve as v')
+                ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','v.id'); })
+                ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','v.id'); })
+                ->where('v.id_nguoi_dung', $user->id)
+                ->where('v.trang_thai', 1)
+                ->sum(DB::raw('COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)'));
         } catch (\Exception $e) {
             $totalBookings = 0;
             $confirmedBookings = 0;
@@ -76,7 +90,49 @@ class UserProfileController extends Controller
             }
         }
         
-        return view('user.profile', compact('userData', 'loyaltyPoints', 'recentBookings', 'totalBookings', 'confirmedBookings', 'totalSpent'));
+        // Member tier (hang_thanh_vien)
+        $memberTier = null;
+        try {
+            $row = DB::table('hang_thanh_vien')
+                ->leftJoin('tier', 'hang_thanh_vien.id_tier', '=', 'tier.id')
+                ->where('hang_thanh_vien.id_nguoi_dung', $user->id)
+                ->select(
+                    DB::raw('COALESCE(tier.ten_hang, hang_thanh_vien.ten_hang) as ten_hang'),
+                    DB::raw('COALESCE(tier.uu_dai, hang_thanh_vien.uu_dai) as uu_dai'),
+                    DB::raw('COALESCE(tier.diem_toi_thieu, hang_thanh_vien.diem_toi_thieu) as diem_toi_thieu'),
+                    'hang_thanh_vien.ngay_cap_nhat_hang'
+                )
+                ->first();
+            if ($row) {
+                $memberTier = [
+                    'ten_hang' => $row->ten_hang ?? null,
+                    'uu_dai' => $row->uu_dai ?? null,
+                    'diem_toi_thieu' => $row->diem_toi_thieu ?? null,
+                    'ngay_cap_nhat_hang' => $row->ngay_cap_nhat_hang ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            $memberTier = null;
+        }
+
+        // Fallback computed tier if no memberTier
+        $computedTier = null;
+        if (!$memberTier) {
+            if ($totalSpent >= 1500000) $computedTier = 'Kim cương';
+            elseif ($totalSpent >= 1000000) $computedTier = 'Vàng';
+            elseif ($totalSpent >= 500000) $computedTier = 'Bạc';
+            elseif ($totalSpent >= 150000) $computedTier = 'Đồng';
+        }
+
+        // Fallback points if no diem_thanh_vien
+        if (!$loyaltyPoints) {
+            $loyaltyPoints = [
+                'tong_diem' => (int) floor($totalSpent / 1000),
+                'ngay_het_han' => null,
+            ];
+        }
+        
+        return view('user.profile', compact('userData', 'loyaltyPoints', 'memberTier', 'computedTier', 'recentBookings', 'totalBookings', 'confirmedBookings', 'totalSpent'));
     }
     
     /**
@@ -158,25 +214,6 @@ class UserProfileController extends Controller
         
         return redirect()->route('user.profile')
             ->with('success', 'Đổi mật khẩu thành công!');
-    }
-    
-    /**
-     * Display user booking history.
-     */
-    public function bookingHistory(Request $request)
-    {
-        $user = Auth::user();
-        
-        try {
-            $bookings = $user->datVe()
-                ->with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo.combo'])
-                ->orderBy('created_at', 'desc')
-                ->paginate(10);
-        } catch (\Exception $e) {
-            $bookings = collect();
-        }
-            
-        return view('user.booking-history', compact('bookings'));
     }
     
     /**

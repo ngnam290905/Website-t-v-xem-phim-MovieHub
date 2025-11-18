@@ -20,20 +20,37 @@ class ChatController extends Controller
 
     public function chat(Request $request)
     {
-        $message = $request->input('message');
-
-        // Kiểm tra training data
-        $training = AiTraining::where('question', 'like', '%' . $message . '%')->first();
-        if ($training) {
+        $message = $request->input('message') ?? $request->input('text') ?? $request->input('content');
+        $message = is_string($message) ? trim($message) : '';
+        if ($message === '') {
             return response()->json([
                 'status' => true,
-                'response' => $training->answer,
-                'type' => 'training'
+                'response' => 'Bạn hãy nhập nội dung, ví dụ: "tìm phim hành động" hoặc "lịch chiếu hôm nay".',
+                'type' => 'unknown'
             ]);
         }
 
+        // Kiểm tra training data (an toàn nếu bảng chưa tồn tại)
+        try {
+            $training = AiTraining::where('question', 'like', '%' . $message . '%')->first();
+            if ($training) {
+                return response()->json([
+                    'status' => true,
+                    'response' => $training->answer,
+                    'type' => 'training'
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::info('AI training lookup skipped: '.$e->getMessage());
+        }
+
         // Gọi AI service
-        $intentData = $this->aiService->analyzeIntent($message);
+        try {
+            $intentData = $this->aiService->analyzeIntent($message);
+        } catch (\Throwable $e) {
+            Log::warning('AI analyze failed: '.$e->getMessage());
+            $intentData = ['intent' => 'unknown'];
+        }
 
         if ($intentData['intent'] === 'movie_search') {
             $params = $intentData['params'] ?? [];
@@ -60,7 +77,7 @@ class ChatController extends Controller
 
         if ($intentData['intent'] === 'showtime_search') {
             $params = $intentData['params'] ?? [];
-            $query = SuatChieu::with('phim:id,ten_phim')->whereHas('phim');
+            $query = SuatChieu::with(['phim:id,ten_phim', 'phongChieu:id,ten_phong'])->whereHas('phim');
 
             if (isset($params['movie'])) {
                 $query->whereHas('phim', function($q) use ($params) {
@@ -71,7 +88,19 @@ class ChatController extends Controller
                 $query->whereTime('thoi_gian_bat_dau', $params['time']);
             }
 
-            $showtimes = $query->get(['id', 'id_phim', 'thoi_gian_bat_dau', 'thoi_gian_ket_thuc']);
+            $raw = $query->get(['id', 'id_phim', 'id_phong', 'thoi_gian_bat_dau', 'thoi_gian_ket_thuc']);
+            $showtimes = $raw->map(function($s){
+                return [
+                    'id' => $s->id,
+                    'movie' => optional($s->phim)->ten_phim,
+                    'room' => optional($s->phongChieu)->ten_phong,
+                    'start' => optional($s->thoi_gian_bat_dau)->format('d/m/Y H:i'),
+                    'end' => optional($s->thoi_gian_ket_thuc)->format('d/m/Y H:i'),
+                    // giữ trường cũ để tương thích render cũ
+                    'phim' => ['ten_phim' => optional($s->phim)->ten_phim],
+                    'thoi_gian_bat_dau' => optional($s->thoi_gian_bat_dau)->toIso8601String(),
+                ];
+            });
 
             return response()->json([
                 'status' => true,
@@ -95,10 +124,10 @@ class ChatController extends Controller
             }
         }
 
-        // Fallback
+        // Fallback thân thiện (trả về status=true để UI không hiện lỗi hệ thống)
         return response()->json([
-            'status' => false,
-            'response' => 'Xin lỗi, tôi không hiểu câu hỏi của bạn.',
+            'status' => true,
+            'response' => 'Xin lỗi, tôi chưa hiểu. Bạn có thể thử: "tìm phim [thể loại]" hoặc "lịch chiếu [tên phim]" hoặc gõ "đặt vé".',
             'type' => 'unknown'
         ]);
     }

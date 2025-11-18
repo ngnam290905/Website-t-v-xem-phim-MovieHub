@@ -109,6 +109,7 @@
                             <th class="px-4 py-3">Combo</th>
                             <th class="px-4 py-3">Tổng tiền</th>
                             <th class="px-4 py-3">Mã KM</th>
+                            <th class="px-4 py-3">PT Thanh toán</th>
                             <th class="px-4 py-3">Trạng thái</th>
                             <th class="px-4 py-3">Thời gian đặt</th>
                             <th class="px-4 py-3 text-center">Hành động</th>
@@ -148,12 +149,41 @@
                                 <td class="px-4 py-3">{{ number_format($totalToShow) }} VNĐ</td>
                                 <td class="px-4 py-3">{{ $booking->khuyenMai?->ma_km ?? '—' }}</td>
                                 <td class="px-4 py-3">
+                                    @php
+                                        $pt = $booking->phuong_thuc_thanh_toan;
+                                        if (!$pt) {
+                                            $map = optional($booking->thanhToan)->phuong_thuc;
+                                            $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+                                        }
+                                        $pt = $pt ? (int)$pt : 2; // default tại quầy nếu thiếu dữ liệu cũ
+                                    @endphp
+                                    @if($pt === 1)
+                                        <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Thanh toán online</span>
+                                    @elseif($pt === 2)
+                                        <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Thanh toán tại quầy</span>
+                                    @else
+                                        <span class="px-2 py-1 text-gray-300 bg-gray-800 rounded-full text-xs">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
                                     @switch($booking->trang_thai)
                                         @case(0)
-                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ xác nhận</span>
+                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
                                             @break
                                         @case(1)
-                                            <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã xác nhận</span>
+                                            @php
+                                                $pt = $booking->phuong_thuc_thanh_toan;
+                                                if (!$pt) {
+                                                    $map = optional($booking->thanhToan)->phuong_thuc;
+                                                    $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+                                                }
+                                                $pt = $pt ? (int)$pt : 2;
+                                            @endphp
+                                            @if($pt === 1)
+                                                <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã thanh toán</span>
+                                            @else
+                                                <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Đã xác nhận</span>
+                                            @endif
                                             @break
                                         @case(3)
                                             <span class="px-2 py-1 text-orange-300 bg-orange-900/30 rounded-full text-xs">Yêu cầu hủy</span>

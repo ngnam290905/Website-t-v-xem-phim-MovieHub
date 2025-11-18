@@ -97,7 +97,7 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="text-xs text-[#a6a6b0] mb-1">Suất chiếu hôm nay</div>
-            <div class="text-2xl font-bold text-white">{{ $todayShowtimes }}</div>
+            <div class="text-2xl font-bold text-white">{{ number_format($todayShowtimesCount ?? (is_countable($todayShowtimes ?? []) ? count($todayShowtimes) : 0)) }}</div>
           </div>
           <i class="fas fa-calendar-alt text-green-400"></i>
         </div>

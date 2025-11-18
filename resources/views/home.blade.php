@@ -3,89 +3,283 @@
 @section('title', 'MovieHub - Đặt vé xem phim')
 
 @section('content')
-  <section class="flex flex-col gap-8">
-    <!-- Phim đang hot -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-semibold">Phim đang hot</h2>
-        <a href="{{ route('movies.hot') }}" class="text-sm text-[#F53003] hover:underline flex items-center">
-          Xem tất cả
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </a>
-      </div>
-      
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        @forelse($hotMovies as $movie)
-          <div class="group relative overflow-hidden rounded-lg">
-            <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-4">
-              <h3 class="font-semibold text-white">{{ $movie->ten_phim }}</h3>
-              <p class="text-xs text-gray-300">{{ $movie->do_dai }} phút • {{ $movie->the_loai }}</p>
-              <div class="mt-2 flex items-center">
-                <span class="text-yellow-400">★</span>
-                <span class="text-white ml-1">{{ number_format($movie->diem_danh_gia, 1) }}</span>
-              </div>
-              <a href="{{ route('movies.show', $movie->id) }}" class="mt-3 w-full bg-[#F53003] text-white text-center py-1.5 rounded-md text-sm font-medium hover:bg-opacity-90 transition">
-                Xem chi tiết
-              </a>
+<div class="min-h-screen bg-[#0d0f14]">
+    <!-- Hero Section -->
+    <section class="relative h-[70vh] overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-[#1a1d29] via-[#151822] to-[#0d0f14]"></div>
+        <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(ellipse at 20% 10%, #F53003 0%, transparent 35%), radial-gradient(circle at 80% 30%, #ff7a5f 0%, transparent 25%), radial-gradient(circle at 50% 80%, #ffb199 0%, transparent 25%);"></div>
+        <div class="relative max-w-7xl mx-auto px-4 h-full flex items-center">
+            <div class="max-w-2xl text-white animate-fade-in">
+                <h1 class="text-5xl md:text-6xl font-extrabold mb-6">
+                    <span class="bg-gradient-to-r from-[#F53003] via-[#ff7a5f] to-[#ffa07a] bg-clip-text text-transparent">MovieHub</span>
+                </h1>
+                <p class="text-lg md:text-xl mb-8 text-gray-300 leading-relaxed">
+                    Trải nghiệm điện ảnh đỉnh cao với hệ thống rạp hiện đại, ưu đãi hấp dẫn và thao tác đặt vé cực nhanh.
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <a href="{{ route('movies.now-showing') }}" class="px-6 py-3 bg-[#F53003] hover:bg-[#e02a00] rounded-lg font-semibold transition-all duration-200 shadow-md shadow-[#F53003]/30">
+                        Đặt vé ngay
+                    </a>
+                    <a href="{{ route('movies.showtimes') }}" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all">
+                        Lịch chiếu
+                    </a>
+                </div>
+                <div class="mt-8 flex flex-wrap gap-2 text-xs">
+                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Phim mới cập nhật</span>
+                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Ưu đãi mỗi ngày</span>
+                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Thanh toán nhanh</span>
+                </div>
             </div>
-            @if($movie->trang_thai === 'sap_chieu')
-              <div class="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Sắp chiếu</div>
-            @endif
-          </div>
-        @empty
-          <div class="col-span-full text-center py-8">
-            <p class="text-gray-400">Hiện chưa có phim nào nổi bật</p>
-          </div>
-        @endforelse
-      </div>
-    </div>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0d0f14] to-transparent"></div>
+    </section>
 
-    <!-- Phim đang chiếu -->
-    <div id="now" class="flex items-center justify-between mt-8">
-      <h2 class="text-xl font-semibold">Phim đang chiếu</h2>
-      <a href="{{ route('movies.now-showing') }}" class="text-sm text-[#F53003] hover:underline">Xem tất cả</a>
-    </div>
-
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      @forelse($nowShowing as $movie)
-        <div class="bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden flex flex-col group">
-          <div class="relative overflow-hidden">
-            <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full aspect-[2/3] object-cover transition-transform duration-300 group-hover:scale-105">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-              <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] text-white text-center py-2 rounded-md text-sm font-medium hover:bg-opacity-90 transition">
-                Xem chi tiết
-              </a>
-            </div>
-          </div>
-          <div class="p-4 flex-1 flex flex-col gap-3">
+    <!-- Phim Hot Section -->
+    <section class="py-16 max-w-7xl mx-auto px-4">
+        <div class="flex items-center justify-between mb-8">
             <div>
-              <h3 class="font-semibold">{{ $movie->ten_phim }}</h3>
-              <p class="text-xs text-[#a6a6b0]">{{ $movie->do_dai }} phút • {{ $movie->the_loai }}</p>
+                <h2 class="text-3xl font-bold text-white mb-2">Phim Hot</h2>
+                <p class="text-gray-400">Những bộ phim được yêu thích nhất</p>
             </div>
-            <div class="mt-auto flex items-center justify-between">
-              <div class="flex items-center">
-                <span class="text-yellow-400">★</span>
-                <span class="text-white ml-1 text-sm">{{ number_format($movie->diem_danh_gia, 1) }}</span>
-              </div>
-              <a href="{{ route('booking', $movie->id) }}" class="inline-flex items-center justify-center px-4 py-1.5 rounded-md bg-[#F53003] hover:opacity-90 transition text-white text-sm">
-                Đặt vé
-              </a>
+            <a href="{{ route('movies.hot') }}" class="text-[#F53003] hover:text-red-400 font-medium flex items-center gap-2">
+                Xem tất cả
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            @forelse($hotMovies as $movie)
+                <div class="group relative">
+                    <div class="relative overflow-hidden rounded-xl bg-[#1a1d29]">
+                        <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                             alt="{{ $movie->ten_phim }}" 
+                             class="w-full h-[300px] object-cover transition-transform duration-300 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div class="absolute top-3 left-3 z-10 flex items-center gap-2">
+                            <span class="px-2 py-1 rounded bg-black/60 text-white text-xs backdrop-blur">
+                                {{ $movie->the_loai ?? 'Phim' }}
+                            </span>
+                            <span class="px-2 py-1 rounded bg-yellow-500 text-black text-xs font-semibold">{{ number_format($movie->diem_danh_gia ?? 8.5, 1) }}★</span>
+                        </div>
+                        <a href="{{ route('movies.show', $movie->id) }}" class="absolute bottom-4 left-4 right-4 w-full bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg font-medium transition text-center opacity-0 group-hover:opacity-100">
+                            Xem chi tiết
+                        </a>
+                        @if($movie->trang_thai === 'sap_chieu')
+                            <div class="absolute top-3 right-3 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">
+                                Sắp chiếu
+                            </div>
+                        @endif
+                    </div>
+                    <div class="mt-3">
+                        <h3 class="font-semibold text-white truncate">{{ $movie->ten_phim }}</h3>
+                        <div class="flex items-center gap-3 text-sm text-gray-400 mt-1">
+                            <span>{{ $movie->do_dai ?? 120 }} phút</span>
+                            <span>•</span>
+                            <span>{{ $movie->the_loai ?? 'Hành động' }}</span>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="col-span-full text-center py-12">
+                    <div class="text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4"></path>
+                        </svg>
+                        <p>Hiện chưa có phim hot nào</p>
+                    </div>
+                </div>
+            @endforelse
+        </div>
+    </section>
+
+    <!-- Phim Đang Chiếu Section -->
+    <section class="py-16 bg-[#151822]">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-2">Phim Đang Chiếu</h2>
+                    <p class="text-gray-400">Những bộ phim đang chiếu tại rạp</p>
+                </div>
+                <a href="{{ route('movies.now-showing') }}" class="text-[#F53003] hover:text-red-400 font-medium flex items-center gap-2">
+                    Xem tất cả
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
             </div>
-          </div>
-          @if($movie->trang_thai === 'sap_chieu')
-            <div class="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Sắp chiếu</div>
-          @endif
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                @forelse($nowShowing as $movie)
+                    <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
+                        <div class="relative">
+                            <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                                 alt="{{ $movie->ten_phim }}" 
+                                 class="w-full h-[200px] object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div class="absolute bottom-4 left-4 right-4 flex gap-2">
+                                    <a href="{{ route('movies.show', $movie->id) }}" class="flex-1 bg-white/20 backdrop-blur text-white py-2 rounded-lg text-center font-medium hover:bg-white/30 transition">
+                                        Chi tiết
+                                    </a>
+                                    <a href="{{ route('booking', $movie->id) }}" class="flex-1 bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg text-center font-medium transition">
+                                        Đặt vé
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="absolute top-3 left-3 px-2 py-1 rounded bg-black/60 text-white text-xs">{{ $movie->the_loai ?? 'Phim' }}</div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="font-bold text-white text-lg mb-2">{{ $movie->ten_phim }}</h3>
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-400">{{ $movie->do_dai ?? 120 }} phút</span>
+                                <div class="flex items-center gap-1">
+                                    <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                    <span class="text-white">{{ number_format($movie->diem_danh_gia ?? 8.5, 1) }}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
+                                <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">{{ $movie->the_loai ?? 'Hành động' }}</span>
+                                <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">Lồng tiếng</span>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-span-full text-center py-12">
+                        <div class="text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            <p>Hiện chưa có phim nào đang chiếu</p>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
         </div>
-      @empty
-        <div class="col-span-full text-center py-8">
-          <p class="text-gray-400">Hiện chưa có phim nào đang chiếu</p>
+    </section>
+
+    <!-- Phim Sắp Chiếu Section -->
+    <section class="py-16 max-w-7xl mx-auto px-4">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-white mb-2">Phim Sắp Chiếu</h2>
+                <p class="text-gray-400">Những bộ phim đáng mong đợi nhất</p>
+            </div>
+            <a href="{{ route('movies.coming-soon') }}" class="text-[#F53003] hover:text-red-400 font-medium flex items-center gap-2">
+                Xem tất cả
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
         </div>
-      @endforelse
-    </div>
-  </section>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            @forelse($comingSoon as $movie)
+                <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
+                    <div class="relative">
+                        <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                             alt="{{ $movie->ten_phim }}" 
+                             class="w-full h-[200px] object-cover">
+                        <div class="absolute top-3 right-3 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">
+                            Sắp chiếu
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div class="absolute bottom-4 left-4 right-4">
+                                <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg text-center font-medium transition">
+                                    Xem chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold text-white text-lg mb-2">{{ $movie->ten_phim }}</h3>
+                        <p class="text-gray-400 text-sm mb-3">Khởi chiếu: {{ $movie->ngay_khoi_chieu ? date('d/m/Y', strtotime($movie->ngay_khoi_chieu)) : 'Sắp tới' }}</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400 text-sm">{{ $movie->do_dai ?? 120 }} phút</span>
+                            <button class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black rounded-lg font-medium transition">
+                                Nhắc nhở
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="col-span-full text-center py-12">
+                    <div class="text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>Hiện chưa có phim sắp chiếu nào</p>
+                    </div>
+                </div>
+            @endforelse
+        </div>
+    </section>
+
+    <!-- Tất Cả Phim Section -->
+    <section class="py-16 bg-[#151822]">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-white mb-4">Tất Cả Phim</h2>
+                <p class="text-gray-400">Khám phá toàn bộ bộ sưu tập phim của chúng tôi</p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                @forelse($allMovies as $movie)
+                    <div class="group">
+                        <div class="relative overflow-hidden rounded-lg bg-[#1a1d29] border border-white/5">
+                            <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                                 alt="{{ $movie->ten_phim }}" 
+                                 class="w-full h-[250px] object-cover transition-transform duration-300 group-hover:scale-110">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div class="absolute bottom-3 left-3 right-3">
+                                    <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] hover:bg-red-600 text-white py-2 rounded text-center text-sm font-medium transition">
+                                        Xem chi tiết
+                                    </a>
+                                </div>
+                            </div>
+                            @if($movie->trang_thai === 'sap_chieu')
+                                <div class="absolute top-2 right-2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold">
+                                    Sắp chiếu
+                                </div>
+                            @elseif($movie->hot)
+                                <div class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
+                                    Hot
+                                </div>
+                            @endif
+                        </div>
+                        <div class="mt-2">
+                            <h4 class="font-medium text-white text-sm truncate">{{ $movie->ten_phim }}</h4>
+                            <div class="flex items-center justify-between text-xs text-gray-400 mt-1">
+                                <span>{{ $movie->do_dai ?? 120 }} phút</span>
+                                <div class="flex items-center gap-1">
+                                    <svg class="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                    <span>{{ number_format($movie->diem_danh_gia ?? 8.5, 1) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-span-full text-center py-12">
+                        <div class="text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            <p>Chưa có dữ liệu phim nào</p>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+            
+            @if($allMovies->hasPages())
+                <div class="mt-12 flex justify-center">
+                    {{ $allMovies->links() }}
+                </div>
+            @endif
+        </div>
+    </section>
+</div>
 @endsection
-
-

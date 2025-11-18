@@ -49,24 +49,45 @@
                 </div>
             </div>
 
-            <!-- Loyalty Points Card -->
-            @if($loyaltyPoints)
-                <div class="bg-[#1b1d24] border border-[#262833] rounded-xl p-6 mt-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-yellow-600 rounded-lg flex items-center justify-center mr-3">
-                            <i class="fas fa-star text-white"></i>
-                        </div>
-                        <h3 class="text-lg font-semibold text-white">Điểm tích lũy</h3>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-3xl font-bold text-yellow-400 mb-2">{{ number_format($loyaltyPoints['tong_diem']) }}</div>
-                        <p class="text-[#a6a6b0] text-sm mb-3">điểm</p>
-                        <div class="text-xs text-gray-500">
-                            Hết hạn: {{ \Carbon\Carbon::parse($loyaltyPoints['ngay_het_han'])->format('d/m/Y') }}
-                        </div>
-                    </div>
+            <!-- Member Tier & Loyalty Points -->
+            <div class="bg-[#1b1d24] border border-[#262833] rounded-xl p-6 mt-6 space-y-5">
+                <div>
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-crown text-white"></i>
+                                </div>
+                                <h3 class="text-lg font-semibold text-white">Hạng thành viên</h3>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-white">
+                                    {{ ($memberTier['ten_hang'] ?? null) ?: ($computedTier ?? '—') }}
+                                </div>
+                                @if(!empty($memberTier['ngay_cap_nhat_hang']))
+                                  <div class="text-xs text-gray-500 mt-1">Cập nhật: {{ \Carbon\Carbon::parse($memberTier['ngay_cap_nhat_hang'])->format('d/m/Y') }}</div>
+                                @endif
+                            </div>
                 </div>
-            @endif
+
+                <div>
+                            <div class="flex items-center mb-3">
+                                <div class="w-10 h-10 bg-yellow-600 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-star text-white"></i>
+                                </div>
+                                <h3 class="text-lg font-semibold text-white">Điểm tích lũy</h3>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-yellow-400 mb-1">{{ number_format($loyaltyPoints['tong_diem'] ?? 0) }}</div>
+                                <p class="text-[#a6a6b0] text-sm mb-2">điểm</p>
+                                @if(!empty($loyaltyPoints['ngay_het_han']))
+                                  <div class="text-xs text-gray-500">
+                                      Hết hạn: {{ \Carbon\Carbon::parse($loyaltyPoints['ngay_het_han'])->format('d/m/Y') }}
+                                  </div>
+                                @else
+                                  <div class="text-xs text-gray-500">Chưa có điểm</div>
+                                @endif
+                            </div>
+                </div>
+            </div>
         </div>
 
         <!-- Stats and Recent Bookings -->

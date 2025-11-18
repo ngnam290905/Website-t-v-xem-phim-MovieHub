@@ -72,11 +72,6 @@
                 <i class="fas fa-crown text-xs"></i>
                 Thành viên
               </span>
-            @else
-              <a href="{{ route('thanh-vien.register-form') }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition animate-pulse">
-                <i class="fas fa-star text-sm"></i>
-                Đăng ký thành viên
-              </a>
             @endif
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.958a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>

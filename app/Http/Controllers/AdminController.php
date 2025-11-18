@@ -28,13 +28,13 @@ class AdminController extends Controller
         $todayRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereDate('dat_ve.created_at', Carbon::today())
-            ->sum('chi_tiet_dat_ve.gia_ve');
+            ->sum('chi_tiet_dat_ve.gia');
 
         $monthRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereMonth('dat_ve.created_at', Carbon::now()->month)
             ->whereYear('dat_ve.created_at', Carbon::now()->year)
-            ->sum('chi_tiet_dat_ve.gia_ve');
+            ->sum('chi_tiet_dat_ve.gia');
 
         // Thống kê số lượng
         $totalMovies = Phim::where('trang_thai', 1)->count();
@@ -58,9 +58,10 @@ class AdminController extends Controller
             ->with(['phim', 'phongChieu'])
             ->orderBy('thoi_gian_bat_dau')
             ->get();
+        $todayShowtimesCount = $todayShowtimes->count();
 
         // Đặt vé gần đây
-        $recentBookings = DatVe::with(['showtime.phim', 'showtime.phongChieu', 'nguoiDung'])
+        $recentBookings = DatVe::with(['suatChieu.phim', 'suatChieu.phongChieu', 'nguoiDung'])
             ->latest()
             ->take(5)
             ->get();
@@ -83,7 +84,7 @@ class AdminController extends Controller
             ->select(
                 DB::raw('YEAR(dat_ve.created_at) as year'),
                 DB::raw('MONTH(dat_ve.created_at) as month'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total')
+                DB::raw('SUM(chi_tiet_dat_ve.gia) as total')
             )
             ->where('dat_ve.trang_thai', 1)
             ->where('dat_ve.created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
@@ -118,6 +119,7 @@ class AdminController extends Controller
             'totalRooms',
             'totalSeats',
             'todayShowtimes',
+            'todayShowtimesCount',
             'recentBookings',
             'topMovies',
             'revenueLabels',

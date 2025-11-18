@@ -12,6 +12,8 @@ class SuatChieu extends Model
 {
     protected $table = 'suat_chieu';
     
+    public $timestamps = false;
+    
     protected $fillable = [
         'id_phim',
         'id_phong',

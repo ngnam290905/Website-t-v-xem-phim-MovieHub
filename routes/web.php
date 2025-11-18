@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\SuatChieuController;
@@ -15,10 +16,14 @@ use App\Http\Controllers\ComboController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\ThanhVienController;
+use App\Http\Controllers\BookingController;
 
 
 // Main routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Booking routes - must be before phim routes to avoid conflicts
+Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
 
 // Client Movie Routes
 Route::prefix('phim')->name('movies.')->group(function () {
@@ -36,20 +41,25 @@ Route::prefix('phim')->name('movies.')->group(function () {
     Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
 });
 
+// Public Chatbot endpoint (mirror of routes/api.php) to prevent 404 in some deployments
+Route::middleware('api')->post('/api/chat', [ChatController::class, 'chat'])->name('chat.api');
+
 // API routes for AJAX calls
 Route::get('/api/movies', [MovieController::class, 'getMovies'])->name('api.movies');
 Route::get('/api/featured-movies', [MovieController::class, 'getFeaturedMovies'])->name('api.featured-movies');
 Route::get('/api/search', [MovieController::class, 'search'])->name('api.search');
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
+Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
+Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
 
-// Booking routes
-Route::get('/dat-ve/{id?}', function ($id = 1) {
-    return view('booking', ['id' => $id]);
-})->name('booking');
-Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
-    return view('booking-dynamic', ['id' => $id]);
-})->name('booking-dynamic');
+// Public booking store route to allow saving booking after clicking "Tôi đã thanh toán" without login
+Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store.public');
+
+// New booking system routes
+Route::middleware('auth')->prefix('booking')->name('booking.')->group(function () {
+    Route::post('/store', [BookingController::class, 'store'])->name('store');
+});
 
 // Mini game route
 Route::get('/mini-game', function () {
@@ -74,14 +84,12 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::get('/profile/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password.form');
     Route::post('/profile/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
 
-    Route::get('/bookings', [UserProfileController::class, 'bookingHistory'])->name('bookings');
+    Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
 });
 
-// Thành viên routes (loyalty program)
+// Thành viên routes (loyalty program) — bỏ đăng ký thành viên
 Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
-    Route::get('/register', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
-    Route::post('/register', [ThanhVienController::class, 'register'])->name('register');
     Route::get('/profile', [ThanhVienController::class, 'profile'])->name('profile');
 });
 
