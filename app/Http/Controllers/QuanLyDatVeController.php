@@ -151,7 +151,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền hủy vé.');
         }
 
@@ -181,7 +181,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền chỉnh sửa vé.');
         }
 
@@ -197,7 +197,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền cập nhật vé.');
         }
 
@@ -362,7 +362,7 @@ class QuanLyDatVeController extends Controller
     {
         $userRole = optional(Auth::user()->vaiTro)->ten;
 
-        if ($userRole !== 'admin') {
+        if (!in_array($userRole, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền xác nhận vé.');
         }
 
@@ -379,7 +379,7 @@ class QuanLyDatVeController extends Controller
             }
 
             // Tính lại tổng tiền để hiển thị chính xác ở danh sách
-            $this->recomputeBookingTotal($booking);
+            // $this->recomputeBookingTotal($booking);
 
             return redirect()->route('admin.bookings.index')
                 ->with('success', 'Vé đã được xác nhận thành công.');

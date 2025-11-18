@@ -10,8 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class PhongChieu extends Model
 {
-    use HasFactory;
-
     protected $table = 'phong_chieu';
 
     public $timestamps = false;

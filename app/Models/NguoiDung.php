@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
+
 class NguoiDung extends Authenticatable
 {
     use HasFactory, Notifiable, SoftDeletes;
@@ -22,9 +23,13 @@ class NguoiDung extends Authenticatable
         'email',
         'mat_khau',
         'sdt',
+        'ngay_sinh',
+        'gioi_tinh',
         'dia_chi',
         'id_vai_tro',
         'trang_thai',
+        'la_thanh_vien',
+        'ngay_dang_ky_thanh_vien',
     ];
 
     // Ẩn mật khẩu khi trả về JSON

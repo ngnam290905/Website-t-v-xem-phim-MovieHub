@@ -52,10 +52,27 @@ class UserController extends Controller
             ->where('trang_thai', 1)
             ->whereDate('created_at', '>=', now()->subDays(30)->toDateString())
             ->distinct('id_nguoi_dung')->count('id_nguoi_dung');
-        $tierDong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Đồng')->count();
-        $tierBac = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Bạc')->count();
-        $tierVang = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Vàng')->count();
-        $tierKimCuong = (int) DB::table('hang_thanh_vien')->where('ten_hang', 'Kim cương')->count();
+            
+        // Count users by tier
+        $tierDong = (int) DB::table('hang_thanh_vien')
+            ->join('tier', 'hang_thanh_vien.id_tier', '=', 'tier.id')
+            ->where('tier.ten_hang', 'Đồng')
+            ->count();
+            
+        $tierBac = (int) DB::table('hang_thanh_vien')
+            ->join('tier', 'hang_thanh_vien.id_tier', '=', 'tier.id')
+            ->where('tier.ten_hang', 'Bạc')
+            ->count();
+            
+        $tierVang = (int) DB::table('hang_thanh_vien')
+            ->join('tier', 'hang_thanh_vien.id_tier', '=', 'tier.id')
+            ->where('tier.ten_hang', 'Vàng')
+            ->count();
+            
+        $tierKimCuong = (int) DB::table('hang_thanh_vien')
+            ->join('tier', 'hang_thanh_vien.id_tier', '=', 'tier.id')
+            ->where('tier.ten_hang', 'Kim cương')
+            ->count();
 
         return view('admin.users.index', compact(
             'users', 'totalUsers', 'active30Days', 'tierDong', 'tierBac', 'tierVang', 'tierKimCuong'
@@ -192,12 +209,12 @@ class UserController extends Controller
             ->first();
 
         $user = NguoiDung::with(['vaiTro','diemThanhVien','hangThanhVien'])->findOrFail($id);
+        
+        // Add additional data to the user object
+        $user->total_orders = (int)($agg->total_orders ?? 0);
+        $user->total_spent = (float)($agg->total_spent ?? 0);
+        $user->last_active = $agg->last_active ?? null;
 
-        return view('admin.users.show', [
-            'user' => $user,
-            'totalOrders' => (int)($agg->total_orders ?? 0),
-            'totalSpent' => (float)($agg->total_spent ?? 0),
-            'lastActive' => $agg->last_active ?? null,
-        ]);
+        return view('admin.users.show', compact('user'));
     }
 }

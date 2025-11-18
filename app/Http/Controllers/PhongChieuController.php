@@ -358,13 +358,31 @@ class PhongChieuController extends Controller
      */
     private function createSeatsForRoom(PhongChieu $phongChieu, $rows, $cols, $defaultType = 'normal')
     {
-        $seatType = LoaiGhe::where('ten_loai', $defaultType)->first() ?: LoaiGhe::first();
+        // Xác định id_loai dựa trên defaultType
+        // Database mapping: 1=Thường, 2=VIP, 3=Đôi
+        $typeIdMap = [
+            'normal' => 1,   // Ghế thường - id 1
+            'vip' => 2,      // Ghế VIP - id 2
+            'couple' => 3,   // Ghế đôi - id 3
+        ];
+        
+        $typeId = $typeIdMap[$defaultType] ?? 1;
+        
+        // Kiểm tra xem loại ghế này có tồn tại không
+        $seatType = LoaiGhe::find($typeId);
+        
+        // Nếu không tồn tại, tìm loại ghế đầu tiên
+        if (!$seatType) {
+            $seatType = LoaiGhe::first();
+            $typeId = $seatType ? $seatType->id : null;
+        }
+        
         $seats = [];
         for ($row = 1; $row <= $rows; $row++) {
             for ($col = 1; $col <= $cols; $col++) {
                 $seats[] = [
                     'id_phong' => $phongChieu->id,
-                    'id_loai' => $seatType ? $seatType->id : null,
+                    'id_loai' => $typeId,
                     'so_hang' => $row,
                     'so_ghe' => chr(64 + $row) . $col, // ví dụ A1, A2...
                     'trang_thai' => 1,
