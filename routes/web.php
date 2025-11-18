@@ -98,7 +98,16 @@ Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(func
 
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
-    Route::get('/', [AdminController::class, 'dashboard'])->middleware('role:admin')->name('dashboard');
+    // Admin dashboard for admins, redirect staff to a suitable module (e.g., movies)
+    Route::get('/', function () {
+        $role = optional(\Illuminate\Support\Facades\Auth::user()->vaiTro)->ten;
+        $norm = is_string($role) ? mb_strtolower(trim($role)) : '';
+        if (in_array($norm, ['admin'])) {
+            return app(\App\Http\Controllers\AdminController::class)->dashboard();
+        }
+        // Staff: redirect to movies list (or another module if desired)
+        return redirect()->route('admin.movies.index');
+    })->name('dashboard');
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
