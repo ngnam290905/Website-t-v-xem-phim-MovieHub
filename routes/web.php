@@ -164,23 +164,32 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
     Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
     // Chỉ Admin: CRUD & seat management (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin,staff')->group(function () {
+    Route::middleware(['auth', 'role:admin,staff'])->group(function () {
+        // Peak hours configuration
+        Route::get('phong-chieu/peak-hours', [PhongChieuController::class, 'showPeakHoursConfig'])->name('phong-chieu.peak-hours');
+        Route::post('phong-chieu/peak-hours', [PhongChieuController::class, 'createPeakHoursShowtimes'])->name('phong-chieu.peak-hours.store');
+        
+        // Room management
         Route::get('phong-chieu/create', [PhongChieuController::class, 'create'])->name('phong-chieu.create');
         Route::post('phong-chieu', [PhongChieuController::class, 'store'])->name('phong-chieu.store');
         Route::get('phong-chieu/{phongChieu}/edit', [PhongChieuController::class, 'edit'])->name('phong-chieu.edit');
         Route::put('phong-chieu/{phongChieu}', [PhongChieuController::class, 'update'])->name('phong-chieu.update');
         Route::delete('phong-chieu/{phongChieu}', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy');
-        Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
-        Route::get('phong-chieu/{phongChieu}/can-modify', [PhongChieuController::class, 'canModify'])->name('phong-chieu.can-modify');
-        Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
+        Route::patch('phong-chieu/{phongChieu}/toggle-status', [PhongChieuController::class, 'toggleStatus'])->name('phong-chieu.toggle-status');
+        
+        // Seat management
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
-        Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
-        Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
-        Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
-        Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
-        Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
-        Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
-    });
+        Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'updateSeats'])->name('phong-chieu.seats.update');
+        
+        // Main resource route (should be last to avoid conflicts)
+        Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
+    });    
+    Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
+    Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
+    Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
+    Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
+    Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
+    Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
     // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');
 
