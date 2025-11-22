@@ -87,6 +87,7 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::post('/profile/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
 
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
+    Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
 });
 

@@ -8,6 +8,7 @@ use App\Models\PhongChieu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 
@@ -494,15 +495,46 @@ class MovieController extends Controller
      */
     public function destroy(Phim $movie)
     {
-        // Delete poster file if exists
-        if ($movie->poster && Storage::disk('public')->exists($movie->poster)) {
-            Storage::disk('public')->delete($movie->poster);
+        try {
+            // Delete all related showtimes and their bookings
+            $showtimes = SuatChieu::where('id_phim', $movie->id)->get();
+            
+            foreach ($showtimes as $showtime) {
+                // Delete all bookings for this showtime
+                $bookings = \App\Models\DatVe::where('id_suat_chieu', $showtime->id)->get();
+                
+                foreach ($bookings as $booking) {
+                    // Delete booking details (seats)
+                    \App\Models\ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+                    
+                    // Delete combo details
+                    \App\Models\ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+                    
+                    // Delete payment records
+                    \App\Models\ThanhToan::where('id_dat_ve', $booking->id)->delete();
+                    
+                    // Delete the booking
+                    $booking->delete();
+                }
+                
+                // Delete the showtime
+                $showtime->delete();
+            }
+            
+            // Delete poster file if exists
+            if ($movie->poster && Storage::disk('public')->exists($movie->poster)) {
+                Storage::disk('public')->delete($movie->poster);
+            }
+
+            $movie->delete();
+
+            return redirect()->route('admin.movies.index')
+                ->with('success', 'Xóa phim và tất cả dữ liệu liên quan thành công!');
+        } catch (\Exception $e) {
+            Log::error('Error deleting movie: ' . $e->getMessage());
+            return redirect()->route('admin.movies.index')
+                ->with('error', 'Có lỗi xảy ra khi xóa phim!');
         }
-
-        $movie->delete();
-
-        return redirect()->route('admin.movies.index')
-            ->with('success', 'Xóa phim thành công!');
     }
 
     /**

@@ -99,6 +99,73 @@ class BookingController extends Controller
             
         return view('user.bookings', compact('bookings'));
     }
+
+    /**
+     * Show detailed ticket view with QR code
+     */
+    public function show($id)
+    {
+        $booking = DatVe::with([
+                'suatChieu.phim',
+                'suatChieu.phongChieu',
+                'chiTietDatVe.ghe',
+                'khuyenMai',
+                'chiTietCombo.combo',
+                'thanhToan',
+                'nguoiDung'
+            ])
+            ->where('id', $id)
+            ->where('id_nguoi_dung', Auth::id())
+            ->firstOrFail();
+
+        $showtime = optional($booking->suatChieu);
+        $movie = optional($showtime->phim);
+        $room = optional($showtime->phongChieu);
+        $seatList = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values()->all();
+
+        // Calculate totals
+        $comboItems = $booking->chiTietCombo ?? collect();
+        $promo = $booking->khuyenMai;
+        $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong); });
+        $seatTotal = (float) $booking->chiTietDatVe->sum('gia');
+        $subtotal = $seatTotal + $comboTotal;
+        $promoDiscount = 0;
+        
+        if ($promo) {
+            $type = strtolower($promo->loai_giam);
+            $val = (float)$promo->gia_tri_giam;
+            $min = 0;
+            if ($subtotal >= $min) {
+                if ($type === 'phantram') {
+                    $promoDiscount = round($subtotal * ($val/100));
+                } else {
+                    $promoDiscount = ($val >= 1000) ? $val : $val * 1000;
+                }
+            }
+        }
+
+        $computedTotal = max(0, $subtotal - $promoDiscount);
+
+        // Payment method
+        $pt = $booking->phuong_thuc_thanh_toan;
+        if (!$pt) {
+            $map = optional($booking->thanhToan)->phuong_thuc ?? null;
+            $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+        }
+
+        return view('user.ticket-detail', compact(
+            'booking', 
+            'showtime', 
+            'movie', 
+            'room', 
+            'seatList', 
+            'comboItems', 
+            'promo', 
+            'promoDiscount', 
+            'computedTotal',
+            'pt'
+        ));
+    }
     
     public function create($id = null)
     {
@@ -301,6 +368,15 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         try {
+            // Check if user is admin (prevent admin from booking tickets)
+            $user = Auth::user();
+            if ($user && $user->id_vai_tro == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Admin không được phép đặt vé trực tiếp!'
+                ]);
+            }
+            
             $data = json_decode($request->getContent(), true);
             
             // Validate required fields
