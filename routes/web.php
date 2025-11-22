@@ -9,6 +9,7 @@ use App\Http\Controllers\PhongChieuController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\ComboController;
@@ -204,6 +205,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/popular-movies-showtimes', [ReportController::class, 'popularMoviesAndShowtimes'])->name('popular-movies-showtimes');
         Route::get('/movies-showtimes-data', [ReportController::class, 'moviesAndShowtimesData'])->name('movies-showtimes-data');
         Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
+        
+        // API endpoints cho báo cáo mới
+        Route::get('/hot-movies', [AdminReportController::class, 'hotMoviesReport'])->name('hot-movies');
+        Route::get('/peak-booking-hours', [AdminReportController::class, 'peakBookingHoursReport'])->name('peak-booking-hours');
     });
 });
 
