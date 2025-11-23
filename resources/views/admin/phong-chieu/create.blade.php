@@ -10,15 +10,15 @@
       <form action="{{ route('admin.phong-chieu.store') }}" method="POST" class="space-y-6">
         @csrf
         
-        <!-- Basic Information -->
+        <!-- 1. Basic Information -->
         <div class="space-y-6">
           <h3 class="text-lg font-semibold text-white flex items-center">
-            <i class="fas fa-info-circle mr-2 text-[#F53003]"></i>
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#F53003] text-white text-xs mr-2">1</span>
             Thông tin cơ bản
           </h3>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Room Name -->
+            <!-- Room Name with real-time validation -->
             <div class="space-y-2">
               <label for="name" class="block text-sm font-medium text-gray-300">
                 <i class="fas fa-video mr-2 text-[#F53003]"></i>Tên phòng
@@ -30,6 +30,7 @@
                      value="{{ old('name') }}" 
                      placeholder="Ví dụ: Phòng 1, IMAX 1..." 
                      required>
+              <p id="nameError" class="text-red-400 text-sm mt-1 hidden">Tên phòng phải từ 2-50 ký tự, chỉ bao gồm chữ, số và khoảng trắng.</p>
               @error('name')
                 <p class="text-red-400 text-sm mt-1">{{ $message }}</p>
               @enderror
@@ -72,10 +73,10 @@
           </div>
         </div>
 
-        <!-- Seat Layout Configuration -->
+        <!-- 2. Seat Layout Configuration -->
         <div class="space-y-6">
           <h3 class="text-lg font-semibold text-white flex items-center">
-            <i class="fas fa-chair mr-2 text-[#F53003]"></i>
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#F53003] text-white text-xs mr-2">2</span>
             Cấu hình sơ đồ ghế
           </h3>
           
@@ -118,37 +119,89 @@
               <p class="text-xs text-[#a6a6b0]">Tối đa 30 ghế mỗi hàng</p>
             </div>
 
-            <!-- Default Seat Type -->
+            <!-- Default Seat Type as radio -->
             <div class="space-y-2">
-              <label for="seat_type" class="block text-sm font-medium text-gray-300">
+              <span class="block text-sm font-medium text-gray-300">
                 <i class="fas fa-star mr-2 text-[#F53003]"></i>Loại ghế mặc định
-              </label>
-              <select name="seat_type" 
-                      id="seat_type" 
-                      class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200">
-                <option value="normal" {{ old('seat_type', 'normal') == 'normal' ? 'selected' : '' }}>Ghế thường</option>
-                <option value="vip" {{ old('seat_type') == 'vip' ? 'selected' : '' }}>Ghế VIP</option>
-                <option value="couple" {{ old('seat_type') == 'couple' ? 'selected' : '' }}>Ghế đôi</option>
-              </select>
+              </span>
+              <div class="flex items-center gap-4">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="seat_type" value="normal" class="text-[#F53003]" {{ old('seat_type','normal')=='normal'?'checked':'' }}> Ghế thường
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="seat_type" value="vip" class="text-[#F53003]" {{ old('seat_type')=='vip'?'checked':'' }}> Ghế VIP
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                  <input type="radio" name="seat_type" value="couple" class="text-[#F53003]" {{ old('seat_type')=='couple'?'checked':'' }}> Ghế đôi
+                </label>
+              </div>
               <p class="text-xs text-[#a6a6b0]">Có thể thay đổi sau khi tạo</p>
             </div>
           </div>
 
-          <!-- Seat Preview -->
+          <!-- Seat Preview (full grid, scrollable) -->
           <div class="space-y-2">
             <label class="block text-sm font-medium text-gray-300">
               <i class="fas fa-eye mr-2 text-[#F53003]"></i>Xem trước sơ đồ ghế
             </label>
-            <div id="seat-preview" class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 min-h-[200px] flex items-center justify-center">
-              <p class="text-[#a6a6b0]">Nhập số hàng và số ghế để xem trước</p>
+            <div id="seat-preview" class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 min-h-[240px] max-h-[420px] overflow-auto">
+              <div class="text-[#a6a6b0]">Nhập số hàng và số ghế để xem trước</div>
             </div>
+            <!-- Legend -->
+            <div class="flex items-center gap-4 text-xs text-[#a6a6b0]">
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:#3b82f6;"></span> Ghế thường</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:gold;"></span> VIP</span>
+              <span class="inline-flex items-center gap-2"><span class="w-4 h-4 rounded" style="background:hotpink;"></span> Ghế đôi</span>
+            </div>
+          </div>
+
+          <!-- Advanced seat blocks -->
+          <div class="space-y-4">
+            <h4 class="text-sm font-semibold text-white flex items-center">
+              <i class="fas fa-th-large mr-2 text-[#F53003]"></i>
+              Phân vùng loại ghế (tuỳ chọn)
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Hàng từ</label>
+                <input type="number" min="1" id="blk_row_from" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white" placeholder="1">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Hàng đến</label>
+                <input type="number" min="1" id="blk_row_to" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white" placeholder="2">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Cột từ</label>
+                <input type="number" min="1" id="blk_col_from" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white" placeholder="1">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Cột đến</label>
+                <input type="number" min="1" id="blk_col_to" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white" placeholder="10">
+              </div>
+              <div class="md:col-span-1 col-span-2">
+                <label class="block text-xs text-gray-300 mb-1">Loại ghế</label>
+                <select id="blk_type" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+                  @php $__types = isset($loaiGhe) ? $loaiGhe : \App\Models\LoaiGhe::all(); @endphp
+                  @foreach($__types as $type)
+                    <option value="{{ $type->id }}">{{ $type->ten_loai }}</option>
+                  @endforeach
+                </select>
+              </div>
+              <div class="md:col-span-1 col-span-2">
+                <button type="button" id="blk_add_btn" class="w-full bg-[#F53003] hover:bg-[#e02a00] text-white px-3 py-2 rounded-lg text-sm">
+                  Thêm vùng
+                </button>
+              </div>
+            </div>
+            <input type="hidden" name="seat_blocks" id="seat_blocks" value="">
+            <div id="blk_list" class="space-y-2"></div>
           </div>
         </div>
 
-        <!-- Technical Specifications -->
+        <!-- 3. Technical Specifications -->
         <div class="space-y-6">
           <h3 class="text-lg font-semibold text-white flex items-center">
-            <i class="fas fa-cogs mr-2 text-[#F53003]"></i>
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#F53003] text-white text-xs mr-2">3</span>
             Thông số kỹ thuật
           </h3>
           
@@ -187,23 +240,22 @@
           </div>
         </div>
 
-        <!-- Status -->
+        <!-- 4. Status -->
         <div class="space-y-6">
           <h3 class="text-lg font-semibold text-white flex items-center">
-            <i class="fas fa-toggle-on mr-2 text-[#F53003]"></i>
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#F53003] text-white text-xs mr-2">4</span>
             Trạng thái
           </h3>
-          
           <div class="space-y-2">
-            <label for="status" class="block text-sm font-medium text-gray-300">
-              <i class="fas fa-toggle-on mr-2 text-[#F53003]"></i>Trạng thái phòng
-            </label>
-            <select name="status" 
-                    id="status" 
-                    class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200">
-              <option value="active" {{ old('status', 'active') == 'active' ? 'selected' : '' }}>Hoạt động</option>
-              <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>Tạm dừng</option>
-            </select>
+            <span class="block text-sm font-medium text-gray-300"><i class="fas fa-toggle-on mr-2 text-[#F53003]"></i>Trạng thái phòng</span>
+            <div class="flex items-center gap-6">
+              <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                <input type="radio" name="status" value="active" {{ old('status','active')=='active'?'checked':'' }}> Hoạt động
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                <input type="radio" name="status" value="inactive" {{ old('status')=='inactive'?'checked':'' }}> Tạm dừng
+              </label>
+            </div>
           </div>
         </div>
 
@@ -213,8 +265,9 @@
              class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 text-center">
             <i class="fas fa-times mr-2"></i>Hủy bỏ
           </a>
-          <button type="submit" 
-                  class="bg-[#F53003] hover:bg-[#e02a00] text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center">
+          <button type="submit" id="submitBtn"
+                  class="bg-gray-600 cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center"
+                  disabled>
             <i class="fas fa-save mr-2"></i>Tạo phòng chiếu
           </button>
         </div>
@@ -227,38 +280,87 @@ document.addEventListener('DOMContentLoaded', function() {
     const rowsInput = document.getElementById('rows');
     const colsInput = document.getElementById('cols');
     const previewDiv = document.getElementById('seat-preview');
+    const blkAddBtn = document.getElementById('blk_add_btn');
+    const blkList = document.getElementById('blk_list');
+    const seatBlocksInput = document.getElementById('seat_blocks');
+    const blkRowFrom = document.getElementById('blk_row_from');
+    const blkRowTo = document.getElementById('blk_row_to');
+    const blkColFrom = document.getElementById('blk_col_from');
+    const blkColTo = document.getElementById('blk_col_to');
+    const blkType = document.getElementById('blk_type');
+    const nameInput = document.getElementById('name');
+    const nameError = document.getElementById('nameError');
+    const submitBtn = document.getElementById('submitBtn');
 
+    // Expose seat types for block list labels
+    window.SEAT_TYPES = @json(\App\Models\LoaiGhe::select('id','ten_loai')->get());
+
+    let seatBlocks = [];
+
+    // Map typeId to color for preview
+    function colorByTypeId(typeId) {
+      const def = '#3b82f6'; // normal
+      const types = window.SEAT_TYPES || [];
+      const t = types.find(x => x.id == typeId);
+      if (!t) return def;
+      const name = (t.ten_loai || '').toLowerCase();
+      if (name.includes('vip')) return 'gold';
+      if (name.includes('đôi') || name.includes('doi') || name.includes('couple')) return 'hotpink';
+      return def;
+    }
+
+    // Render full grid inside scrollable container (last-zone-wins)
     function updateSeatPreview() {
         const rows = parseInt(rowsInput.value) || 0;
         const cols = parseInt(colsInput.value) || 0;
         
         if (rows > 0 && cols > 0) {
-            let preview = '<div class="text-center">';
-            preview += '<div class="text-sm text-[#a6a6b0] mb-2">Sơ đồ ghế: ' + rows + ' hàng × ' + cols + ' ghế</div>';
-            preview += '<div class="flex flex-col items-center space-y-1">';
-            
-            for (let i = 0; i < Math.min(rows, 8); i++) { // Limit display to 8 rows
-                const rowLabel = String.fromCharCode(65 + i);
-                preview += '<div class="flex space-x-1">';
-                preview += '<span class="text-xs text-[#a6a6b0] w-4 text-right">' + rowLabel + '</span>';
-                
-                for (let j = 1; j <= Math.min(cols, 15); j++) { // Limit display to 15 seats
-                    preview += '<div class="w-4 h-4 bg-[#F53003]/30 border border-[#F53003]/50 rounded text-xs flex items-center justify-center text-[#F53003]">' + j + '</div>';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'inline-block';
+            // Title
+            const title = document.createElement('div');
+            title.className = 'text-sm text-[#a6a6b0] mb-2';
+            title.textContent = `Sơ đồ ghế: ${rows} hàng × ${cols} ghế`;
+            wrapper.appendChild(title);
+
+            // Build rows
+            for (let i = 0; i < rows; i++) {
+              const rowLabel = String.fromCharCode(65 + i);
+              const rowWrap = document.createElement('div');
+              rowWrap.className = 'flex items-center gap-1 mb-1';
+
+              const labelEl = document.createElement('span');
+              labelEl.className = 'text-xs text-[#a6a6b0] w-5 text-right';
+              labelEl.textContent = rowLabel;
+              rowWrap.appendChild(labelEl);
+
+              const seatsLine = document.createElement('div');
+              seatsLine.className = 'flex flex-wrap gap-1';
+              for (let j = 1; j <= cols; j++) {
+                const r = i + 1; const c = j;
+                // last-zone-wins: iterate from end
+                let block = null;
+                for (let k = seatBlocks.length - 1; k >= 0; k--) {
+                  const b = seatBlocks[k];
+                  if (r >= b.row_from && r <= b.row_to && c >= b.col_from && c <= b.col_to) { block = b; break; }
                 }
-                
-                if (cols > 15) {
-                    preview += '<span class="text-xs text-[#a6a6b0]">...+' + (cols - 15) + '</span>';
+                let color;
+                if (block) color = colorByTypeId(block.id_loai);
+                else {
+                  const def = (document.querySelector('input[name="seat_type"]:checked')?.value) || 'normal';
+                  color = def === 'vip' ? 'gold' : (def === 'couple' ? 'hotpink' : '#3b82f6');
                 }
-                
-                preview += '</div>';
+                const seat = document.createElement('div');
+                seat.className = 'w-6 h-6 rounded text-[10px] flex items-center justify-center text-white';
+                seat.style.background = color;
+                seat.textContent = j;
+                seatsLine.appendChild(seat);
+              }
+              rowWrap.appendChild(seatsLine);
+              wrapper.appendChild(rowWrap);
             }
-            
-            if (rows > 8) {
-                preview += '<div class="text-xs text-[#a6a6b0]">...+' + (rows - 8) + ' hàng nữa</div>';
-            }
-            
-            preview += '</div></div>';
-            previewDiv.innerHTML = preview;
+            previewDiv.innerHTML = '';
+            previewDiv.appendChild(wrapper);
         } else {
             previewDiv.innerHTML = '<p class="text-[#a6a6b0]">Nhập số hàng và số ghế để xem trước</p>';
         }
@@ -267,8 +369,118 @@ document.addEventListener('DOMContentLoaded', function() {
     rowsInput.addEventListener('input', updateSeatPreview);
     colsInput.addEventListener('input', updateSeatPreview);
     
-    // Initial preview
+    // Validation for room name (2-50 chars, letters/numbers/spaces, incl. Vietnamese)
+    function validateName() {
+      const v = (nameInput.value || '').trim();
+      // Allow Vietnamese letters and space
+      const re = /^[0-9A-Za-zÀ-ỿăâđêôơưÁÀẢÃẠẮẰẲẴẶẤẦẨẪẬÉÈẺẼẸÍÌỈĨỊÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ ]{2,50}$/i;
+      const ok = re.test(v);
+      nameError.classList.toggle('hidden', ok);
+      nameInput.classList.toggle('border-red-500', !ok);
+      return ok;
+    }
+
+    function validateRowsCols() {
+      const r = parseInt(rowsInput.value); const c = parseInt(colsInput.value);
+      const ok = r>=1 && r<=20 && c>=1 && c<=30;
+      return ok;
+    }
+
+    function updateSubmitState() {
+      const ok = validateName() && validateRowsCols();
+      submitBtn.disabled = !ok;
+      submitBtn.className = ok
+        ? 'bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center'
+        : 'bg-gray-600 cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center';
+    }
+
+    // Initial preview and validation
     updateSeatPreview();
+    updateSubmitState();
+
+    function syncBlocks() {
+      seatBlocksInput.value = seatBlocks.length ? JSON.stringify(seatBlocks) : '';
+      // render list
+      blkList.innerHTML = '';
+      if (!seatBlocks.length) return;
+      seatBlocks.forEach((b, idx) => {
+        const el = document.createElement('div');
+        el.className = 'flex items-center justify-between bg-[#1a1d24] border border-[#262833] rounded-lg px-3 py-2 text-sm text-white';
+        const typeName = (window.SEAT_TYPES||[]).find(x => x.id == b.id_loai)?.ten_loai || ('Loại #' + b.id_loai);
+        const rowFromL = String.fromCharCode(64 + b.row_from);
+        const rowToL = String.fromCharCode(64 + b.row_to);
+        el.innerHTML = `<span>Hàng ${rowFromL}-${rowToL}, Cột ${b.col_from}-${b.col_to} → ${typeName}</span>
+                        <button type="button" data-idx="${idx}" class="blk-remove text-red-400 hover:text-red-300">Xoá</button>`;
+        blkList.appendChild(el);
+      });
+      // bind remove
+      blkList.querySelectorAll('.blk-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const i = parseInt(e.currentTarget.getAttribute('data-idx')); 
+          if (!isNaN(i)) { seatBlocks.splice(i,1); syncBlocks(); updateSeatPreview(); updateSubmitState(); }
+        });
+      });
+    }
+
+    if (blkAddBtn) {
+      blkAddBtn.addEventListener('click', function() {
+        // reset borders
+        [blkRowFrom, blkRowTo, blkColFrom, blkColTo].forEach(el => el.classList.remove('border-red-500'));
+
+        const rf = parseInt(blkRowFrom.value); const rt = parseInt(blkRowTo.value);
+        const cf = parseInt(blkColFrom.value); const ct = parseInt(blkColTo.value);
+        const typeId = parseInt(blkType.value);
+        const rowsMax = parseInt(rowsInput.value)||0; const colsMax = parseInt(colsInput.value)||0;
+
+        // basic presence
+        if (!rf || !rt || !cf || !ct || !typeId) {
+          alert('Vui lòng nhập đầy đủ Hàng từ/đến, Cột từ/đến và Loại ghế.');
+          return;
+        }
+
+        // normalize
+        const row_from = Math.min(rf, rt);
+        const row_to = Math.max(rf, rt);
+        const col_from = Math.min(cf, ct);
+        const col_to = Math.max(cf, ct);
+
+        // strict bounds validation
+        let invalid = false;
+        if (!(row_from >= 1 && row_from <= rowsMax)) { blkRowFrom.classList.add('border-red-500'); invalid = true; }
+        if (!(row_to >= 1 && row_to <= rowsMax && row_from <= row_to)) { blkRowTo.classList.add('border-red-500'); invalid = true; }
+        if (!(col_from >= 1 && col_from <= colsMax)) { blkColFrom.classList.add('border-red-500'); invalid = true; }
+        if (!(col_to >= 1 && col_to <= colsMax && col_from <= col_to)) { blkColTo.classList.add('border-red-500'); invalid = true; }
+        if (invalid) { alert('Phạm vi vùng không hợp lệ! Vui lòng kiểm tra Hàng/Cột.'); return; }
+
+        // overlap detection with existing zones (rect-intersect)
+        const overlap = seatBlocks.some(b => (Math.max(b.row_from, row_from) <= Math.min(b.row_to, row_to)) && (Math.max(b.col_from, col_from) <= Math.min(b.col_to, col_to)) );
+        if (overlap) {
+          [blkRowFrom, blkRowTo, blkColFrom, blkColTo].forEach(el => el.classList.add('border-red-500'));
+          alert('Vùng ghế trùng lặp! Vui lòng chọn vùng khác.');
+          return;
+        }
+
+        // add
+        seatBlocks.push({ row_from, row_to, col_from, col_to, id_loai: typeId });
+        syncBlocks();
+        updateSeatPreview();
+        updateSubmitState();
+
+        // auto-clear inputs
+        blkRowFrom.value = '';
+        blkRowTo.value = '';
+        blkColFrom.value = '';
+        blkColTo.value = '';
+      });
+    }
+
+    // Re-render preview when default seat type changes
+    document.querySelectorAll('input[name="seat_type"]').forEach(r => r.addEventListener('change', () => { updateSeatPreview(); updateSubmitState(); }));
+    // Validate name in realtime
+    nameInput.addEventListener('input', () => { validateName(); updateSubmitState(); });
+    // Validate on rows/cols changes
+    rowsInput.addEventListener('input', () => { updateSeatPreview(); updateSubmitState(); });
+    colsInput.addEventListener('input', () => { updateSeatPreview(); updateSubmitState(); });
 });
 </script>
 @endsection

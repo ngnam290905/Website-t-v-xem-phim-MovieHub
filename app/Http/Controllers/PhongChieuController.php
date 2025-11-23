@@ -85,6 +85,8 @@ class PhongChieuController extends Controller
             'cols' => 'required|integer|min:1|max:30',
             'description' => 'nullable|string|max:1000',
             'status' => 'required|string|in:active,inactive',
+            // Advanced seat type blocks (optional)
+            'seat_blocks' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -98,8 +100,50 @@ class PhongChieuController extends Controller
                 'status' => $request->status,
             ]);
 
-            // Generate seats
+            // Generate seats (default type)
             $this->createSeatsForRoom($phongChieu, $request->rows, $request->cols, $request->get('seat_type', 'normal'));
+
+            // Apply advanced seat type blocks, if provided
+            if ($request->filled('seat_blocks')) {
+                $blocksJson = $request->string('seat_blocks');
+                try {
+                    $blocks = json_decode((string) $blocksJson, true, 512, JSON_THROW_ON_ERROR);
+                } catch (\Throwable $e) {
+                    $blocks = [];
+                }
+
+                if (is_array($blocks)) {
+                    foreach ($blocks as $block) {
+                        // Expected keys: row_from, row_to, col_from, col_to, id_loai
+                        $rowFrom = max(1, (int)($block['row_from'] ?? 0));
+                        $rowTo   = max($rowFrom, (int)($block['row_to'] ?? 0));
+                        $colFrom = max(1, (int)($block['col_from'] ?? 0));
+                        $colTo   = max($colFrom, (int)($block['col_to'] ?? 0));
+                        $typeId  = (int)($block['id_loai'] ?? 0);
+
+                        if ($rowFrom <= 0 || $colFrom <= 0 || $typeId <= 0) {
+                            continue;
+                        }
+                        // Clamp to room bounds
+                        $rowTo = min($rowTo, (int)$request->rows);
+                        $colTo = min($colTo, (int)$request->cols);
+
+                        // Build seat codes for the rectangle and update in bulk
+                        $codes = [];
+                        for ($r = $rowFrom; $r <= $rowTo; $r++) {
+                            $rowLabel = chr(64 + $r);
+                            for ($c = $colFrom; $c <= $colTo; $c++) {
+                                $codes[] = $rowLabel . $c;
+                            }
+                        }
+                        if (!empty($codes)) {
+                            Ghe::where('id_phong', $phongChieu->id)
+                                ->whereIn('so_ghe', $codes)
+                                ->update(['id_loai' => $typeId]);
+                        }
+                    }
+                }
+            }
 
             DB::commit();
 
@@ -119,6 +163,7 @@ class PhongChieuController extends Controller
         $phongChieu->load(['seats' => function($query) {
             $query->orderBy('so_hang')->orderBy('so_ghe');
         }, 'showtimes.movie']);
+        $phongChieu->loadCount(['seats', 'showtimes']);
 
         // Check if this is staff route
         if (request()->is('staff/*')) {
@@ -134,6 +179,8 @@ class PhongChieuController extends Controller
     public function edit(PhongChieu $phongChieu)
     {
         $loaiGhe = LoaiGhe::all();
+        // Load counts for UI display
+        $phongChieu->loadCount('seats');
         return view('admin.phong-chieu.edit', compact('phongChieu', 'loaiGhe'));
     }
 
@@ -146,11 +193,29 @@ class PhongChieuController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'status' => 'required|string|in:active,inactive',
+            // Optional fields depend on DB columns
+            'type' => 'nullable|string|max:50',
+            'audio_system' => 'nullable|string|max:100',
+            'screen_type' => 'nullable|string|max:100',
         ]);
 
-        $phongChieu->update($request->only([
-            'name', 'description', 'status'
-        ]));
+        $data = $request->only(['name','description']);
+        // Map UI status string to legacy numeric column
+        if ($request->filled('status')) {
+            $data['trang_thai'] = $request->status === 'active' ? 1 : 0;
+        }
+        // Include optional columns only if they exist
+        if (Schema::hasColumn('phong_chieu', 'type') && $request->filled('type')) {
+            $data['type'] = $request->input('type');
+        }
+        if (Schema::hasColumn('phong_chieu', 'audio_system') && $request->filled('audio_system')) {
+            $data['audio_system'] = $request->input('audio_system');
+        }
+        if (Schema::hasColumn('phong_chieu', 'screen_type') && $request->filled('screen_type')) {
+            $data['screen_type'] = $request->input('screen_type');
+        }
+
+        $phongChieu->update($data);
 
         return redirect()->route('admin.phong-chieu.index')
             ->with('success', 'Phòng chiếu đã được cập nhật thành công!');
@@ -174,6 +239,8 @@ class PhongChieuController extends Controller
         try {
             // Delete all seats first
             $phongChieu->seats()->delete();
+            // Delete past showtimes to avoid FK issues (no upcoming showtimes at this point)
+            $phongChieu->showtimes()->delete();
             
             // Delete room
             $phongChieu->delete();
@@ -197,11 +264,29 @@ class PhongChieuController extends Controller
             'status' => 'required|string|in:active,inactive'
         ]);
 
-        $phongChieu->update(['status' => $request->status]);
+        // Map to legacy trang_thai 1/0
+        $phongChieu->update(['trang_thai' => $request->status === 'active' ? 1 : 0]);
 
         return response()->json([
             'success' => true,
             'message' => 'Cập nhật trạng thái phòng chiếu thành công!'
+        ]);
+    }
+
+    /**
+     * Pre-check if room can be modified (pause/delete) based on future showtimes
+     */
+    public function canModify(PhongChieu $phongChieu)
+    {
+        $future = $phongChieu->showtimes()
+            ->where('thoi_gian_bat_dau', '>', now())
+            ->count();
+        return response()->json([
+            'success' => true,
+            'future_showtimes' => (int)$future,
+            'can_pause' => $future === 0,
+            'can_delete' => $future === 0,
+            'message' => $future > 0 ? 'Phòng chiếu đang có suất chiếu sắp diễn ra.' : 'Có thể thao tác.'
         ]);
     }
 
@@ -233,7 +318,10 @@ class PhongChieuController extends Controller
         try {
             // Delete related records first
             $phongChieu->seats()->each(function($seat) {
-                $seat->chiTietDatVe()->delete();
+                // Delete related booking details (if relation exists)
+                if (method_exists($seat, 'bookingDetails')) {
+                    $seat->bookingDetails()->delete();
+                }
             });
             
             // Delete existing seats
@@ -270,13 +358,31 @@ class PhongChieuController extends Controller
      */
     private function createSeatsForRoom(PhongChieu $phongChieu, $rows, $cols, $defaultType = 'normal')
     {
-        $seatType = LoaiGhe::where('ten_loai', $defaultType)->first() ?: LoaiGhe::first();
+        // Xác định id_loai dựa trên defaultType
+        // Database mapping: 1=Thường, 2=VIP, 3=Đôi
+        $typeIdMap = [
+            'normal' => 1,   // Ghế thường - id 1
+            'vip' => 2,      // Ghế VIP - id 2
+            'couple' => 3,   // Ghế đôi - id 3
+        ];
+        
+        $typeId = $typeIdMap[$defaultType] ?? 1;
+        
+        // Kiểm tra xem loại ghế này có tồn tại không
+        $seatType = LoaiGhe::find($typeId);
+        
+        // Nếu không tồn tại, tìm loại ghế đầu tiên
+        if (!$seatType) {
+            $seatType = LoaiGhe::first();
+            $typeId = $seatType ? $seatType->id : null;
+        }
+        
         $seats = [];
         for ($row = 1; $row <= $rows; $row++) {
             for ($col = 1; $col <= $cols; $col++) {
                 $seats[] = [
                     'id_phong' => $phongChieu->id,
-                    'id_loai' => $seatType ? $seatType->id : null,
+                    'id_loai' => $typeId,
                     'so_hang' => $row,
                     'so_ghe' => chr(64 + $row) . $col, // ví dụ A1, A2...
                     'trang_thai' => 1,

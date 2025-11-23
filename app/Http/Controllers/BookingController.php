@@ -374,24 +374,22 @@ class BookingController extends Controller
                     }
                     
                     return [$seat->so_ghe => [
-                        'id' => $seat->id,
-                        'code' => $seat->so_ghe,
-                        'type' => $seat->loaiGhe->ten_loai ?? 'Thường',
-                        'available' => $isAvailable,
-                        'price' => $price
-                    ]];
-                });
-            
-            \Log::info('Seats data prepared, count: ' . $seats->count());
-            
-            return response()->json(['seats' => $seats]);
-        } catch (\Exception $e) {
-            \Log::error('Error loading showtime seats: ' . $e->getMessage());
-            return response()->json(['seats' => []]);
-        }
+                    'id' => $seat->id,
+                    'code' => $seat->so_ghe,
+                    'type' => $seat->loaiGhe->ten_loai ?? 'Thường',
+                    'available' => $isAvailable,
+                    'price' => $price
+                ]];
+            });
+        
+        Log::info('Seats data prepared, count: ' . $seats->count());
+        
+        return response()->json(['seats' => $seats]);
+    } catch (\Exception $e) {
+        Log::error('Error loading showtime seats: ' . $e->getMessage());
+        return response()->json(['seats' => []]);
     }
-    
-    public function store(Request $request)
+}    public function store(Request $request)
     {
         try {
             // Check if user is admin (prevent admin from booking tickets)

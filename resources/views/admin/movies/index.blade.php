@@ -16,7 +16,8 @@
         <h1 class="text-2xl font-bold text-white">Danh sách Phim</h1>
         <p class="text-[#a6a6b0] mt-1">Quản lý tất cả phim trong hệ thống</p>
       </div>
-      @if(auth()->user()->vaiTro->ten === 'admin')
+      @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+      @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
         <a href="{{ route('admin.movies.create') }}" class="bg-[#F53003] hover:bg-[#e02a00] text-white px-5 py-2.5 rounded-lg font-semibold transition-colors inline-flex items-center">
           <i class="fas fa-plus mr-2"></i> Thêm phim
         </a>
@@ -111,25 +112,26 @@
                 <span><i class="fa fa-user-tie mr-1"></i>{{ \Illuminate\Support\Str::limit($movie->dao_dien, 20) }}</span>
               </div>
               <div class="mt-auto flex items-center gap-2">
-                <a href="{{ route('admin.movies.show', $movie) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#2f3240] text-sm hover:bg-[#222533]">
-                  <i class="fas fa-eye mr-1"></i> Xem
+                <a href="{{ route('admin.movies.show', $movie) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
+                  <i class="fas fa-eye text-xs"></i>
                 </a>
-                @if(auth()->user()->vaiTro->ten === 'admin')
-                  <a href="{{ route('admin.movies.edit', $movie) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-yellow-600/20 text-yellow-300 text-sm hover:bg-yellow-600/30">
-                    <i class="fas fa-edit"></i>
+                @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+                @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
+                  <a href="{{ route('admin.movies.edit', $movie) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
+                    <i class="fas fa-edit text-xs"></i>
                   </a>
-                  <form action="{{ route('admin.movies.toggle-status', $movie) }}" method="POST">
+                  <form action="{{ route('admin.movies.toggle-status', $movie) }}" method="POST" onsubmit="return confirm('Đổi trạng thái phim này?')">
                     @csrf
                     @method('PATCH')
-                    <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#2f3240] text-sm hover:bg-[#222533]" onclick="return confirm('Đổi trạng thái phim này?')" title="Đổi trạng thái">
-                      <i class="fas fa-sync"></i>
+                    <button type="submit" class="btn-table-action bg-purple-600 hover:bg-purple-700" title="Đổi trạng thái">
+                      <i class="fas fa-sync text-xs"></i>
                     </button>
                   </form>
-                  <form action="{{ route('admin.movies.destroy', $movie) }}" method="POST" onsubmit="return confirm('Xóa phim này?')">
+                  <form action="{{ route('admin.movies.destroy', $movie) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phim này?')">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-red-600/20 text-red-300 text-sm hover:bg-red-600/30" title="Xóa">
-                      <i class="fas fa-trash"></i>
+                    <button type="submit" class="btn-table-action btn-table-delete" title="Xóa">
+                      <i class="fas fa-trash text-xs"></i>
                     </button>
                   </form>
                 @endif
@@ -149,7 +151,8 @@
         @else
           <i class="fas fa-film text-3xl text-[#a6a6b0] mb-3"></i>
           <div class="text-[#a6a6b0]">Chưa có phim nào</div>
-          @if(auth()->user()->vaiTro->ten === 'admin')
+          @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+          @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
             <a href="{{ route('admin.movies.create') }}" class="inline-flex items-center px-4 py-2 mt-4 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg text-sm">
               <i class="fas fa-plus mr-2"></i> Thêm phim đầu tiên
             </a>

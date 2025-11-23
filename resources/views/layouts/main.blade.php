@@ -4,12 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'MovieHub - Đặt vé xem phim')</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @yield('meta')
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
       @vite(['resources/css/app.css','resources/js/app.js'])
     @else
-      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="https://cdn.tailwindcss.com" defer></script>
     @endif
     
     <!-- Font Awesome -->
@@ -106,16 +109,16 @@
     <header class="bg-[#151822] border-b border-[#262833] sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
         <a href="{{ route('home') }}" class="flex items-center gap-3 shrink-0">
-          <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+          <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded" width="48" height="48">
           <span class="text-xl font-bold gradient-text">MovieHub</span>
         </a>
         
         <!-- Navigation -->
         <nav class="hidden md:flex items-center gap-6">
           <a href="{{ route('home') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Trang chủ</a>
-          <a href="#movies" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Phim</a>
-          <a href="#cinemas" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Rạp</a>
-          <a href="#promotions" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Khuyến mãi</a>
+          <a href="{{ route('movies.index') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Phim</a>
+          <a href="{{ route('movies.showtimes') }}" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Lịch chiếu</a>
+          <a href="#" class="text-white hover:text-[#F53003] transition-colors duration-300 font-medium">Khuyến mãi</a>
         </nav>
         
         <!-- User Actions -->
@@ -167,7 +170,7 @@
           <!-- Company Info -->
           <div class="col-span-1 md:col-span-2">
             <div class="flex items-center gap-3 mb-4">
-              <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-10 w-10 object-contain rounded">
+              <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-10 w-10 object-contain rounded" loading="lazy" width="40" height="40">
               <span class="text-xl font-bold gradient-text">MovieHub</span>
             </div>
             <p class="text-[#a6a6b0] text-sm leading-relaxed mb-4">
@@ -195,10 +198,10 @@
             <h3 class="text-white font-semibold mb-4">Liên kết nhanh</h3>
             <ul class="space-y-2">
               <li><a href="{{ route('home') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Trang chủ</a></li>
-              <li><a href="#movies" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim đang chiếu</a></li>
-              <li><a href="#coming" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim sắp chiếu</a></li>
-              <li><a href="#cinemas" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Rạp chiếu</a></li>
-              <li><a href="#promotions" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Khuyến mãi</a></li>
+              <li><a href="{{ route('movies.now-showing') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim đang chiếu</a></li>
+              <li><a href="{{ route('movies.coming-soon') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Phim sắp chiếu</a></li>
+              <li><a href="{{ route('movies.showtimes') }}" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Lịch chiếu</a></li>
+              <li><a href="#" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300 text-sm">Khuyến mãi</a></li>
             </ul>
           </div>
           

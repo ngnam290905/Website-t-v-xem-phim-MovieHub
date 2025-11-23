@@ -109,6 +109,7 @@
                             <th class="px-4 py-3">Combo</th>
                             <th class="px-4 py-3">Tổng tiền</th>
                             <th class="px-4 py-3">Mã KM</th>
+                            <th class="px-4 py-3">PT Thanh toán</th>
                             <th class="px-4 py-3">Trạng thái</th>
                             <th class="px-4 py-3">Thời gian đặt</th>
                             <th class="px-4 py-3 text-center">Hành động</th>
@@ -148,12 +149,41 @@
                                 <td class="px-4 py-3">{{ number_format($totalToShow) }} VNĐ</td>
                                 <td class="px-4 py-3">{{ $booking->khuyenMai?->ma_km ?? '—' }}</td>
                                 <td class="px-4 py-3">
+                                    @php
+                                        $pt = $booking->phuong_thuc_thanh_toan;
+                                        if (!$pt) {
+                                            $map = optional($booking->thanhToan)->phuong_thuc;
+                                            $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+                                        }
+                                        $pt = $pt ? (int)$pt : 2; // default tại quầy nếu thiếu dữ liệu cũ
+                                    @endphp
+                                    @if($pt === 1)
+                                        <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Thanh toán online</span>
+                                    @elseif($pt === 2)
+                                        <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Thanh toán tại quầy</span>
+                                    @else
+                                        <span class="px-2 py-1 text-gray-300 bg-gray-800 rounded-full text-xs">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3">
                                     @switch($booking->trang_thai)
                                         @case(0)
-                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ xác nhận</span>
+                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
                                             @break
                                         @case(1)
-                                            <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã xác nhận</span>
+                                            @php
+                                                $pt = $booking->phuong_thuc_thanh_toan;
+                                                if (!$pt) {
+                                                    $map = optional($booking->thanhToan)->phuong_thuc;
+                                                    $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
+                                                }
+                                                $pt = $pt ? (int)$pt : 2;
+                                            @endphp
+                                            @if($pt === 1)
+                                                <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã thanh toán</span>
+                                            @else
+                                                <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Đã xác nhận</span>
+                                            @endif
                                             @break
                                         @case(3)
                                             <span class="px-2 py-1 text-orange-300 bg-orange-900/30 rounded-full text-xs">Yêu cầu hủy</span>
@@ -171,29 +201,36 @@
 
                                         {{-- Xem chi tiết --}}
                                         <a href="{{ route('admin.bookings.show', $booking->id) }}"
-                                            class="p-1.5 rounded-md bg-blue-600/80 hover:bg-blue-600 transition"
-                                            title="Xem vé">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                            </svg>
+                                            class="btn-table-action btn-table-view"
+                                            title="Xem chi tiết">
+                                            <i class="fas fa-eye text-xs"></i>
                                         </a>
 
-                                        {{-- Chỉnh sửa (admin + chưa hủy) --}}
-                                        @auth
-                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $booking->trang_thai != 2)
-                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                    class="p-1.5 rounded-md bg-yellow-500/80 hover:bg-yellow-500 transition"
-                                                    title="Chỉnh sửa">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a2 2 0 01-.828.5L7 15l1.172-4a2 2 0 01.5-.828z" />
-                                                    </svg>
-                                                </a>
-                                            @endif
-                                        @endauth
+                                        {{-- Chỉnh sửa / Xác nhận / Hủy (admin + staff) --}}
+                    @auth
+                        @if (in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']) && $booking->trang_thai != 2)
+                            <a href="{{ route('admin.bookings.edit', $booking->id) }}"
+                                class="btn-table-action btn-table-edit"
+                                title="Chỉnh sửa">
+                                <i class="fas fa-edit text-xs"></i>
+                            </a>
+                        @endif
+
+                        @if (in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']) && $booking->trang_thai == 0)
+                            <form action="{{ route('admin.bookings.confirm', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Xác nhận đơn vé này?');">
+                                @csrf
+                                <button type="submit" class="btn-table-action bg-green-600 hover:bg-green-700 text-white" title="Xác nhận">
+                                    <i class="fas fa-check text-xs"></i>
+                                </button>
+                            </form>
+                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Hủy đơn vé này?');">
+                                @csrf
+                                <button type="submit" class="btn-table-action btn-table-delete" title="Hủy">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </form>
+                        @endif
+                    @endauth
 
                                     </div>
                                 </td>

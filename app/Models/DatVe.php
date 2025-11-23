@@ -28,6 +28,7 @@ class DatVe extends Model
         'ten_khach_hang',
         'so_dien_thoai',
         'email',
+        'tong_tien',
         'trang_thai',
         'phuong_thuc_thanh_toan',
         'created_at',
@@ -43,6 +44,7 @@ class DatVe extends Model
         'diem_su_dung' => 'integer',
         'diem_tich_luy' => 'integer',
         'trang_thai' => 'integer',
+        'phuong_thuc_thanh_toan' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -57,6 +59,12 @@ class DatVe extends Model
     public function suatChieu(): BelongsTo
     {
         return $this->belongsTo(SuatChieu::class, 'id_suat_chieu');
+    }
+
+    // Alias for backward compatibility: some views/controllers call $datVe->showtime
+    public function showtime(): BelongsTo
+    {
+        return $this->suatChieu();
     }
 
     // Relationship with ChiTietDatVe

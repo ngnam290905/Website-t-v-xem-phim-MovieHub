@@ -156,7 +156,11 @@ class QuanLyDatVeController extends Controller
      */
     public function cancel($id)
     {
-        $this->authorizeAdmin();
+        $userRole = optional(Auth::user()->vaiTro)->ten;
+
+        if (!in_array($userRole, ['admin', 'staff'])) {
+            abort(403, 'Bạn không có quyền hủy vé.');
+        }
 
         $booking = DatVe::findOrFail($id);
 
@@ -190,7 +194,11 @@ class QuanLyDatVeController extends Controller
      */
     public function edit($id)
     {
-        $this->authorizeAdmin();
+        $userRole = optional(Auth::user()->vaiTro)->ten;
+
+        if (!in_array($userRole, ['admin', 'staff'])) {
+            abort(403, 'Bạn không có quyền chỉnh sửa vé.');
+        }
 
         $booking = DatVe::with(['chiTietDatVe.ghe', 'chiTietCombo.combo', 'suatChieu.phongChieu'])->findOrFail($id);
         $gheTrong = Ghe::where('id_phong', $booking->suatChieu->id_phong)
@@ -208,7 +216,11 @@ class QuanLyDatVeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->authorizeAdmin();
+        $userRole = optional(Auth::user()->vaiTro)->ten;
+
+        if (!in_array($userRole, ['admin', 'staff'])) {
+            abort(403, 'Bạn không có quyền cập nhật vé.');
+        }
 
         $request->validate([
             'ghe_ids' => 'nullable|string',
@@ -286,7 +298,11 @@ class QuanLyDatVeController extends Controller
      */
     public function confirm($id)
     {
-        $this->authorizeAdmin();
+        $userRole = optional(Auth::user()->vaiTro)->ten;
+
+        if (!in_array($userRole, ['admin', 'staff'])) {
+            abort(403, 'Bạn không có quyền xác nhận vé.');
+        }
 
         $booking = DatVe::findOrFail($id);
 

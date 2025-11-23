@@ -92,12 +92,29 @@
                 </td>
                 <td>{{ optional($user->vaiTro)->ten ?? 'Không có' }}</td>
                 <td>{{ $user->trang_thai ? 'Hoạt động' : 'Khóa' }}</td>
-                <td class="flex gap-2">
-                  <a href="{{ route('admin.users.edit', $user->id) }}" class="text-[#F53003] hover:underline">Sửa</a>
-                  <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Xác nhận xóa?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="text-red-500 hover:underline">Xóa</button>
+                <td class="py-3">
+                  <div class="flex items-center gap-2">
+                    <a href="{{ route('admin.users.show', $user->id) }}" 
+                       class="btn-table-action btn-table-view"
+                       title="Xem chi tiết">
+                      <i class="fas fa-eye text-xs"></i>
+                    </a>
+                    <a href="{{ route('admin.users.edit', $user->id) }}" 
+                       class="btn-table-action btn-table-edit"
+                       title="Chỉnh sửa">
+                      <i class="fas fa-edit text-xs"></i>
+                    </a>
+                    <form action="{{ route('admin.users.destroy', $user->id) }}" 
+                          method="POST" 
+                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa người dùng này?');">
+                      @csrf
+                      @method('DELETE')
+                      <button type="submit" 
+                              class="btn-table-action btn-table-delete"
+                              title="Xóa">
+                        <i class="fas fa-trash text-xs"></i>
+                      </button>
+                    </form>
                   </form>
                 </td>
               </tr>
