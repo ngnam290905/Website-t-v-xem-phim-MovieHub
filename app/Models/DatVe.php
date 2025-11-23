@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class DatVe extends Model
 {
     protected $table = 'dat_ve';
-    public $timestamps = false;
+    public $timestamps = true;
     
     protected $fillable = [
         'id_nguoi_dung',
@@ -28,7 +28,15 @@ class DatVe extends Model
         'ten_khach_hang',
         'so_dien_thoai',
         'email',
+<<<<<<< Updated upstream
         'trang_thai'
+=======
+        'tong_tien',
+        'trang_thai',
+        'phuong_thuc_thanh_toan',
+        'created_at',
+        'updated_at'
+>>>>>>> Stashed changes
     ];
 
     protected $casts = [
@@ -41,6 +49,7 @@ class DatVe extends Model
         'diem_tich_luy' => 'integer',
         'trang_thai' => 'integer',
         'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // Relationship with NguoiDung

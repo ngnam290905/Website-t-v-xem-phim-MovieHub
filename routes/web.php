@@ -54,7 +54,30 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
+<<<<<<< Updated upstream
 // Thành viên routes
+=======
+// User routes (profile, bookings) — requires authentication
+Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
+    Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
+    Route::get('/profile/edit', [UserProfileController::class, 'edit'])->name('edit');
+    Route::put('/profile', [UserProfileController::class, 'update'])->name('update');
+
+    Route::get('/profile/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password.form');
+    Route::post('/profile/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
+
+    Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
+    Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
+    Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
+});
+
+// Debug route (chỉ dùng để kiểm tra, nên xóa sau khi deploy production)
+Route::middleware('auth')->get('/debug-bookings', function() {
+    return view('debug-bookings');
+})->name('debug.bookings');
+
+// Thành viên routes (loyalty program) — bỏ đăng ký thành viên
+>>>>>>> Stashed changes
 Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
     Route::get('/dang-ky', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
     Route::post('/dang-ky', [ThanhVienController::class, 'register'])->name('register');
