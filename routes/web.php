@@ -59,6 +59,7 @@ Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu']
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
 Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
+Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats')->middleware('auth');
 
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
@@ -74,7 +75,7 @@ Route::get('/booking-data/showtime/{id}', [App\Http\Controllers\BookingDataContr
 Route::get('/booking-data/booking/{id}', [App\Http\Controllers\BookingDataController::class, 'booking'])->name('booking.data.booking');
 
 // Public pages
-Route::get('/phim', [PublicController::class, 'movies'])->name('public.movies');
+// Route::get('/phim', [PublicController::class, 'movies'])->name('public.movies'); // Commented out - using movies.index instead
 Route::get('/lich-chieu', [PublicController::class, 'schedule'])->name('public.schedule');
 Route::get('/combo', [PublicController::class, 'combos'])->name('public.combos');
 Route::get('/tin-tuc', [PublicController::class, 'news'])->name('public.news');
