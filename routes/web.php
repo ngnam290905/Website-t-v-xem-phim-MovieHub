@@ -54,9 +54,6 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-<<<<<<< Updated upstream
-// Thành viên routes
-=======
 // User routes (profile, bookings) — requires authentication
 Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
@@ -76,8 +73,7 @@ Route::middleware('auth')->get('/debug-bookings', function() {
     return view('debug-bookings');
 })->name('debug.bookings');
 
-// Thành viên routes (loyalty program) — bỏ đăng ký thành viên
->>>>>>> Stashed changes
+// Thành viên routes (loyalty program)
 Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
     Route::get('/dang-ky', [ThanhVienController::class, 'showRegistrationForm'])->name('register-form');
     Route::post('/dang-ky', [ThanhVienController::class, 'register'])->name('register');
