@@ -273,10 +273,10 @@ class QuanLyDatVeController extends Controller
             $finalTotal = max(0, $seatTotal + $comboTotal - $discount - $memberDiscount);
 
             if (Schema::hasColumn('dat_ve', 'tong_tien')) {
-                $booking->tong_tien = $finalTotal;
+                $booking->tong_tien = (float)$finalTotal;
             }
             if (Schema::hasColumn('dat_ve', 'tong_tien_hien_thi')) {
-                $booking->tong_tien_hien_thi = $finalTotal;
+                $booking->tong_tien_hien_thi = (float)$finalTotal;
             }
 
             $booking->save();
@@ -474,9 +474,11 @@ class QuanLyDatVeController extends Controller
         $finalTotal = max(0, $subtotal - $discount - $memberDiscount);
 
         if (Schema::hasColumn('dat_ve', 'tong_tien')) {
+            // @phpstan-ignore assign.propertyType (Laravel auto-cast)
             $booking->tong_tien = $finalTotal;
         }
         if (Schema::hasColumn('dat_ve', 'tong_tien_hien_thi')) {
+            // @phpstan-ignore assign.propertyType (Laravel auto-cast)
             $booking->tong_tien_hien_thi = $finalTotal;
         }
 

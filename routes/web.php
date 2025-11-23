@@ -11,6 +11,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\QuanLyDatVeController;
+use App\Http\Controllers\AdminKhuyenMaiController;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\HomeController;

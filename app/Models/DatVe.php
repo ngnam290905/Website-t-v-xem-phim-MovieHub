@@ -247,6 +247,7 @@ class DatVe extends Model
         $this->tien_giam_diem = $this->tinhTienGiamDiem();
         // @phpstan-ignore assign.propertyType (Laravel auto-cast)
         $this->tong_tien = $this->tinhTongTien();
+        // @phpstan-ignore assign.propertyType (Laravel auto-cast)
         $this->diem_tich_luy = $this->tinhDiemTichLuy();
         
         $this->save();
