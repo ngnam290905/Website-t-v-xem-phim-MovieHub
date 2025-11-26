@@ -13,7 +13,8 @@ class ChiTietDatVe extends Model
     protected $fillable = [
         'id_dat_ve',
         'id_ghe',
-        'gia'
+        'gia',
+        'gia_ve'
     ];
 
     protected $casts = [

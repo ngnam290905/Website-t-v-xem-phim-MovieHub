@@ -62,7 +62,7 @@ Route::post('/booking/store', [BookingController::class, 'store'])->name('bookin
 Route::middleware('auth')->prefix('booking')->name('booking.')->group(function () {
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
-
+Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');

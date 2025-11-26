@@ -22,8 +22,7 @@ class DatVe extends Model
         'so_dien_thoai',
         'email',
         'tong_tien',
-        'trang_thai',
-        'phuong_thuc_thanh_toan'
+        'trang_thai'
     ];
 
     protected $casts = [
