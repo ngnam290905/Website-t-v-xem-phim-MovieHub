@@ -46,7 +46,7 @@
                         <i class="fas fa-user text-sm"></i>
                         <span>Thông tin tài khoản</span>
                     </a>
-                    <a href="{{ route('user.edit-profile') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition">
+                    <a href="{{ route('user.edit') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition">
                         <i class="fas fa-edit text-sm"></i>
                         <span>Chỉnh sửa hồ sơ</span>
                     </a>
