@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+<<<<<<< HEAD
     public function showLoginForm()
     {
         return view('auth.login');
@@ -51,6 +52,28 @@ class AuthController extends Controller
         // TODO: Implement password reset logic
         // For now, just return with success message
         return redirect()->route('login.form')->with('status', 'Mật khẩu đã được đặt lại thành công!');
+=======
+    public function index(Request $request)
+    {
+        $query = NguoiDung::with('vaiTro')->orderBy('id', 'desc');
+
+        // 🔍 Nếu có tìm kiếm theo tên hoặc email
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('ho_ten', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // ✅ Phân trang 10 người dùng / trang
+        $users = $query->paginate(10);
+
+        // ✅ Giữ lại từ khóa khi chuyển trang
+        $users->appends(['search' => $request->search]);
+
+        return view('admin.users.index', compact('users'));
+>>>>>>> origin/hoanganh
     }
 
     public function register(Request $request)

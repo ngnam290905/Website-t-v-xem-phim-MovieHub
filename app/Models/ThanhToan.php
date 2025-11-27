@@ -8,9 +8,24 @@ use Illuminate\Database\Eloquent\Model;
 class ThanhToan extends Model
 {
     use HasFactory;
+<<<<<<< HEAD
     protected $table = 'thanh_toan';
     public $timestamps = false;
     protected $fillable = ['id_dat_ve', 'phuong_thuc', 'so_tien', 'ma_giao_dich', 'trang_thai', 'thoi_gian'];
+=======
+
+    protected $table = 'thanh_toan';
+    protected $primaryKey = 'id';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'id_dat_ve',
+        'so_tien',
+        'phuong_thuc',
+        'trang_thai',
+        'ngay_thanh_toan',
+    ];
+>>>>>>> origin/hoanganh
 
     public function datVe()
     {

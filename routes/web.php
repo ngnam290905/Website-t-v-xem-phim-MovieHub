@@ -10,6 +10,10 @@ use App\Http\Controllers\PhongChieuController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
+<<<<<<< HEAD
+=======
+use App\Http\Controllers\AdminReportController;
+>>>>>>> origin/hoanganh
 use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use Illuminate\Support\Facades\View;
@@ -92,6 +96,10 @@ Route::middleware('auth')->prefix('booking')->name('booking.')->group(function (
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/hoanganh
 Route::middleware('auth')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
@@ -113,7 +121,13 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
 
+<<<<<<< HEAD
 Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+=======
+
+Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+
+>>>>>>> origin/hoanganh
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');
@@ -321,6 +335,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/revenue', [ReportController::class, 'revenue'])->name('revenue');
         Route::get('/top-movies', [ReportController::class, 'topMovies'])->name('top-movies');
         Route::get('/top-customers', [ReportController::class, 'topCustomers'])->name('top-customers');
+<<<<<<< HEAD
+=======
+        Route::get('/member-revenue', [ReportController::class, 'memberRevenue'])->name('member-revenue');
+        Route::get('/popular-movies-showtimes', [ReportController::class, 'popularMoviesAndShowtimes'])->name('popular-movies-showtimes');
+        Route::get('/movies-showtimes-data', [ReportController::class, 'moviesAndShowtimesData'])->name('movies-showtimes-data');
+        Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
+        Route::get('/hot-movies', [AdminReportController::class, 'hotMoviesReport'])->name('hot-movies');
+        Route::get('/peak-booking-hours', [AdminReportController::class, 'peakBookingHoursReport'])->name('peak-booking-hours');
+>>>>>>> origin/hoanganh
     });
 });
 
@@ -339,6 +362,12 @@ Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->grou
     Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
 });
+<<<<<<< HEAD
+=======
+ 
+Route::post('/seat-price', [BookingController::class, 'getSeatPrice']);
+Route::post('/showtimes/{suatChieuId}/select-seats-temp', [BookingController::class, 'selectSeatsTemp']);
+>>>>>>> origin/hoanganh
 
 // Test route
 use Illuminate\Support\Facades\Auth;

@@ -450,7 +450,6 @@
 @endsection
 
 @section('scripts')
-<<<<<<< HEAD
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let seatButtons = document.querySelectorAll('.seat, .seat-couple');
@@ -709,28 +708,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update UI
     const updateUI = () => {
-=======
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const seatButtons = document.querySelectorAll('.seat, .seat-couple');
-            const payButton = document.getElementById('pay');
-            const totalPriceElement = document.getElementById('total-price');
-            const summarySeats = document.getElementById('summary-seats');
-            const summaryShowtime = document.getElementById('summary-showtime');
-            const summaryDate = document.getElementById('summary-date');
-            const summaryTime = document.getElementById('summary-time');
-            const summarySeatTypes = document.getElementById('summary-seat-types');
-            const priceBreakdown = document.getElementById('price-breakdown');
-            const comboRadios = document.querySelectorAll('input[name="combo"]');
-            const promoSelect = document.getElementById('promotion');
->>>>>>> origin/nguyen
-
-            const selected = new Set();
-            let selectedShowtime = null;
-            let selectedCombo = null; // {id, price}
-            let selectedPromotion = null; // {id, type, value}
-
-<<<<<<< HEAD
         // Calculate seat total - ensure we have the selected seats
         const selectedArray = Array.from(selected);
         console.log('=== UPDATE UI DEBUG ===');
@@ -1169,71 +1146,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     payButton.classList.remove('opacity-75', 'cursor-not-allowed');
                 }
             });
-<<<<<<< HEAD
-            
-            // Update seat types summary
-            const seatTypeInfo = [];
-            if (regularCount > 0) seatTypeInfo.push('Ghế thường (' + regularCount + ')');
-            if (vipCount > 0) seatTypeInfo.push('Ghế VIP (' + vipCount + ')');
-            if (coupleCount > 0) seatTypeInfo.push('Ghế đôi (' + coupleCount + ')');
-            summarySeatTypes.textContent = seatTypeInfo.join(', ');
-            
-            // Update price breakdown
-            let breakdownHTML = '';
-            if (regularCount > 0) {
-                breakdownHTML += '<div class="flex justify-between text-sm">' +
-                                 '<span class="text-gray-400">Ghế thường (' + regularCount + ')</span>' +
-                                 '<span>' + format(regularTotal) + '</span>' +
-                                 '</div>';
-            }
-            if (vipCount > 0) {
-                breakdownHTML += '<div class="flex justify-between text-sm">' +
-                                 '<span class="text-gray-400">Ghế VIP (' + vipCount + ')</span>' +
-                                 '<span>' + format(vipTotal) + '</span>' +
-                                 '</div>';
-            }
-            if (coupleCount > 0) {
-                breakdownHTML += '<div class="flex justify-between text-sm">' +
-                                 '<span class="text-gray-400">Ghế đôi (' + coupleCount + ')</span>' +
-                                 '<span>' + format(coupleTotal) + '</span>' +
-                                 '</div>';
-            }
-            if (comboTotal > 0) {
-                breakdownHTML += '<div class="flex justify-between text-sm">' +
-                                 '<span class="text-gray-400">Combo</span>' +
-                                 '<span>' + format(comboTotal) + '</span>' +
-                                 '</div>';
-            }
-            if (discount > 0) {
-                breakdownHTML += '<div class="flex justify-between text-sm">' +
-                                 '<span class="text-gray-400">Khuyến mãi</span>' +
-                                 '<span>- ' + format(discount) + '</span>' +
-                                 '</div>';
-            }
-            priceBreakdown.innerHTML = breakdownHTML || '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
-        } else {
-            summarySeats.textContent = 'Chưa chọn ghế';
-            summarySeatTypes.textContent = 'Chưa chọn ghế';
-            const comboOnly = selectedCombo ? '<div class="flex justify-between text-sm"><span class="text-gray-400">Combo</span><span>' + format(selectedCombo.price) + '</span></div>' : '';
-            const promoOnly = (selectedPromotion ? (function(){
-                const base = (selectedCombo ? selectedCombo.price : 0);
-                const d = computePromotionDiscount(base, selectedPromotion);
-                return d>0 ? '<div class="flex justify-between text-sm"><span class="text-gray-400">Khuyến mãi</span><span>- ' + format(d) + '</span></div>' : '';
-            })() : '');
-            priceBreakdown.innerHTML = (comboOnly || promoOnly) ? comboOnly + promoOnly : '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
-            
-            // Update total price (only combo/promo if no seats)
-            const comboPrice = selectedCombo ? selectedCombo.price : 0;
-            const promoDiscount = selectedPromotion ? computePromotionDiscount(comboPrice, selectedPromotion) : 0;
-            const total = comboPrice - promoDiscount;
-            if (totalPrice) {
-                totalPrice.textContent = format(total);
-            }
-        }
-        
-        // Enable/disable pay button
-        payButton.disabled = selected.size === 0 || !selectedShowtime;
-    };
     
     // Load seats for showtime - MUST be defined before use
     const loadSeatsForShowtime = async (showtimeId) => {
@@ -1487,16 +1399,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 summaryShowtime.textContent = '' + dateText + ' - ' + timeText + '';
                 summaryDate.textContent = 'Ngày chiếu: ' + dateText + '';
                 summaryTime.textContent = 'Giờ chiếu: ' + timeText + '';
-<<<<<<< HEAD
                 
                 // Load seats for this showtime
                 selected.clear(); // Clear previous selections
                 clearHoldTimer();
                 currentBookingId = null;
                 holdExpiresAt = null;
-=======
-                selected.clear();
->>>>>>> origin/nguyen
                 loadSeatsForShowtime(selectedShowtime);
             } else {
                 // No showtime selected - disable all seats
@@ -1511,7 +1419,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 updateUI();
             }
-<<<<<<< HEAD
         });
         
         // Trigger change event if already checked (for auto-selected first showtime)
@@ -1677,68 +1584,5 @@ document.addEventListener('DOMContentLoaded', function() {
                 minimumFractionDigits: 0
             }).format(num);
         }
-<<<<<<< HEAD
-        
-        
-        // Read current combo/promotion directly from DOM to avoid scope issues
-        const comboRadio = document.querySelector('input[name="combo"]:checked');
-        const selectedComboPayload = (comboRadio && comboRadio.value) ? { id: comboRadio.value } : null;
-        const promoSel = document.getElementById('promotion');
-        const selectedPromotionId = (promoSel && promoSel.value) ? promoSel.value : null;
-
-        const response = await fetch('/booking/store', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                showtime: selectedShowtime,
-                seats: selectedSeats,
-                payment_method: 'online',
-                combo: selectedComboPayload,
-                promotion: selectedPromotionId,
-                booking_id: currentBookingId
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Update status to success
-            paymentStatus.textContent = 'Thanh toán thành công!';
-            paymentStatus.className = 'text-green-400';
-            
-            // Close modal after 2 seconds and redirect
-            setTimeout(() => {
-                closePaymentModal();
-                alert('Đặt vé và thanh toán thành công!');
-                window.location.href = '/user/bookings';
-            }, 2000);
-        } else {
-            // Update status to error
-            paymentStatus.textContent = 'Thanh toán thất bại';
-            paymentStatus.className = 'text-red-400';
-            alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại!');
-        }
-    } catch (error) {
-        console.error('Error booking:', error);
-        paymentStatus.textContent = 'Thanh toán thất bại';
-        paymentStatus.className = 'text-red-400';
-        alert('Có lỗi xảy ra, vui lòng thử lại!');
-    }
-}
-
-// Format function (Global scope)
-function format(num) {
-    return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-        minimumFractionDigits: 0
-    }).format(num);
-}
-</script>
-=======
     </script>
->>>>>>> origin/nguyen
 @endsection
