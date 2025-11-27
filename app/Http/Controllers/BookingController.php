@@ -87,18 +87,43 @@ class BookingController extends Controller
     
     public function index()
     {
+        // Get current user ID
+        $userId = Auth::id();
+        
+        // Debug: Check if user is authenticated
+        if (!$userId) {
+            Log::warning('User not authenticated when accessing bookings');
+            return redirect()->route('login.form')->with('error', 'Vui lòng đăng nhập để xem lịch sử đặt vé');
+        }
+        
         // Get booking data for user with related showtime, movie, room, and seat details
         $bookings = DatVe::with([
                 'suatChieu.phim',
                 'suatChieu.phongChieu',
-                'chiTietDatVe.ghe',
+                'chiTietDatVe.ghe.loaiGhe',
                 'khuyenMai',
                 'chiTietCombo.combo',
-                'thanhToan'
+                'thanhToan',
+                'nguoiDung'
             ])
-            ->where('id_nguoi_dung', Auth::id())
-            ->orderBy('created_at', 'desc')
+            ->where('id_nguoi_dung', $userId)
+            ->orderByRaw('COALESCE(created_at, id) DESC')
             ->paginate(10);
+        
+        // Debug log
+        Log::info('User Bookings Retrieved', [
+            'user_id' => $userId,
+            'user_email' => Auth::user()->email ?? 'N/A',
+            'bookings_count' => $bookings->count(),
+            'total' => $bookings->total(),
+            'booking_ids' => $bookings->pluck('id')->toArray()
+        ]);
+        
+        // Additional debug: Check if there are bookings in DB for this user
+        $totalBookings = DatVe::where('id_nguoi_dung', $userId)->count();
+        if ($totalBookings === 0) {
+            Log::info('No bookings found in database for user', ['user_id' => $userId]);
+        }
             
         return view('user.bookings', compact('bookings'));
     }
@@ -366,16 +391,16 @@ class BookingController extends Controller
     public function getShowtimeSeats($showtimeId)
     {
         try {
-            \Log::info('getShowtimeSeats called with showtimeId: ' . $showtimeId);
+            Log::info('getShowtimeSeats called with showtimeId: ' . $showtimeId);
             
             // Validate showtime exists
             $showtime = SuatChieu::find($showtimeId);
             if (!$showtime) {
-                \Log::warning('Showtime not found: ' . $showtimeId);
+                Log::warning('Showtime not found: ' . $showtimeId);
                 return response()->json(['seats' => []]);
             }
             
-            \Log::info('Showtime found, room id: ' . $showtime->id_phong);
+            Log::info('Showtime found, room id: ' . $showtime->id_phong);
             
             // Release expired seats (lazy check) - skip if table doesn't exist
             try {
@@ -435,7 +460,7 @@ class BookingController extends Controller
                     
                     // Debug logging for VIP seats
                     if (str_contains($typeText, 'vip') || str_contains(strtolower($seat->loaiGhe->ten_loai ?? ''), 'vip')) {
-                        \Log::info('VIP seat found: ' . $seat->so_ghe . ', type: ' . ($seat->loaiGhe->ten_loai ?? 'N/A'));
+                        Log::info('VIP seat found: ' . $seat->so_ghe . ', type: ' . ($seat->loaiGhe->ten_loai ?? 'N/A'));
                     }
                     
                     // Determine price based on seat type
@@ -480,7 +505,7 @@ class BookingController extends Controller
             return response()->json(['seats' => []]);
         }
     }
-    
+
     public function store(Request $request)
     {
         try {

@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\ThanhToan;
+use App\Models\Phim;
 
 class ThanhToanObserver
 {
@@ -11,7 +12,7 @@ class ThanhToanObserver
      */
     public function created(ThanhToan $thanhToan): void
     {
-        // Implement logic after a payment is created, if needed.
+        $this->updatePhimRevenue($thanhToan);
     }
 
     /**
@@ -19,7 +20,10 @@ class ThanhToanObserver
      */
     public function updated(ThanhToan $thanhToan): void
     {
-        // Implement logic when a payment is updated, if needed.
+        // Chỉ cập nhật nếu trạng thái thay đổi
+        if ($thanhToan->isDirty('trang_thai')) {
+            $this->updatePhimRevenue($thanhToan);
+        }
     }
 
     /**
@@ -27,7 +31,23 @@ class ThanhToanObserver
      */
     public function deleted(ThanhToan $thanhToan): void
     {
-        // Implement logic when a payment is deleted, if needed.
+        $this->updatePhimRevenue($thanhToan);
+    }
+
+    /**
+     * Cập nhật doanh thu và lợi nhuận của phim
+     */
+    protected function updatePhimRevenue(ThanhToan $thanhToan): void
+    {
+        // Lấy thông tin đặt vé -> suất chiếu -> phim
+        $datVe = $thanhToan->datVe;
+        if ($datVe && $datVe->suatChieu) {
+            $phim = $datVe->suatChieu->phim;
+            if ($phim) {
+                // Cập nhật doanh thu & lợi nhuận
+                $phim->updateDoanhThuLoiNhuan();
+            }
+        }
     }
 
     /**
@@ -35,7 +55,7 @@ class ThanhToanObserver
      */
     public function restored(ThanhToan $thanhToan): void
     {
-        // Implement logic when a payment is restored, if needed.
+        $this->updatePhimRevenue($thanhToan);
     }
 
     /**
@@ -43,6 +63,6 @@ class ThanhToanObserver
      */
     public function forceDeleted(ThanhToan $thanhToan): void
     {
-        // Implement logic when a payment is force deleted, if needed.
+        $this->updatePhimRevenue($thanhToan);
     }
 }

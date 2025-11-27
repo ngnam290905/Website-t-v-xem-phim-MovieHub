@@ -152,7 +152,7 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
 });
 
-// Thành viên routes (loyalty program) — bỏ đăng ký thành viên
+// Thành viên routes (loyalty program)
 Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
     Route::get('/profile', [ThanhVienController::class, 'profile'])->name('profile');
 });

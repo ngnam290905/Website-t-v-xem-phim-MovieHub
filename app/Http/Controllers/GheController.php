@@ -6,6 +6,7 @@ use App\Models\Ghe;
 use App\Models\PhongChieu;
 use App\Models\LoaiGhe;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class GheController extends Controller
 {
