@@ -8,9 +8,11 @@ use App\Models\KhuyenMai;
 use App\Models\Phim;
 use App\Models\SuatChieu;
 use App\Models\ChiTietDatVe;
+use App\Models\ChiTietCombo;
 use App\Models\Ghe;
 use App\Models\LoaiGhe;
 use App\Models\ShowtimeSeat;
+use App\Models\ThanhToan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -240,7 +242,24 @@ class BookingController extends Controller
                 ->get();
         }
         
-        // Do not fallback to past showtimes; keep empty if none are upcoming
+        // If still no showtimes, try without trang_thai check (maybe trang_thai is 0 or null)
+        if ($showtimes->isEmpty()) {
+            $showtimes = SuatChieu::with('phongChieu')
+                ->where('id_phim', $movie->id)
+                ->where('thoi_gian_bat_dau', '>=', now())
+                ->orderBy('thoi_gian_bat_dau')
+                ->get();
+        }
+        
+        // If still no showtimes, get recent active showtimes (for testing/debugging)
+        if ($showtimes->isEmpty()) {
+            $showtimes = SuatChieu::with('phongChieu')
+                ->where('id_phim', $movie->id)
+                ->where('trang_thai', 1)
+                ->orderBy('thoi_gian_bat_dau', 'desc')
+                ->limit(10)
+                ->get();
+        }
         
         $showtimes = $showtimes->map(function ($suat) {
             return [
@@ -523,6 +542,14 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         try {
+            // Check authentication
+            if (!Auth::check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng đăng nhập để đặt vé!'
+                ], 401);
+            }
+            
             // Check if user is admin (prevent admin from booking tickets)
             $user = Auth::user();
             if ($user && $user->id_vai_tro == 1) {
@@ -532,7 +559,14 @@ class BookingController extends Controller
                 ]);
             }
             
-            $data = json_decode($request->getContent(), true);
+            // Parse JSON data - support both JSON and form data
+            $data = $request->all();
+            if ($request->isJson() || $request->header('Content-Type') === 'application/json') {
+                $jsonData = json_decode($request->getContent(), true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($jsonData)) {
+                    $data = $jsonData;
+                }
+            }
             
             // Validate required fields
             if (!isset($data['seats']) || empty($data['seats'])) {
@@ -862,7 +896,7 @@ class BookingController extends Controller
             
             // Save combo detail if chosen
             if ($selectedCombo) {
-                \App\Models\ChiTietCombo::create([
+                ChiTietCombo::create([
                     'id_dat_ve'   => $booking->id,
                     'id_combo'    => $selectedCombo->id,
                     'so_luong'    => 1,
@@ -870,18 +904,49 @@ class BookingController extends Controller
                 ]);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Đặt vé thành công!',
-                'booking_id' => $booking->id
+            // Create payment record
+            ThanhToan::create([
+                'id_dat_ve'    => $booking->id,
+                'phuong_thuc'  => ($paymentMethod === 'online') ? 'VNPAY' : 'Tiền mặt',
+                'so_tien'      => $totalAmount,
+                'trang_thai'   => 0, // Chưa thanh toán
+                'thoi_gian'    => now()
             ]);
+
+            // Return result
+            if ($paymentMethod === 'online') {
+                $vnp_Url = $this->createVnpayUrl($booking->id, $totalAmount);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đang chuyển hướng thanh toán...',
+                    'payment_url' => $vnp_Url,
+                    'is_redirect' => true
+                ]);
+            } else {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đặt vé thành công! Vui lòng thanh toán tại quầy trong 5 phút.',
+                    'booking_id' => $booking->id,
+                    'is_redirect' => false
+                ]);
+            }
             
         } catch (\Exception $e) {
             Log::error('Booking error: ' . $e->getMessage());
+            Log::error('Booking error trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!'
-            ]);
+                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        } catch (\Throwable $e) {
+            Log::error('Booking fatal error: ' . $e->getMessage());
+            Log::error('Booking fatal error trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
     }
 
@@ -1268,5 +1333,142 @@ class BookingController extends Controller
         }
 
         return ['valid' => true, 'message' => 'OK'];
+    }
+
+    /**
+     * VNPAY Return Handler
+     * Handle payment return from VNPAY gateway
+     */
+    public function vnpayReturn(Request $request)
+    {
+        $vnp_HashSecret = trim(env('VNP_HASH_SECRET'));
+        $inputData = array();
+        foreach ($request->all() as $key => $value) {
+            if (substr($key, 0, 4) == "vnp_") $inputData[$key] = $value;
+        }
+        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+        unset($inputData['vnp_SecureHash']);
+        ksort($inputData);
+        $i = 0;
+        $hashData = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
+            else {
+                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        if ($secureHash == $vnp_SecureHash) {
+            $parts = explode("_", $request->vnp_TxnRef);
+            $bookingId = $parts[0];
+
+            // Load booking with details
+            $booking = DatVe::with(['chiTietDatVe.ghe', 'chiTietCombo', 'thanhToan'])->find($bookingId);
+
+            if ($request->vnp_ResponseCode == '00') {
+                // Payment successful
+                if ($booking && $booking->trang_thai == 0) {
+                    DB::transaction(function () use ($booking, $request) {
+                        // 1. Update booking status to confirmed
+                        $booking->update(['trang_thai' => 1]);
+
+                        // 2. Update payment record
+                        if ($booking->thanhToan) {
+                            $booking->thanhToan()->update([
+                                'trang_thai' => 1,
+                                'ma_giao_dich' => $request->vnp_TransactionNo,
+                                'thoi_gian' => now()
+                            ]);
+                        } else {
+                            // Fallback: create new payment record if not exists
+                            ThanhToan::create([
+                                'id_dat_ve' => $booking->id,
+                                'phuong_thuc' => 'VNPAY',
+                                'so_tien' => $request->vnp_Amount / 100,
+                                'ma_giao_dich' => $request->vnp_TransactionNo,
+                                'trang_thai' => 1,
+                                'thoi_gian' => now()
+                            ]);
+                        }
+                    });
+                    return redirect()->route('booking.tickets')->with('success', 'Thanh toán thành công!');
+                }
+            } else {
+                // Payment failed or cancelled
+                if ($booking && $booking->trang_thai == 0) {
+                    DB::transaction(function () use ($booking) {
+                        // 1. Release seats
+                        foreach ($booking->chiTietDatVe as $detail) {
+                            if ($detail->ghe) {
+                                $detail->ghe->update(['trang_thai' => 1]); // 1 = Available
+                            }
+                        }
+
+                        // 2. Delete related records
+                        $booking->chiTietDatVe()->delete();
+                        $booking->chiTietCombo()->delete();
+                        if ($booking->thanhToan) {
+                            $booking->thanhToan()->delete();
+                        }
+
+                        // 3. Delete booking
+                        $booking->delete();
+                    });
+                }
+                return redirect()->route('home')->with('error', 'Giao dịch đã bị hủy. Vui lòng đặt lại vé.');
+            }
+        } else {
+            return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
+        }
+        return redirect()->route('home');
+    }
+
+    /**
+     * Helper method to create VNPAY payment URL
+     */
+    private function createVnpayUrl($orderId, $amount)
+    {
+        $vnp_Url = env('VNP_URL');
+        $vnp_HashSecret = env('VNP_HASH_SECRET');
+        $vnp_TmnCode = env('VNP_TMN_CODE');
+
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $amount * 100,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => request()->ip(),
+            "vnp_Locale" => "vn",
+            "vnp_OrderInfo" => "Thanh toan ve #$orderId",
+            "vnp_OrderType" => "billpayment",
+            "vnp_ReturnUrl" => env('VNP_RETURN_URL', route('payment.vnpay_return')),
+            "vnp_TxnRef" => $orderId . "_" . time()
+        ];
+
+        ksort($inputData);
+        $query = "";
+        $i = 0;
+        $hashdata = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashdata .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+
+        $vnp_Url = $vnp_Url . "?" . $query;
+        if (isset($vnp_HashSecret)) {
+            $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+            $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+        }
+
+        return $vnp_Url;
     }
 }

@@ -85,8 +85,8 @@ Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->name('pu
 // Debug route (remove in production)
 Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
 
-// Public booking store route to allow saving booking after clicking "Tôi đã thanh toán" without login
-Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store.public');
+// Booking store route - requires authentication
+Route::post('/booking/store', [BookingController::class, 'store'])->middleware('auth')->name('booking.store.public');
 
 // New booking system routes
 Route::middleware('auth')->prefix('booking')->name('booking.')->group(function () {
@@ -247,6 +247,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
         Route::post('phong-chieu/{phongChieu}/seats/bulk-create', [PhongChieuController::class, 'bulkCreateSeats'])->name('phong-chieu.seats.bulk-create');
         Route::post('phong-chieu/{phongChieu}/seats/positions', [PhongChieuController::class, 'updateSeatPositions'])->name('phong-chieu.seats.positions');
+        // Peak hours configuration routes
+        Route::get('phong-chieu/peak-hours', [PhongChieuController::class, 'showPeakHoursConfig'])->name('phong-chieu.peak-hours');
+        Route::post('phong-chieu/peak-hours', [PhongChieuController::class, 'createPeakHoursShowtimes'])->name('phong-chieu.peak-hours.store');
     });
     // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');

@@ -24,8 +24,13 @@
           <h1 class="text-xl font-semibold">Đặt vé</h1>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-400">Đăng nhập để tích điểm</span>
-          <button class="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded">Đăng nhập</button>
+          @auth
+            <span class="text-sm text-gray-400">Xin chào, {{ Auth::user()->ho_ten }}</span>
+            <a href="{{ route('logout') }}" class="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">Đăng xuất</a>
+          @else
+            <span class="text-sm text-gray-400">Đăng nhập để tích điểm</span>
+            <a href="{{ route('login.form') }}" class="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded">Đăng nhập</a>
+          @endauth
         </div>
       </div>
     </div>
@@ -58,18 +63,26 @@
           <!-- Showtime Selection -->
           <div class="bg-gray-900 rounded-lg p-6">
             <h3 class="text-lg font-semibold mb-4">Chọn suất chiếu</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              @foreach($showtimes ?? [] as $index => $st)
-                <label class="cursor-pointer">
-                  <input type="radio" name="showtime" value="{{ $st['id'] }}" class="sr-only peer" {{ $index === 0 ? 'checked' : '' }}>
-                  <div class="border border-gray-700 rounded-lg p-3 text-center peer-checked:border-red-600 peer-checked:bg-red-600/20 hover:border-gray-600 transition">
-                    <p class="font-semibold">{{ $st['time'] }}</p>
-                    <p class="text-sm text-gray-400">{{ $st['date'] }}</p>
-                    <p class="text-xs text-gray-500">{{ $st['room'] ?? '' }}</p>
-                  </div>
-                </label>
-              @endforeach
-            </div>
+            @if(isset($showtimes) && count($showtimes) > 0)
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                @foreach($showtimes as $index => $st)
+                  <label class="cursor-pointer">
+                    <input type="radio" name="showtime" value="{{ $st['id'] }}" class="sr-only peer" {{ $index === 0 ? 'checked' : '' }}>
+                    <div class="border border-gray-700 rounded-lg p-3 text-center peer-checked:border-red-600 peer-checked:bg-red-600/20 hover:border-gray-600 transition">
+                      <p class="font-semibold">{{ $st['time'] }}</p>
+                      <p class="text-sm text-gray-400">{{ $st['date'] }}</p>
+                      <p class="text-xs text-gray-500">{{ $st['room'] ?? '' }}</p>
+                    </div>
+                  </label>
+                @endforeach
+              </div>
+            @else
+              <div class="text-center py-8">
+                <p class="text-gray-400 mb-2">Không có suất chiếu nào cho phim này</p>
+                <p class="text-sm text-gray-500">Vui lòng chọn phim khác hoặc quay lại sau</p>
+                <a href="{{ route('home') }}" class="inline-block mt-4 text-red-500 hover:text-red-400">← Quay lại trang chủ</a>
+              </div>
+            @endif
           </div>
 
           <!-- Screen -->
@@ -379,6 +392,15 @@
 
 @section('scripts')
 <script>
+// Global variables accessible from inline handlers
+let currentBookingId = null;
+let selectedShowtime = null;
+let selectedCombo = null;
+let selectedPromotion = null;
+let holdExpiresAt = null;
+let holdTimer = null;
+const selected = new Set();
+
 document.addEventListener('DOMContentLoaded', function() {
     let seatButtons = document.querySelectorAll('.seat, .seat-couple');
     const payButton = document.getElementById('pay');
@@ -392,14 +414,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalPrice = document.getElementById('total-price');
     const comboRadios = document.querySelectorAll('input[name="combo"]');
     const promoSelect = document.getElementById('promotion');
-    
-    const selected = new Set();
-    let selectedShowtime = null;
-    let selectedCombo = null; // {id, price}
-    let selectedPromotion = null; // {id, type, value}
-    let holdExpiresAt = null;
-    let holdTimer = null;
-    let currentBookingId = null;
     
     // Global safety: prevent accidental GET navigation to select-seats API
     document.addEventListener('click', function(e){
@@ -1239,7 +1253,8 @@ async function confirmPayment() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
             },
             body: JSON.stringify({
                 showtime: selectedShowtime,
@@ -1247,9 +1262,20 @@ async function confirmPayment() {
                 payment_method: 'online',
                 combo: selectedComboPayload,
                 promotion: selectedPromotionId,
-                booking_id: currentBookingId
+                booking_id: (typeof currentBookingId !== 'undefined' ? currentBookingId : null)
             })
         });
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            paymentStatus.textContent = 'Lỗi: Server trả về dữ liệu không hợp lệ';
+            paymentStatus.className = 'text-red-400';
+            alert('Có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+            return;
+        }
         
         const data = await response.json();
         
@@ -1268,7 +1294,15 @@ async function confirmPayment() {
             // Update status to error
             paymentStatus.textContent = 'Thanh toán thất bại';
             paymentStatus.className = 'text-red-400';
-            alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+            const errorMsg = data.message || 'Có lỗi xảy ra, vui lòng thử lại!';
+            alert(errorMsg);
+            
+            // If unauthorized, redirect to login
+            if (response.status === 401) {
+                setTimeout(() => {
+                    window.location.href = '{{ route("login.form") }}';
+                }, 1500);
+            }
         }
     } catch (error) {
         console.error('Error booking:', error);
