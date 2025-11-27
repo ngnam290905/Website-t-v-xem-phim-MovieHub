@@ -113,6 +113,7 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
 
+Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');
@@ -143,6 +144,7 @@ Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     
     // Additional routes from master
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
+    Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
 });
 
@@ -154,30 +156,39 @@ Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(func
 
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
-    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    // Admin dashboard for admins, redirect staff to a suitable module (e.g., movies)
+    Route::get('/', function () {
+        $role = optional(\Illuminate\Support\Facades\Auth::user()->vaiTro)->ten;
+        $norm = is_string($role) ? mb_strtolower(trim($role)) : '';
+        if (in_array($norm, ['admin'])) {
+            return app(\App\Http\Controllers\AdminController::class)->dashboard();
+        }
+        // Staff: redirect to movies list (or another module if desired)
+        return redirect()->route('admin.movies.index');
+    })->name('dashboard');
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
         Route::get('/', [MovieController::class, 'adminIndex'])->name('index');
         Route::get('/search', [MovieController::class, 'adminIndex'])->name('search');
-        Route::get('/create', [MovieController::class, 'create'])->middleware('role:admin')->name('create');
-        Route::post('/', [MovieController::class, 'store'])->middleware('role:admin')->name('store');
+        Route::get('/create', [MovieController::class, 'create'])->middleware('role:admin,staff')->name('create');
+        Route::post('/', [MovieController::class, 'store'])->middleware('role:admin,staff')->name('store');
         Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
-        Route::get('/{movie}/edit', [MovieController::class, 'edit'])->middleware('role:admin')->name('edit');
-        Route::put('/{movie}', [MovieController::class, 'update'])->middleware('role:admin')->name('update');
-        Route::delete('/{movie}', [MovieController::class, 'destroy'])->middleware('role:admin')->name('destroy');
-        Route::patch('/{movie}/toggle-status', [MovieController::class, 'toggleStatus'])->middleware('role:admin')->name('toggle-status');
+        Route::get('/{movie}/edit', [MovieController::class, 'edit'])->middleware('role:admin,staff')->name('edit');
+        Route::put('/{movie}', [MovieController::class, 'update'])->middleware('role:admin,staff')->name('update');
+        Route::delete('/{movie}', [MovieController::class, 'destroy'])->middleware('role:admin,staff')->name('destroy');
+        Route::patch('/{movie}/toggle-status', [MovieController::class, 'toggleStatus'])->middleware('role:admin,staff')->name('toggle-status');
     });
 
     // Quản lý người dùng
-    Route::prefix('users')->name('users.')->group(function () {
+    Route::prefix('users')->name('users.')->middleware('role:admin')->group(function () {
         // Route xem chi tiết người dùng - cho cả admin và staff
         Route::get('/{id}', [UserController::class, 'show'])
             ->whereNumber('id')
             ->name('show')
-            ->middleware('role:admin,staff');
+            ->middleware('role:admin');
             
-        // Các route quản lý người dùng - chỉ dành cho admin
+        // Các route quản lý người dùng - chỉ admin
         Route::middleware(['role:admin'])->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
             Route::get('/create', [UserController::class, 'create'])->name('create');
@@ -192,7 +203,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
     // Quản lý suất chiếu
     // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,staff')->group(function () {
         Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
@@ -211,7 +222,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
     Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
     // Chỉ Admin: CRUD & seat management (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,staff')->group(function () {
         Route::get('phong-chieu/create', [PhongChieuController::class, 'create'])->name('phong-chieu.create');
         Route::post('phong-chieu', [PhongChieuController::class, 'store'])->name('phong-chieu.store');
         Route::get('phong-chieu/{phongChieu}/edit', [PhongChieuController::class, 'edit'])->name('phong-chieu.edit');
@@ -241,7 +252,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
     // Chỉ Admin: CRUD & thao tác
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,staff')->group(function () {
         Route::get('ghe/create', [GheController::class, 'create'])->name('ghe.create');
         Route::post('ghe', [GheController::class, 'store'])->name('ghe.store');
         Route::get('ghe/{ghe}/edit', [GheController::class, 'edit'])->name('ghe.edit');
@@ -272,7 +283,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
     // KHUYẾN MẠI
     // Đặt nhóm Admin (tạo/sửa/xóa) TRƯỚC để tránh 'show' nuốt '/create'
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,staff')->group(function () {
         Route::get('/khuyenmai/create', [AdminKhuyenMaiController::class, 'create'])->name('khuyenmai.create');
         Route::post('/khuyenmai', [AdminKhuyenMaiController::class, 'store'])->name('khuyenmai.store');
         Route::get('/khuyenmai/{khuyenmai}/edit', [AdminKhuyenMaiController::class, 'edit'])->name('khuyenmai.edit');
@@ -291,7 +302,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     // Admin & Staff: xem danh sách
     Route::get('combos', [ComboController::class, 'index'])->name('combos.index');
     // Chỉ Admin: CRUD (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,staff')->group(function () {
         Route::get('combos/create', [ComboController::class, 'create'])->name('combos.create');
         Route::post('combos', [ComboController::class, 'store'])->name('combos.store');
         Route::get('combos/{combo}/edit', [ComboController::class, 'edit'])->name('combos.edit');

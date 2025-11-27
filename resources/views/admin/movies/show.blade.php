@@ -29,7 +29,7 @@
       <h1 class="text-2xl font-bold text-white">{{ $movie->ten_phim }}</h1>
       <div class="flex items-center gap-2">
         <a href="{{ route('admin.movies.index') }}" class="inline-flex items-center px-3 py-2 rounded-lg border border-[#2f3240] text-sm text-[#a6a6b0] hover:bg-[#222533]"><i class="fas fa-arrow-left mr-2"></i> Quay lại</a>
-        @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+        @if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
           <a href="{{ route('admin.movies.edit', $movie) }}" class="inline-flex items-center px-3 py-2 rounded-lg bg-yellow-600/20 text-yellow-300 text-sm hover:bg-yellow-600/30"><i class="fas fa-edit mr-2"></i> Chỉnh sửa</a>
         @endif
       </div>
