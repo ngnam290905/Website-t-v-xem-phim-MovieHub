@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-<<<<<<< HEAD
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,32 +35,10 @@ class DatVe extends Model
 
     // Relationship with NguoiDung
     public function nguoiDung(): BelongsTo
-=======
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-
-class DatVe extends Model
-{
-    use HasFactory;
-
-    protected $table = 'dat_ve';
-    protected $primaryKey = 'id';
-    public $timestamps = false;
-
-    protected $fillable = [
-        'id_nguoi_dung',
-        'ngay_dat',
-        'tong_tien',
-        'trang_thai',
-    ];
-
-    public function nguoiDung()
->>>>>>> origin/hoanganh
     {
         return $this->belongsTo(NguoiDung::class, 'id_nguoi_dung');
     }
 
-<<<<<<< HEAD
     // Relationship with SuatChieu
     public function suatChieu(): BelongsTo
     {
@@ -143,10 +120,5 @@ class DatVe extends Model
         }
 
         return max(0, ($seatTotal + $comboTotal) - $discount - $memberDiscount);
-=======
-    public function thanhToan()
-    {
-        return $this->hasMany(ThanhToan::class, 'id_dat_ve');
->>>>>>> origin/hoanganh
     }
 }

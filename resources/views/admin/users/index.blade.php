@@ -3,7 +3,6 @@
 @section('title', 'Danh sách người dùng - Admin')
 
 @section('content')
-<<<<<<< HEAD
   <div class="space-y-6">
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -166,7 +165,6 @@
                 + Thêm người dùng
             </a>
         </div>
->>>>>>> origin/hoanganh
     </div>
 
     @if (session('success'))

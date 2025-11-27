@@ -11,7 +11,6 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
-<<<<<<< HEAD
     public function showLoginForm()
     {
         return view('auth.login');

@@ -1,6 +1,5 @@
 @extends('admin.layout')
 
-<<<<<<< HEAD
 @section('title', 'Chi tiết người dùng')
 
 @section('content')
@@ -290,4 +289,3 @@
     </div>
 </div>
 @endsection
->>>>>>> origin/hoanganh
