@@ -95,44 +95,12 @@ class BookingController extends Controller
             Log::warning('User not authenticated when accessing bookings');
             return redirect()->route('login.form')->with('error', 'Vui lòng đăng nhập để xem lịch sử đặt vé');
         }
-        return false;
-    }
-
-    // ==================================================================
-    // 1. DANH SÁCH VÉ ĐÃ ĐẶT
-    // ==================================================================
-    public function index()
-    {
+        
+        // Get booking data for user with related showtime, movie, room, and seat details
         $bookings = DatVe::with([
                 'suatChieu.phim',
                 'suatChieu.phongChieu',
-                'chiTietDatVe.ghe',
-                'khuyenMai',
-                'chiTietCombo.combo',
-                'thanhToan'
-            ])
->>>>>>> origin/hoanganh
-            ->where('id_nguoi_dung', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        return view('user.bookings', compact('bookings'));
-    }
-
-<<<<<<< HEAD
-    public function show($id)
-    {
-        $booking = DatVe::with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'khuyenMai', 'chiTietCombo.combo', 'thanhToan', 'nguoiDung'])
-=======
-    // ==================================================================
-    // 2. XEM CHI TIẾT VÉ + QR CODE
-    // ==================================================================
-    public function show($id)
-    {
-        $booking = DatVe::with([
-                'suatChieu.phim',
-                'suatChieu.phongChieu',
-                'chiTietDatVe.ghe',
+                'chiTietDatVe.ghe.loaiGhe',
                 'khuyenMai',
                 'chiTietCombo.combo',
                 'thanhToan',
@@ -179,7 +147,6 @@ class BookingController extends Controller
             ->firstOrFail();
 
         $showtime = optional($booking->suatChieu);
-<<<<<<< HEAD
         $movie = optional($showtime->phim);
         $room = optional($showtime->phongChieu);
         $seatList = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values()->all();
@@ -206,7 +173,6 @@ class BookingController extends Controller
         }
 
         $computedTotal = max(0, $subtotal - $promoDiscount);
-<<<<<<< HEAD
 
         // Payment method
         $pt = $booking->phuong_thuc_thanh_toan;
@@ -250,7 +216,6 @@ class BookingController extends Controller
         // Initialize variables to avoid undefined variable errors
         $roomInfo = null;
         $seats = collect();
-<<<<<<< HEAD
         $vipSeats = [];
         $vipRows = [];
         $coupleSeats = [];
@@ -444,13 +409,12 @@ class BookingController extends Controller
             
             // Validate showtime exists
             $showtime = SuatChieu::find($showtimeId);
-<<<<<<< HEAD
             if (!$showtime) {
-                \Log::warning('Showtime not found: ' . $showtimeId);
+                Log::warning('Showtime not found: ' . $showtimeId);
                 return response()->json(['seats' => []]);
             }
             
-            \Log::info('Showtime found, room id: ' . $showtime->id_phong);
+            Log::info('Showtime found, room id: ' . $showtime->id_phong);
             
             // Release expired seats (lazy check) - skip if table doesn't exist
             try {
@@ -460,24 +424,11 @@ class BookingController extends Controller
             }
             
             // Get seat statuses from showtime_seats table - skip if table doesn't exist
-=======
-    // ==================================================================
-    // 5. LẤY TOÀN BỘ GHẾ + GIÁ ĐỘNG (CHỖ QUAN TRỌNG NHẤT)
-    // ==================================================================
-    public function getShowtimeSeats($showtimeId)
-    {
-        try {
-            $showtime = SuatChieu::findOrFail($showtimeId);
-
-            try { ShowtimeSeat::releaseExpiredSeats($showtimeId); } catch (\Exception $e) {}
-
->>>>>>> origin/hoanganh
             $showtimeSeats = collect();
             try {
                 $showtimeSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
                     ->with('ghe')
                     ->get()
-<<<<<<< HEAD
                     ->keyBy(function ($showtimeSeat) {
                         return $showtimeSeat->ghe->so_ghe ?? null;
                     })
@@ -523,7 +474,7 @@ class BookingController extends Controller
                     
                     // Debug logging for VIP seats
                     if (str_contains($typeText, 'vip') || str_contains(strtolower($seat->loaiGhe->ten_loai ?? ''), 'vip')) {
-                        \Log::info('VIP seat found: ' . $seat->so_ghe . ', type: ' . ($seat->loaiGhe->ten_loai ?? 'N/A'));
+                        Log::info('VIP seat found: ' . $seat->so_ghe . ', type: ' . ($seat->loaiGhe->ten_loai ?? 'N/A'));
                     }
                     
                     // Determine price based on seat type

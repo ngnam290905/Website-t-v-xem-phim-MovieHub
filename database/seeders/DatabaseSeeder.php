@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             MovieSeeder::class,
-            RoleSeeder::class,
+            // RoleSeeder::class,
             CinemaDataSeeder::class, // New comprehensive seeder
 <<<<<<< HEAD
             LoaiGheSeeder::class,
