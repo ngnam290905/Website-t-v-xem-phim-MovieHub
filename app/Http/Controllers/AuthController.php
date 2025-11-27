@@ -11,6 +11,48 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    public function showLoginForm()
+    {
+        return view('auth.login');
+    }
+
+    public function showRegisterForm()
+    {
+        return view('auth.register');
+    }
+
+    public function showForgotPasswordForm()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendPasswordResetLink(Request $request)
+    {
+        $request->validate(['email' => 'required|email|exists:nguoi_dung,email']);
+
+        // TODO: Implement password reset email sending
+        // For now, just return with success message
+        return back()->with('status', 'Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn!');
+    }
+
+    public function showResetPasswordForm($token)
+    {
+        return view('auth.reset-password', ['token' => $token]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email|exists:nguoi_dung,email',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        // TODO: Implement password reset logic
+        // For now, just return with success message
+        return redirect()->route('login.form')->with('status', 'Mật khẩu đã được đặt lại thành công!');
+    }
+
     public function register(Request $request)
     {
         $validated = $request->validate([

@@ -14,6 +14,7 @@ use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\PublicController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\ThanhVienController;
@@ -24,8 +25,12 @@ use App\Http\Controllers\BookingController;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/ve', function(){ return View::make('tickets.check'); })->name('tickets.check');
 
-// Booking routes - must be before phim routes to avoid conflicts
-Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
+// Movie listing pages (must be before /movies/{movie} to avoid route conflict)
+Route::get('/movies/category/{category}', [MovieController::class, 'category'])->name('movies.category');
+
+// Movie detail routes
+Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movie-detail');
+Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
 
 // Client Movie Routes
 Route::prefix('phim')->name('movies.')->group(function () {
@@ -54,6 +59,30 @@ Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu']
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
 Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
+Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats')->middleware('auth');
+
+// Booking routes (new user flow)
+Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
+Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->name('booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'getShowtimesByDate'])->name('api.booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/dates', [App\Http\Controllers\BookingFlowController::class, 'getAvailableDates'])->name('api.booking.dates');
+
+// Booking data display routes
+Route::get('/booking-data', [App\Http\Controllers\BookingDataController::class, 'index'])->name('booking.data');
+Route::get('/booking-data/movie/{id}', [App\Http\Controllers\BookingDataController::class, 'movie'])->name('booking.data.movie');
+Route::get('/booking-data/room/{id}', [App\Http\Controllers\BookingDataController::class, 'room'])->name('booking.data.room');
+Route::get('/booking-data/showtime/{id}', [App\Http\Controllers\BookingDataController::class, 'showtime'])->name('booking.data.showtime');
+Route::get('/booking-data/booking/{id}', [App\Http\Controllers\BookingDataController::class, 'booking'])->name('booking.data.booking');
+
+// Public pages
+// Route::get('/phim', [PublicController::class, 'movies'])->name('public.movies'); // Commented out - using movies.index instead
+Route::get('/lich-chieu', [PublicController::class, 'schedule'])->name('public.schedule');
+Route::get('/combo', [PublicController::class, 'combos'])->name('public.combos');
+Route::get('/tin-tuc', [PublicController::class, 'news'])->name('public.news');
+Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->name('public.news.detail');
+
+// Debug route (remove in production)
+Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
 
 // Public booking store route to allow saving booking after clicking "Tôi đã thanh toán" without login
 Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store.public');
@@ -63,6 +92,27 @@ Route::middleware('auth')->prefix('booking')->name('booking.')->group(function (
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
 
+Route::middleware('auth')->group(function () {
+    Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
+    Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
+    Route::post('/shows/{showId}/seats/unlock', [App\Http\Controllers\BookingController::class, 'unlockSeats'])->name('booking.seats.unlock');
+    Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
+    Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
+    Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
+    Route::get('/checkout/{bookingId}', [App\Http\Controllers\BookingController::class, 'checkout'])->name('booking.checkout');
+    Route::post('/checkout/{bookingId}/payment', [App\Http\Controllers\BookingController::class, 'processPayment'])->name('booking.payment.process');
+    Route::post('/payment/callback', [App\Http\Controllers\BookingController::class, 'paymentCallback'])->name('booking.payment.callback');
+    Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
+    Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
+    Route::get('/tickets/{id}', [App\Http\Controllers\BookingController::class, 'ticketDetail'])->name('booking.ticket.detail');
+});
+
+// Legacy booking routes
+Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
+Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
+    return view('booking-dynamic', ['id' => $id]);
+})->name('booking-dynamic');
+
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');
@@ -70,22 +120,28 @@ Route::get('/mini-game', function () {
 
 // Auth routes
 Route::middleware('guest')->group(function () {
-    Route::get('/register', function () { return view('auth.register'); })->name('register.form');
-    Route::get('/login', function () { return view('auth.login'); })->name('login.form');
+    Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form');
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
     Route::post('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
+    Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-// User routes (profile, bookings) — requires authentication
+// User profile routes
 Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
-    Route::get('/profile/edit', [UserProfileController::class, 'edit'])->name('edit');
-    Route::put('/profile', [UserProfileController::class, 'update'])->name('update');
-
-    Route::get('/profile/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password.form');
-    Route::post('/profile/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
-
+    Route::get('/edit-profile', [UserProfileController::class, 'edit'])->name('edit-profile');
+    Route::put('/update-profile', [UserProfileController::class, 'update'])->name('update-profile');
+    Route::get('/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password');
+    Route::post('/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
+    Route::get('/booking-history', [UserProfileController::class, 'bookingHistory'])->name('booking-history');
+    Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking');
+    
+    // Additional routes from master
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
     Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
     Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
@@ -171,16 +227,21 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::get('phong-chieu/{phongChieu}/edit', [PhongChieuController::class, 'edit'])->name('phong-chieu.edit');
         Route::put('phong-chieu/{phongChieu}', [PhongChieuController::class, 'update'])->name('phong-chieu.update');
         Route::delete('phong-chieu/{phongChieu}', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy');
+        // Fallback route to handle POST requests that should be DELETE
+        Route::post('phong-chieu/{phongChieu}/delete', [PhongChieuController::class, 'destroy'])->name('phong-chieu.destroy.post');
         Route::patch('phong-chieu/{phongChieu}/status', [PhongChieuController::class, 'updateStatus'])->name('phong-chieu.update-status');
         Route::get('phong-chieu/{phongChieu}/can-modify', [PhongChieuController::class, 'canModify'])->name('phong-chieu.can-modify');
         Route::post('phong-chieu/{phongChieu}/generate-seats', [PhongChieuController::class, 'generateSeats'])->name('phong-chieu.generate-seats');
         Route::get('phong-chieu/{phongChieu}/manage-seats', [PhongChieuController::class, 'manageSeats'])->name('phong-chieu.manage-seats');
+        Route::get('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'showSeat'])->name('phong-chieu.seats.show');
         Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
         Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
         Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
         Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
         Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
+        Route::post('phong-chieu/{phongChieu}/seats/bulk-create', [PhongChieuController::class, 'bulkCreateSeats'])->name('phong-chieu.seats.bulk-create');
+        Route::post('phong-chieu/{phongChieu}/seats/positions', [PhongChieuController::class, 'updateSeatPositions'])->name('phong-chieu.seats.positions');
     });
     // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');

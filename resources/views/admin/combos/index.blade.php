@@ -104,6 +104,6 @@
     </table>
   </div>
 
-  <div class="mt-4">{{ $combos->links('pagination::tailwind') }}</div>
+  <div class="mt-4">{{ $combos->links('pagination.custom') }}</div>
 </div>
 @endsection
