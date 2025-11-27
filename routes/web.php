@@ -92,6 +92,7 @@ Route::middleware('auth')->prefix('booking')->name('booking.')->group(function (
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
 
+
 Route::middleware('auth')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
@@ -112,6 +113,9 @@ Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
+
+
+Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 
 // Mini game route
 Route::get('/mini-game', function () {

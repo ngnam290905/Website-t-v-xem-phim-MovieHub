@@ -14,7 +14,11 @@ class HangThanhVien extends Model
 
     protected $fillable = [
         'id_nguoi_dung',
-        'ten_hang',
+        'id_tier',
+        'ten_hang', 
+        'uu_dai',
+        'diem_toi_thieu',
+        'ngay_cap_nhat_hang'
     ];
 
     public function nguoiDung()
