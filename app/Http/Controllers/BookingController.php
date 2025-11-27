@@ -240,15 +240,7 @@ class BookingController extends Controller
                 ->get();
         }
         
-        // If still no showtimes, get the most recent active showtimes (for testing)
-        if ($showtimes->isEmpty()) {
-            $showtimes = SuatChieu::with('phongChieu')
-                ->where('id_phim', $movie->id)
-                ->where('trang_thai', 1)
-                ->orderBy('thoi_gian_bat_dau', 'desc')
-                ->limit(5)
-                ->get();
-        }
+        // Do not fallback to past showtimes; keep empty if none are upcoming
         
         $showtimes = $showtimes->map(function ($suat) {
             return [
@@ -340,18 +332,32 @@ class BookingController extends Controller
                 return response()->json(['seats' => []]);
             }
             
-            // Release expired seats (lazy check)
-            ShowtimeSeat::releaseExpiredSeats($showtimeId);
+            // Release expired seats (lazy check) - skip if table doesn't exist
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    ShowtimeSeat::releaseExpiredSeats($showtimeId);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip releaseExpiredSeats: '.$e->getMessage());
+            }
             
-            // Get booked seats from showtime_seats table
-            $bookedSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                ->where('status', 'booked')
-                ->with('ghe')
-                ->get()
-                ->map(function ($showtimeSeat) {
-                    return $showtimeSeat->ghe->so_ghe ?? null;
-                })
-                ->filter();
+            // Get booked seats from showtime_seats table - guard for missing table
+            $bookedSeats = collect();
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    $bookedSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
+                        ->where('status', 'booked')
+                        ->with('ghe')
+                        ->get()
+                        ->map(function ($showtimeSeat) {
+                            return $showtimeSeat->ghe->so_ghe ?? null;
+                        })
+                        ->filter();
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip get booked showtime seats: '.$e->getMessage());
+                $bookedSeats = collect();
+            }
             
             // Also get from old booking system for backward compatibility
             $oldBookedSeats = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
@@ -367,16 +373,24 @@ class BookingController extends Controller
             // Merge and get unique seats
             $allBookedSeats = $bookedSeats->merge($oldBookedSeats)->unique()->values();
             
-            // Get holding seats (for display purposes)
-            $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                ->where('status', 'holding')
-                ->where('hold_expires_at', '>', Carbon::now())
-                ->with('ghe')
-                ->get()
-                ->map(function ($showtimeSeat) {
-                    return $showtimeSeat->ghe->so_ghe ?? null;
-                })
-                ->filter();
+            // Get holding seats (for display purposes) - guard for missing table
+            $holdingSeats = collect();
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
+                        ->where('status', 'holding')
+                        ->where('hold_expires_at', '>', Carbon::now())
+                        ->with('ghe')
+                        ->get()
+                        ->map(function ($showtimeSeat) {
+                            return $showtimeSeat->ghe->so_ghe ?? null;
+                        })
+                        ->filter();
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip get holding seats: '.$e->getMessage());
+                $holdingSeats = collect();
+            }
             
             return response()->json([
                 'seats' => $allBookedSeats,
@@ -544,8 +558,14 @@ class BookingController extends Controller
                 ]);
             }
             
-            // Release expired seats first
-            ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+            // Release expired seats first (if mapping table exists)
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip releaseExpiredSeats@store: '.$e->getMessage());
+            }
 
             // Check if seats are already booked or holding
             $unavailableSeats = [];
@@ -577,10 +597,17 @@ class BookingController extends Controller
                         ->first();
                     
                     if ($ghe) {
-                        // Check showtime_seats table
-                        $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
-                            ->where('id_ghe', $ghe->id)
-                            ->first();
+                        // Check showtime_seats table (if exists)
+                        $showtimeSeat = null;
+                        try {
+                            if (Schema::hasTable('suat_chieu_ghe')) {
+                                $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                    ->where('id_ghe', $ghe->id)
+                                    ->first();
+                            }
+                        } catch (\Throwable $e) {
+                            \Log::warning('Skip check showtimeSeat@store: '.$e->getMessage());
+                        }
                         
                         if ($showtimeSeat) {
                             // Allow if seat is holding by current user (from selectSeats)
@@ -793,31 +820,37 @@ class BookingController extends Controller
                             'gia' => $price
                         ]);
                         
-                        // Update showtime_seats: convert holding to booked, or create new booked entry
-                        $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
-                            ->where('id_ghe', $seat->id)
-                            ->first();
-                        
-                        if ($showtimeSeat) {
-                            // If holding, convert to booked
-                            if ($showtimeSeat->isHolding() || $showtimeSeat->status === 'holding') {
-                                $showtimeSeat->status = 'booked';
-                                $showtimeSeat->hold_expires_at = null;
-                                $showtimeSeat->save();
-                            } elseif ($showtimeSeat->status !== 'booked') {
-                                // If available or other status, mark as booked
-                                $showtimeSeat->status = 'booked';
-                                $showtimeSeat->hold_expires_at = null;
-                                $showtimeSeat->save();
+                        // Update showtime_seats: convert holding to booked, or create new booked entry (if table exists)
+                        try {
+                            if (Schema::hasTable('suat_chieu_ghe')) {
+                                $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                    ->where('id_ghe', $seat->id)
+                                    ->first();
+                                
+                                if ($showtimeSeat) {
+                                    // If holding, convert to booked
+                                    if ($showtimeSeat->isHolding() || $showtimeSeat->status === 'holding') {
+                                        $showtimeSeat->status = 'booked';
+                                        $showtimeSeat->hold_expires_at = null;
+                                        $showtimeSeat->save();
+                                    } elseif ($showtimeSeat->status !== 'booked') {
+                                        // If available or other status, mark as booked
+                                        $showtimeSeat->status = 'booked';
+                                        $showtimeSeat->hold_expires_at = null;
+                                        $showtimeSeat->save();
+                                    }
+                                } else {
+                                    // Create new showtime_seat entry as booked
+                                    ShowtimeSeat::create([
+                                        'id_suat_chieu' => $data['showtime'],
+                                        'id_ghe' => $seat->id,
+                                        'status' => 'booked',
+                                        'hold_expires_at' => null,
+                                    ]);
+                                }
                             }
-                        } else {
-                            // Create new showtime_seat entry as booked
-                            ShowtimeSeat::create([
-                                'id_suat_chieu' => $data['showtime'],
-                                'id_ghe' => $seat->id,
-                                'status' => 'booked',
-                                'hold_expires_at' => null,
-                            ]);
+                        } catch (\Throwable $e) {
+                            \Log::warning('Skip update showtime_seat@store: '.$e->getMessage());
                         }
                         
                         // Lock seat (legacy behavior)
@@ -977,21 +1010,27 @@ class BookingController extends Controller
                 $seatsByCode[$code] = $ghe;
             }
 
-            // Check if seats are available
+            // Check if seats are available (skip if mapping table doesn't exist)
             $unavailableSeats = [];
             foreach ($seatIds as $index => $seatId) {
-                $showtimeSeat = ShowtimeSeat::firstOrNew([
-                    'id_suat_chieu' => $showtimeId,
-                    'id_ghe' => $seatId,
-                ]);
+                try {
+                    if (Schema::hasTable('suat_chieu_ghe')) {
+                        $showtimeSeat = ShowtimeSeat::firstOrNew([
+                            'id_suat_chieu' => $showtimeId,
+                            'id_ghe' => $seatId,
+                        ]);
 
-                if (!$showtimeSeat->exists) {
-                    $showtimeSeat->status = 'available';
-                }
+                        if (!$showtimeSeat->exists) {
+                            $showtimeSeat->status = 'available';
+                        }
 
-                if (!$showtimeSeat->isAvailable()) {
-                    $code = $seatCodes[$index];
-                    $unavailableSeats[] = $code;
+                        if (!$showtimeSeat->isAvailable()) {
+                            $code = $seatCodes[$index];
+                            $unavailableSeats[] = $code;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip availability check (suat_chieu_ghe missing?): '.$e->getMessage());
                 }
             }
 
@@ -1010,32 +1049,58 @@ class BookingController extends Controller
             try {
                 // Create temporary booking with pending status
                 $bookingData = [
-                    'id_nguoi_dung' => Auth::id(),
                     'id_suat_chieu' => $showtimeId,
                     'tong_tien' => 0,
                     'trang_thai' => 0, // pending
                 ];
+                // Only set user id if authenticated (allow guest holds)
+                try {
+                    if (Schema::hasColumn('dat_ve', 'id_nguoi_dung')) {
+                        $uid = Auth::id();
+                        if ($uid) {
+                            $bookingData['id_nguoi_dung'] = $uid;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Schema check failed; ignore and proceed without user id
+                }
                 
-                // Only add phuong_thuc_thanh_toan if column exists
+                // Optional columns
                 if (Schema::hasColumn('dat_ve', 'phuong_thuc_thanh_toan')) {
                     $bookingData['phuong_thuc_thanh_toan'] = null;
                 }
+                if (Schema::hasColumn('dat_ve', 'tong_tien_hien_thi')) {
+                    $bookingData['tong_tien_hien_thi'] = 0;
+                }
                 
-                $booking = DatVe::create($bookingData);
+                // Create booking while handling missing timestamps columns gracefully
+                if (Schema::hasColumn('dat_ve', 'created_at') && Schema::hasColumn('dat_ve', 'updated_at')) {
+                    $booking = DatVe::create($bookingData);
+                } else {
+                    $booking = DatVe::withoutTimestamps(function () use ($bookingData) {
+                        return DatVe::create($bookingData);
+                    });
+                }
                 $bookingId = $booking->id;
 
-                // Set seats to holding status
-                foreach ($seatIds as $seatId) {
-                    ShowtimeSeat::updateOrCreate(
-                        [
-                            'id_suat_chieu' => $showtimeId,
-                            'id_ghe' => $seatId,
-                        ],
-                        [
-                            'status' => 'holding',
-                            'hold_expires_at' => $holdExpiresAt,
-                        ]
-                    );
+                // Set seats to holding status (skip if mapping table doesn't exist)
+                try {
+                    if (Schema::hasTable('suat_chieu_ghe')) {
+                        foreach ($seatIds as $seatId) {
+                            ShowtimeSeat::updateOrCreate(
+                                [
+                                    'id_suat_chieu' => $showtimeId,
+                                    'id_ghe' => $seatId,
+                                ],
+                                [
+                                    'status' => 'holding',
+                                    'hold_expires_at' => $holdExpiresAt,
+                                ]
+                            );
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip holding seats (suat_chieu_ghe missing?): '.$e->getMessage());
                 }
 
                 DB::commit();
@@ -1052,14 +1117,14 @@ class BookingController extends Controller
                 Log::error('Error holding seats: ' . $e->getMessage());
                 return response()->json([
                     'success' => false,
-                    'message' => 'Có lỗi xảy ra khi giữ ghế. Vui lòng thử lại!'
+                    'message' => 'Có lỗi xảy ra khi giữ ghế: ' . $e->getMessage()
                 ], 500);
             }
         } catch (\Exception $e) {
             Log::error('Select seats error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!'
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
         }
     }

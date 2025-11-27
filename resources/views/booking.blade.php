@@ -401,6 +401,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let holdTimer = null;
     let currentBookingId = null;
     
+    // Global safety: prevent accidental GET navigation to select-seats API
+    document.addEventListener('click', function(e){
+        const anchor = e.target.closest('a[href]');
+        if (!anchor) return;
+        const href = anchor.getAttribute('href') || '';
+        if (/^\/api\/showtimes\/\d+\/select-seats(\b|\/|\?|#|$)/.test(href)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, true);
+
     // Function to attach seat selection event listeners
     function attachSeatListeners() {
         const seatMapContainer = document.getElementById('seat-map');
@@ -431,6 +443,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Mark as attached
             button._seatListenerAttached = true;
+            // Ensure this button never submits a wrapping form
+            try { button.setAttribute('type', 'button'); } catch (err) {}
             
             // Re-add to selected if it was selected before
             if (selectedSeatCodes.includes(seatCode)) {

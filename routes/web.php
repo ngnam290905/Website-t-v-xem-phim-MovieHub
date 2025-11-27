@@ -58,9 +58,9 @@ Route::get('/api/featured-movies', [MovieController::class, 'getFeaturedMovies']
 Route::get('/api/search', [MovieController::class, 'search'])->name('api.search');
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
-Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
+Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
-Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats')->middleware('auth');
+Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats');
 
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
