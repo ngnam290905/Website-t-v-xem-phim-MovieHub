@@ -28,9 +28,14 @@ class DatabaseSeeder extends Seeder
             MovieSeeder::class,
             RoleSeeder::class,
             CinemaDataSeeder::class, // New comprehensive seeder
+<<<<<<< HEAD
             LoaiGheSeeder::class,
             ComboSeeder::class,
             TinTucSeeder::class,
+=======
+            // LoaiGheSeeder::class,
+            DatVeSeeder::class,
+>>>>>>> origin/khanhPH52932
         ]);
 
     }

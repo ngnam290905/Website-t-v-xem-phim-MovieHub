@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 class DatVe extends Model
 {
     protected $table = 'dat_ve';
-    public $timestamps = false;
+    public $timestamps = true;
+    // Bảng không có cột updated_at
+    public const UPDATED_AT = null;
     
     protected $fillable = [
         'id_nguoi_dung',
@@ -22,8 +24,7 @@ class DatVe extends Model
         'so_dien_thoai',
         'email',
         'tong_tien',
-        'trang_thai',
-        'phuong_thuc_thanh_toan'
+        'trang_thai'
     ];
 
     protected $casts = [

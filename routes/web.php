@@ -11,8 +11,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminReportController;
-use App\Http\Controllers\QuanLyDatVeController;
 use App\Http\Controllers\AdminKhuyenMaiController;
+use App\Http\Controllers\QuanLyDatVeController;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\PublicController;
@@ -58,9 +58,9 @@ Route::get('/api/featured-movies', [MovieController::class, 'getFeaturedMovies']
 Route::get('/api/search', [MovieController::class, 'search'])->name('api.search');
 Route::get('/api/suat-chieu/{movieId}', [MovieController::class, 'getSuatChieu'])->name('api.suat-chieu');
 Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name('api.phong-chieu');
-Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats')->middleware('auth');
+Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
-Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats')->middleware('auth');
+Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats');
 
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
@@ -93,6 +93,7 @@ Route::middleware('auth')->prefix('booking')->name('booking.')->group(function (
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
 
+
 Route::middleware('auth')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
@@ -113,6 +114,7 @@ Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->name('booking-dynamic');
+
 
 Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 

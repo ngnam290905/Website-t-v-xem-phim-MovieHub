@@ -8,17 +8,9 @@ use App\Models\KhuyenMai;
 use App\Models\Phim;
 use App\Models\SuatChieu;
 use App\Models\ChiTietDatVe;
-<<<<<<< HEAD
-use App\Models\ChiTietCombo;
 use App\Models\Ghe;
 use App\Models\LoaiGhe;
 use App\Models\ShowtimeSeat;
-use App\Models\ThanhToan;
-=======
-use App\Models\Ghe;
-use App\Models\LoaiGhe;
-use App\Models\ShowtimeSeat;
->>>>>>> origin/hoanganh
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -28,35 +20,80 @@ use Carbon\Carbon;
 
 class BookingController extends Controller
 {
-<<<<<<< HEAD
-    //Helper: Check VIP
-=======
->>>>>>> origin/hoanganh
+    /**
+     * Helper method to check if seat is VIP
+     */
     private function isVipSeat($seat)
     {
-        if ($seat->id_loai == 2) return true;
-        if ($seat->loaiGhe && stripos($seat->loaiGhe->ten_loai, 'vip') !== false) return true;
+        // Database uses id_loai = 2 for VIP seats
+        if ($seat->id_loai == 2) {
+            return true;
+        }
+        
+        // Or check by name if id_loai has different values
+        if ($seat->loaiGhe && stripos($seat->loaiGhe->ten_loai, 'vip') !== false) {
+            return true;
+        }
+        
         return false;
     }
-
-<<<<<<< HEAD
-    //Helper: Check Couple
+    
+    /**
+     * Helper method to check if seat is Couple
+     */
     private function isCoupleSeat($seat)
     {
-        if ($seat->id_loai == 3) return true;
-        if ($seat->loaiGhe && (stripos($seat->loaiGhe->ten_loai, 'đôi') !== false || stripos($seat->loaiGhe->ten_loai, 'doi') !== false)) return true;
+        // Database uses id_loai = 3 for Couple seats
+        if ($seat->id_loai == 3) {
+            return true;
+        }
+        
+        // Or check by name
+        if ($seat->loaiGhe && (stripos($seat->loaiGhe->ten_loai, 'đôi') !== false || stripos($seat->loaiGhe->ten_loai, 'doi') !== false)) {
+            return true;
+        }
+        
         return false;
     }
-
+    
+    /**
+     * Helper method to get seat price
+     */
+    private function getSeatPrice($roomId, $row, $col)
+    {
+        // Find seat in database
+        $seat = Ghe::where('id_phong', $roomId)
+            ->where('so_ghe', $row . $col)
+            ->with('loaiGhe')
+            ->first();
+        
+        if (!$seat) {
+            return 80000; // Default price
+        }
+        
+        // Check if couple seat
+        if ($this->isCoupleSeat($seat)) {
+            return 200000;
+        }
+        
+        // Check if VIP seat
+        if ($this->isVipSeat($seat)) {
+            return 120000;
+        }
+        
+        // Regular seat
+        return 80000;
+    }
+    
     public function index()
     {
-        $bookings = DatVe::with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'khuyenMai', 'chiTietCombo.combo', 'thanhToan'])
-=======
-    private function isCoupleSeat($seat)
-    {
-        if ($seat->id_loai == 3) return true;
-        if ($seat->loaiGhe && (stripos($seat->loaiGhe->ten_loai, 'đôi') !== false || stripos($seat->loaiGhe->ten_loai, 'couple') !== false)) {
-            return true;
+        // Get current user ID
+        $userId = Auth::id();
+        
+        // Debug: Check if user is authenticated
+        if (!$userId) {
+            Log::warning('User not authenticated when accessing bookings');
+            return redirect()->route('login.form')->with('error', 'Vui lòng đăng nhập để xem lịch sử đặt vé');
         }
         return false;
     }
@@ -101,7 +138,42 @@ class BookingController extends Controller
                 'thanhToan',
                 'nguoiDung'
             ])
->>>>>>> origin/hoanganh
+            ->where('id_nguoi_dung', $userId)
+            ->orderByRaw('COALESCE(created_at, id) DESC')
+            ->paginate(10);
+        
+        // Debug log
+        Log::info('User Bookings Retrieved', [
+            'user_id' => $userId,
+            'user_email' => Auth::user()->email ?? 'N/A',
+            'bookings_count' => $bookings->count(),
+            'total' => $bookings->total(),
+            'booking_ids' => $bookings->pluck('id')->toArray()
+        ]);
+        
+        // Additional debug: Check if there are bookings in DB for this user
+        $totalBookings = DatVe::where('id_nguoi_dung', $userId)->count();
+        if ($totalBookings === 0) {
+            Log::info('No bookings found in database for user', ['user_id' => $userId]);
+        }
+            
+        return view('user.bookings', compact('bookings'));
+    }
+
+    /**
+     * Show detailed ticket view with QR code
+     */
+    public function show($id)
+    {
+        $booking = DatVe::with([
+                'suatChieu.phim',
+                'suatChieu.phongChieu',
+                'chiTietDatVe.ghe',
+                'khuyenMai',
+                'chiTietCombo.combo',
+                'thanhToan',
+                'nguoiDung'
+            ])
             ->where('id', $id)
             ->where('id_nguoi_dung', Auth::id())
             ->firstOrFail();
@@ -110,89 +182,62 @@ class BookingController extends Controller
 <<<<<<< HEAD
         $movie = optional($showtime->phim);
         $room = optional($showtime->phongChieu);
-        $seatList = $booking->chiTietDatVe->map(function ($ct) {
-            return optional($ct->ghe)->so_ghe;
-        })->filter()->values()->all();
+        $seatList = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values()->all();
 
         // Calculate totals
         $comboItems = $booking->chiTietCombo ?? collect();
         $promo = $booking->khuyenMai;
-        $comboTotal = $comboItems->sum(function ($i) {
-            return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong);
-        });
+        $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong); });
         $seatTotal = (float) $booking->chiTietDatVe->sum('gia');
         $subtotal = $seatTotal + $comboTotal;
         $promoDiscount = 0;
-
+        
         if ($promo) {
             $type = strtolower($promo->loai_giam);
             $val = (float)$promo->gia_tri_giam;
             $min = 0;
             if ($subtotal >= $min) {
-                if ($type === 'phantram') $promoDiscount = round($subtotal * ($val / 100));
-                else $promoDiscount = ($val >= 1000) ? $val : $val * 1000;
-=======
-        $movie    = optional($showtime->phim);
-        $room     = optional($showtime->phongChieu);
-        $seatList = $booking->chiTietDatVe->map(fn($ct) => optional($ct->ghe)->so_ghe)->filter()->values()->all();
-
-        $comboItems     = $booking->chiTietCombo ?? collect();
-        $promo          = $booking->khuyenMai;
-        $comboTotal     = $comboItems->sum(fn($i) => (float)$i->gia_ap_dung * max(1, (int)$i->so_luong));
-        $seatTotal      = (float) $booking->chiTietDatVe->sum('gia');
-        $subtotal       = $seatTotal + $comboTotal;
-        $promoDiscount  = 0;
-
-        if ($promo) {
-            $type = strtolower($promo->loai_giam);
-            $val  = (float)$promo->gia_tri_giam;
-            if ($subtotal >= 0) {
                 if ($type === 'phantram') {
-                    $promoDiscount = round($subtotal * ($val / 100));
+                    $promoDiscount = round($subtotal * ($val/100));
                 } else {
                     $promoDiscount = ($val >= 1000) ? $val : $val * 1000;
                 }
->>>>>>> origin/hoanganh
             }
         }
 
         $computedTotal = max(0, $subtotal - $promoDiscount);
 <<<<<<< HEAD
 
+        // Payment method
         $pt = $booking->phuong_thuc_thanh_toan;
         if (!$pt) {
             $map = optional($booking->thanhToan)->phuong_thuc ?? null;
-            $pt = $map === 'VNPAY' ? 1 : ($map === 'Tiền mặt' ? 2 : null);
+            $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
         }
 
-        return view('user.ticket-detail', compact('booking', 'showtime', 'movie', 'room', 'seatList', 'comboItems', 'promo', 'promoDiscount', 'computedTotal', 'pt'));
-    }
-
-    public function create($id = null)
-    {
-        $movie = $id ? Phim::find($id) : Phim::first();
-        if (!$movie) {
-            $movie = (object)['id' => 1, 'ten_phim' => 'Demo Movie', 'thoi_luong' => 120, 'poster' => 'images/default-poster.jpg'];
-=======
-        $pt = $booking->phuong_thuc_thanh_toan ?? optional($booking->thanhToan)->phuong_thuc;
-        $pt = !$pt ? null : ($pt === 'online' ? 1 : ($pt === 'offline' ? 2 : null));
-
         return view('user.ticket-detail', compact(
-            'booking','showtime','movie','room','seatList',
-            'comboItems','promo','promoDiscount','computedTotal','pt'
+            'booking', 
+            'showtime', 
+            'movie', 
+            'room', 
+            'seatList', 
+            'comboItems', 
+            'promo', 
+            'promoDiscount', 
+            'computedTotal',
+            'pt'
         ));
     }
-
-    // ==================================================================
-    // 3. TRANG ĐẶT VÉ (CHỌN PHIM → CHỌN SUẤT → CHỌN GHẾ)
-    // ==================================================================
+    
     public function create($id = null)
     {
+        // Get movie data
         $movie = null;
         if ($id) {
             $movie = Phim::find($id);
         }
-
+        
+        // If no movie found, get first movie or create demo data
         if (!$movie) {
             $movie = Phim::first() ?? (object)[
                 'id' => 1,
@@ -200,9 +245,9 @@ class BookingController extends Controller
                 'thoi_luong' => 120,
                 'poster' => 'images/default-poster.jpg'
             ];
->>>>>>> origin/hoanganh
         }
-
+        
+        // Initialize variables to avoid undefined variable errors
         $roomInfo = null;
         $seats = collect();
 <<<<<<< HEAD
@@ -230,27 +275,7 @@ class BookingController extends Controller
                 ->get();
         }
         
-        // If still no showtimes, get the most recent active showtimes (for testing)
-=======
-        $vipSeats = $vipRows = $coupleSeats = [];
-
-        $showtimes = SuatChieu::with('phongChieu')
-            ->where('id_phim', $movie->id)
-            ->where('thoi_gian_bat_dau', '>=', now())
-            ->where('trang_thai', 1)
-            ->orderBy('thoi_gian_bat_dau')
-            ->get();
-
->>>>>>> origin/hoanganh
-        if ($showtimes->isEmpty()) {
-            $showtimes = SuatChieu::with('phongChieu')
-                ->where('id_phim', $movie->id)
-                ->where('trang_thai', 1)
-                ->orderBy('thoi_gian_bat_dau', 'desc')
-                ->limit(5)
-                ->get();
-        }
-<<<<<<< HEAD
+        // Do not fallback to past showtimes; keep empty if none are upcoming
         
         $showtimes = $showtimes->map(function ($suat) {
             return [
@@ -261,118 +286,113 @@ class BookingController extends Controller
                 'room' => $suat->phongChieu->ten_phong ?? 'Phòng 1'
             ];
         });
-=======
-
-        $showtimes = $showtimes->map(function ($suat) {
-            return [
-                'id'    => $suat->id,
-                'label' => date('H:i - d/m/Y', strtotime($suat->thoi_gian_bat_dau)) . ' - ' . ($suat->phongChieu->ten_phong ?? 'Phòng 1'),
-                'time'  => date('H:i', strtotime($suat->thoi_gian_bat_dau)),
-                'date'  => date('d/m/Y', strtotime($suat->thoi_gian_bat_dau)),
-                'room'  => $suat->phongChieu->ten_phong ?? 'Phòng 1'
-            ];
-        });
-
->>>>>>> origin/hoanganh
+            
+        // If no showtimes found, create demo data
+        
+        
+        // Get real seats from database for the first showtime's room
+        
+        
         if ($showtimes->isNotEmpty()) {
             $firstShowtime = $showtimes->first();
             $suatChieu = SuatChieu::with('phongChieu')->find($firstShowtime['id']);
             if ($suatChieu && $suatChieu->phongChieu) {
                 $roomInfo = $suatChieu->phongChieu;
-<<<<<<< HEAD
-                $seats = Ghe::where('id_phong', $suatChieu->id_phong)->with('loaiGhe')->get();
-
-                $vipSeatData = $seats->filter(fn($s) => $this->isVipSeat($s));
-                $vipSeats = $vipSeatData->pluck('so_ghe')->toArray();
-                $vipRows = $vipSeatData->map(fn($s) => substr($s->so_ghe, 0, 1))->unique()->values()->toArray();
-
-                $coupleSeatData = $seats->filter(fn($s) => $this->isCoupleSeat($s));
-                $coupleSeatGroups = $coupleSeatData->groupBy(fn($s) => substr($s->so_ghe, 0, 1));
-
-                foreach ($coupleSeatGroups as $row => $seatsInRow) {
-                    $seatNumbers = $seatsInRow->pluck('so_ghe')->toArray();
-                    sort($seatNumbers);
-                    for ($i = 0; $i < count($seatNumbers) - 1; $i++) {
-                        $num1 = intval(substr($seatNumbers[$i], 1));
-                        $num2 = intval(substr($seatNumbers[$i + 1], 1));
-                        if ($num2 == $num1 + 1) {
-                            $coupleSeats[] = $row . $num1 . '-' . $num2;
-=======
                 $seats = Ghe::where('id_phong', $suatChieu->id_phong)
                     ->with('loaiGhe')
                     ->get();
-
-                $vipSeatData = $seats->filter(fn($seat) => $this->isVipSeat($seat));
-                $vipSeats    = $vipSeatData->pluck('so_ghe')->toArray();
-                $vipRows     = $vipSeatData->map(fn($seat) => substr($seat->so_ghe, 0, 1))->unique()->values()->toArray();
-
-                $coupleSeatData = $seats->filter(fn($seat) => $this->isCoupleSeat($seat));
-                $coupleSeatGroups = $coupleSeatData->groupBy(fn($seat) => substr($seat->so_ghe, 0, 1));
-
+                    
+                // Get VIP seats - find seats with id_loai = 2 (VIP) or name contains "VIP"
+                $vipSeatData = $seats->filter(function($seat) {
+                    return $this->isVipSeat($seat);
+                });
+                $vipSeats = $vipSeatData->pluck('so_ghe')->toArray();
+                
+                // Get VIP rows (extract row letter from seat code)
+                $vipRows = $vipSeatData->map(function($seat) {
+                    return substr($seat->so_ghe, 0, 1); // Get first character (A, B, C, etc.)
+                })->unique()->values()->toArray();
+                
+                // Get couple seats - find seats with id_loai = 3 (Couple) or name contains "đôi"
+                $coupleSeatData = $seats->filter(function($seat) {
+                    return $this->isCoupleSeat($seat);
+                });
+                
+                // Group couple seats by row
+                $coupleSeatGroups = $coupleSeatData->groupBy(function($seat) {
+                    return substr($seat->so_ghe, 0, 1); // Group by row letter
+                });
+                
+                $coupleSeats = [];
                 foreach ($coupleSeatGroups as $row => $seatsInRow) {
-                    $nums = $seatsInRow->pluck('so_ghe')->toArray();
-                    sort($nums);
-                    for ($i = 0; $i < count($nums) - 1; $i++) {
-                        $n1 = intval(substr($nums[$i], 1));
-                        $n2 = intval(substr($nums[$i+1], 1));
-                        if ($n2 == $n1 + 1) {
-                            $coupleSeats[] = $row . $n1 . '-' . $n2;
->>>>>>> origin/hoanganh
-                            $i++;
+                    $seatNumbers = $seatsInRow->pluck('so_ghe')->toArray();
+                    sort($seatNumbers); // Sort to ensure correct order
+                    
+                    // Look for pairs (like 11-12, 13-14, etc.)
+                    for ($i = 0; $i < count($seatNumbers) - 1; $i++) {
+                        $num1 = intval(substr($seatNumbers[$i], 1)); // Extract number part
+                        $num2 = intval(substr($seatNumbers[$i+1], 1));
+                        
+                        // Check if seats are adjacent (like 11 and 12)
+                        if ($num2 == $num1 + 1) {
+                            $coupleSeats[] = $row . $num1 . '-' . $num2;
+                            $i++; // Skip the next seat as it's already paired
                         }
                     }
                 }
             }
         }
-
+        
+        // Fallback to hardcoded data if no seats found or no room info
         if ($seats->isEmpty() || !$roomInfo) {
-<<<<<<< HEAD
-            $roomInfo = (object) ['so_cot' => 15, 'so_hang' => 10];
+            $coupleSeats = [];
+            $vipSeats = [];
+            $vipRows = [];
+            // Also set fallback room info
+            $roomInfo = (object) [
+                'so_cot' => 15,
+                'so_hang' => 10
+            ];
         }
-
+        
         return view('booking', compact('movie', 'showtimes', 'coupleSeats', 'vipSeats', 'vipRows', 'roomInfo'));
     }
-
-=======
-            $roomInfo = (object)['so_cot' => 15, 'so_hang' => 10];
-        }
-
-        return view('booking', compact('movie','showtimes','coupleSeats','vipSeats','vipRows','roomInfo'));
-    }
-
-    // ==================================================================
-    // 4. LẤY GHẾ ĐÃ ĐẶT / ĐANG GIỮ
-    // ==================================================================
->>>>>>> origin/hoanganh
+    
     public function getBookedSeats($showtimeId)
     {
         try {
+            // Validate showtime exists
             $showtime = SuatChieu::find($showtimeId);
-<<<<<<< HEAD
-<<<<<<< HEAD
             if (!$showtime) {
                 return response()->json(['seats' => []]);
             }
             
-            // Release expired seats (lazy check)
-            ShowtimeSeat::releaseExpiredSeats($showtimeId);
+            // Release expired seats (lazy check) - skip if table doesn't exist
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    ShowtimeSeat::releaseExpiredSeats($showtimeId);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip releaseExpiredSeats: '.$e->getMessage());
+            }
             
-            // Get booked seats from showtime_seats table
-=======
-            if (!$showtime) return response()->json(['seats' => []]);
-
-            ShowtimeSeat::releaseExpiredSeats($showtimeId);
-
->>>>>>> origin/hoanganh
-            $bookedSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                ->where('status', 'booked')
-                ->with('ghe')
-                ->get()
-<<<<<<< HEAD
-                ->map(function ($showtimeSeat) {
-                    return $showtimeSeat->ghe->so_ghe ?? null;
-                })
-                ->filter();
+            // Get booked seats from showtime_seats table - guard for missing table
+            $bookedSeats = collect();
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    $bookedSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
+                        ->where('status', 'booked')
+                        ->with('ghe')
+                        ->get()
+                        ->map(function ($showtimeSeat) {
+                            return $showtimeSeat->ghe->so_ghe ?? null;
+                        })
+                        ->filter();
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip get booked showtime seats: '.$e->getMessage());
+                $bookedSeats = collect();
+            }
             
             // Also get from old booking system for backward compatibility
             $oldBookedSeats = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
@@ -388,16 +408,24 @@ class BookingController extends Controller
             // Merge and get unique seats
             $allBookedSeats = $bookedSeats->merge($oldBookedSeats)->unique()->values();
             
-            // Get holding seats (for display purposes)
-            $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                ->where('status', 'holding')
-                ->where('hold_expires_at', '>', Carbon::now())
-                ->with('ghe')
-                ->get()
-                ->map(function ($showtimeSeat) {
-                    return $showtimeSeat->ghe->so_ghe ?? null;
-                })
-                ->filter();
+            // Get holding seats (for display purposes) - guard for missing table
+            $holdingSeats = collect();
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
+                        ->where('status', 'holding')
+                        ->where('hold_expires_at', '>', Carbon::now())
+                        ->with('ghe')
+                        ->get()
+                        ->map(function ($showtimeSeat) {
+                            return $showtimeSeat->ghe->so_ghe ?? null;
+                        })
+                        ->filter();
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip get holding seats: '.$e->getMessage());
+                $holdingSeats = collect();
+            }
             
             return response()->json([
                 'seats' => $allBookedSeats,
@@ -405,38 +433,16 @@ class BookingController extends Controller
             ]);
         } catch (\Exception $e) {
             \Log::error('Error loading booked seats: ' . $e->getMessage());
-=======
-                ->map(fn($ss) => $ss->ghe->so_ghe ?? null)
-                ->filter();
-
-            $oldBookedSeats = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
-                ->join('ghe', 'chi_tiet_dat_ve.id_ghe', '=', 'ghe.id')
-                ->where('dat_ve.id_suat_chieu', $showtimeId)
-                ->whereIn('dat_ve.trang_thai', [0,1])
-                ->pluck('ghe.so_ghe');
-
-            $allBooked = $bookedSeats->merge($oldBookedSeats)->unique()->values();
-
-            $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                ->where('status', 'holding')
-                ->where('hold_expires_at', '>', now())
-                ->with('ghe')
-                ->get()
-                ->map(fn($ss) => $ss->ghe->so_ghe ?? null)
-                ->filter();
-
-            return response()->json(['seats' => $allBooked, 'holding' => $holdingSeats]);
-        } catch (\Exception $e) {
-            Log::error('Error getBookedSeats: '.$e->getMessage());
->>>>>>> origin/hoanganh
             return response()->json(['seats' => [], 'holding' => []]);
         }
     }
-
-<<<<<<< HEAD
+    
     public function getShowtimeSeats($showtimeId)
     {
         try {
+            Log::info('getShowtimeSeats called with showtimeId: ' . $showtimeId);
+            
+            // Validate showtime exists
             $showtime = SuatChieu::find($showtimeId);
 <<<<<<< HEAD
             if (!$showtime) {
@@ -522,13 +528,17 @@ class BookingController extends Controller
                     
                     // Determine price based on seat type
                     if ($isAvailable) {
-                        if ($this->isVipSeat($seat)) $price = 120000;
-                        elseif ($this->isCoupleSeat($seat)) $price = 200000;
-                        else $price = 80000;
+                        if (str_contains($typeText, 'vip')) {
+                            $price = 120000;
+                        } elseif (str_contains($typeText, 'đôi') || str_contains($typeText, 'doi') || str_contains($typeText, 'couple')) {
+                            $price = 200000;
+                        } else {
+                            $price = 80000;
+                        }
                     } else {
                         $price = 0;
                     }
-
+                    
                     return [$seat->so_ghe => [
                         'id' => $seat->id,
                         'code' => $seat->so_ghe,
@@ -554,242 +564,11 @@ class BookingController extends Controller
             
             return response()->json(['seats' => $seatsArray]);
         } catch (\Exception $e) {
-=======
-                    ->keyBy(fn($ss) => $ss->ghe->so_ghe ?? null);
-            } catch (\Exception $e) {}
-
-            $allSeats = Ghe::where('id_phong', $showtime->id_phong)
-                ->with('loaiGhe')
-                ->get();
-
-            $seats = $allSeats->mapWithKeys(function ($seat) use ($showtimeSeats, $showtimeId) {
-                $ss = $showtimeSeats->get($seat->so_ghe);
-                $available = $ss ? $ss->isAvailable() : ($seat->trang_thai ?? 1) == 1;
-
-                $giaInfo = $available
-                    ? tinhGiaVe($showtimeId, $seat->id_loai_ghe ?? 1)
-                    : ['gia_cuoi_cung' => 0];
-
-                return [$seat->so_ghe => [
-                    'id'              => $seat->id,
-                    'code'            => $seat->so_ghe,
-                    'type'            => $seat->loaiGhe->ten_loai ?? 'Thường',
-                    'available'       => $available,
-                    'status'          => $ss->status ?? 'available',
-                    'price'           => $giaInfo['gia_cuoi_cung'],
-                    'hold_expires_at' => $ss && $ss->isHolding() ? $ss->hold_expires_at->toIso8601String() : null,
-                ]];
-            });
-
-            return response()->json(['seats' => $seats->toArray()]);
-        } catch (\Exception $e) {
-            Log::error('Error getShowtimeSeats: '.$e->getMessage());
->>>>>>> origin/hoanganh
+            \Log::error('Error loading showtime seats: ' . $e->getMessage());
             return response()->json(['seats' => []]);
         }
     }
 
-<<<<<<< HEAD
-    // =========================================================================
-    // === HÀM STORE (QUAN TRỌNG: ĐÃ SỬA LỖI LOGIC) ===
-    // =========================================================================
-    public function store(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            if ($user && $user->id_vai_tro == 1) {
-                return response()->json(['success' => false, 'message' => 'Admin không được phép đặt vé!']);
-            }
-
-            $data = json_decode($request->getContent(), true);
-
-            if (empty($data['seats'])) return response()->json(['success' => false, 'message' => 'Vui lòng chọn ghế!']);
-            if (empty($data['showtime'])) return response()->json(['success' => false, 'message' => 'Vui lòng chọn suất chiếu!']);
-
-            $showtime = SuatChieu::find($data['showtime']);
-            if (!$showtime) return response()->json(['success' => false, 'message' => 'Suất chiếu không tồn tại!']);
-
-            // Release expired seats first
-            try {
-                ShowtimeSeat::releaseExpiredSeats($data['showtime']);
-            } catch (\Exception $e) {
-                \Log::warning('Could not release expired seats: ' . $e->getMessage());
-            }
-
-            // Sử dụng Transaction để đảm bảo toàn vẹn dữ liệu
-            return DB::transaction(function () use ($data, $showtime, $user) {
-
-                // 1. Parse danh sách ghế từ request (A1, A2...)
-                $seatsToBook = [];
-                foreach ($data['seats'] as $seatCode) {
-                    $seatCode = trim($seatCode);
-                    if ($seatCode === '') continue;
-
-                    if (strpos($seatCode, '-') !== false) { // Ghế đôi: A1-A2
-                        if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seatCode, $matches)) {
-                            $row = strtoupper($matches[1]);
-                            for ($c = (int)$matches[2]; $c <= (int)$matches[3]; $c++) $seatsToBook[] = $row . $c;
-                        }
-                    } elseif (strpos($seatCode, ',') !== false) { // Ghế lẻ ghép: A1,A2
-                        foreach (explode(',', $seatCode) as $part) $seatsToBook[] = strtoupper(trim($part));
-                    } else { // Ghế đơn: A1
-                        $seatsToBook[] = strtoupper($seatCode);
-                    }
-                }
-
-                // 2. Kiểm tra ghế trùng & Tính tiền
-                $seatTotal = 0;
-                $seatIds = []; // Lưu lại ID để insert sau
-
-                foreach ($seatsToBook as $code) {
-                    // Tìm ghế trong DB
-                    $seat = Ghe::where('id_phong', $showtime->id_phong)
-                        ->where('so_ghe', $code)
-                        ->with('loaiGhe')
-                        ->first();
-
-                    if (!$seat) throw new \Exception("Ghế $code không tồn tại trong phòng này.");
-
-                    // Kiểm tra ghế đã bị đặt chưa (trừ vé đã hủy)
-                    $isBooked = ChiTietDatVe::whereHas('datVe', function ($q) use ($showtime) {
-                        $q->where('id_suat_chieu', $showtime->id)->whereIn('trang_thai', [0, 1]);
-                    })->where('id_ghe', $seat->id)->exists();
-
-                    if ($isBooked) throw new \Exception("Ghế $code đã có người đặt.");
-
-                    // Tính giá
-                    $price = 80000;
-                    if ($this->isCoupleSeat($seat)) $price = 100000; // Giá 1 ghế trong cặp (Tổng cặp = 200k)
-                    elseif ($this->isVipSeat($seat)) $price = 120000;
-
-                    $seatTotal += $price;
-                    $seatIds[] = ['seat' => $seat, 'price' => $price];
-                }
-
-                // 3. Tính Combo & Khuyến mãi
-                $comboTotal = 0;
-                $selectedCombo = null;
-                if (isset($data['combo']) && $data['combo']) {
-                    $selectedCombo = Combo::find($data['combo']['id'] ?? null);
-                    if ($selectedCombo) $comboTotal = (float)$selectedCombo->gia;
-                }
-
-                $discount = 0;
-                $promotionId = null;
-                if (isset($data['promotion']) && $data['promotion']) {
-                    $promotion = KhuyenMai::find($data['promotion']);
-                    if ($promotion) {
-                        $promotionId = $promotion->id;
-                        $subtotal = $seatTotal + $comboTotal;
-                        $min = 0;
-                        if (!empty($promotion->dieu_kien)) {
-                            $min = (float)preg_replace('/\D+/', '', (string)$promotion->dieu_kien);
-                        }
-                        if ($subtotal >= $min) {
-                            if ($promotion->loai_giam === 'phantram') {
-                                $discount = round($subtotal * ((float)$promotion->gia_tri_giam / 100));
-                            } else {
-                                $val = (float)$promotion->gia_tri_giam;
-                                $discount = ($val >= 1000) ? $val : $val * 1000;
-                            }
-                            if ($discount > $subtotal) $discount = $subtotal;
-                        }
-                    }
-                }
-
-                $totalAmount = max(0, $seatTotal + $comboTotal - $discount);
-
-                // 4. Tạo Vé (QUAN TRỌNG: trang_thai = 0)
-                $paymentMethod = $data['payment_method'] ?? 'offline';
-
-                $booking = DatVe::create([
-                    'id_nguoi_dung'   => Auth::id(),
-                    'id_suat_chieu'   => $data['showtime'],
-                    'id_khuyen_mai'   => $promotionId,
-                    'tong_tien'       => $totalAmount,
-                    'trang_thai'      => 0, // <--- LUÔN LÀ 0 KHI MỚI TẠO
-                    'thoi_gian'       => now()
-                ]);
-
-                // 5. Lưu Chi tiết ghế
-                foreach ($seatIds as $item) {
-                    ChiTietDatVe::create([
-                        'id_dat_ve' => $booking->id,
-                        'id_ghe'    => $item['seat']->id,
-                        'gia'       => $item['price']
-                    ]);
-                    // Cập nhật trạng thái ghế
-                    $item['seat']->update(['trang_thai' => 0]);
-                    
-                    // Update showtime_seats: convert holding to booked, or create new booked entry
-                    try {
-                        $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $showtime->id)
-                            ->where('id_ghe', $item['seat']->id)
-=======
-    // ==================================================================
-    // 6. API LẤY GIÁ GHẾ THEO LOẠI (dùng khi hover)
-    // ==================================================================
-    public function getSeatPrice(Request $request)
-    {
-        $request->validate([
-            'suat_chieu_id' => 'required|exists:suat_chieu,id',
-            'loai_ghe_id'   => 'required|exists:loai_ghe,id',
-        ]);
-
-        $gia = tinhGiaVe($request->suat_chieu_id, $request->loai_ghe_id);
-
-        return response()->json([
-            'success' => true,
-            'gia'     => number_format($gia['gia_cuoi_cung']) . 'đ',
-            'chi_tiet'=> $gia
-        ]);
-    }
-
-    // ==================================================================
-    // 7. GIỮ GHẾ TẠM 10 PHÚT (bảng tam_giu_ghe)
-    // ==================================================================
-    public function selectSeatsTemp(Request $request, $suatChieuId)
-    {
-        $request->validate([
-            'ghe_id' => 'required|exists:ghe,id',
-            'action' => 'required|in:add,remove'
-        ]);
-
-        $gheId     = $request->ghe_id;
-        $userId    = auth()->id() ?? 0;
-        $sessionId = session()->getId();
-        $now       = Carbon::now();
-
-        $exists = DB::table('tam_giu_ghe')
-            ->where('id_ghe', $gheId)
-            ->where('id_suat_chieu', $suatChieuId)
-            ->where('thoi_gian_het_han', '>', $now)
-            ->first();
-
-        if ($request->action === 'add') {
-            if ($exists && $exists->session_id !== $sessionId && $exists->id_nguoi_dung != $userId) {
-                return response()->json(['success'=>false,'message'=>'Ghế đã được người khác chọn!'], 409);
-            }
-
-            DB::table('tam_giu_ghe')->updateOrInsert(
-                ['id_ghe' => $gheId, 'id_suat_chieu' => $suatChieuId],
-                [
-                    'session_id'        => $sessionId,
-                    'id_nguoi_dung'     => $userId > 0 ? $userId : null,
-                    'thoi_gian_het_han' => $now->clone()->addMinutes(10),
-                    'updated_at'        => $now,
-                ]
-            );
-        } else {
-            DB::table('tam_giu_ghe')
-                ->where('id_ghe', $gheId)
-                ->where('id_suat_chieu', $suatChieuId)
-                ->where(fn($q) => $q->where('session_id', $sessionId)->orWhere('id_nguoi_dung', $userId))
-                ->delete();
-        }
-
-        return response()->json(['success' => true]);
-    }
     public function store(Request $request)
     {
         try {
@@ -828,8 +607,14 @@ class BookingController extends Controller
                 ]);
             }
             
-            // Release expired seats first
-            ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+            // Release expired seats first (if mapping table exists)
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip releaseExpiredSeats@store: '.$e->getMessage());
+            }
 
             // Check if seats are already booked or holding
             $unavailableSeats = [];
@@ -861,10 +646,17 @@ class BookingController extends Controller
                         ->first();
                     
                     if ($ghe) {
-                        // Check showtime_seats table
-                        $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
-                            ->where('id_ghe', $ghe->id)
-                            ->first();
+                        // Check showtime_seats table (if exists)
+                        $showtimeSeat = null;
+                        try {
+                            if (Schema::hasTable('suat_chieu_ghe')) {
+                                $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                    ->where('id_ghe', $ghe->id)
+                                    ->first();
+                            }
+                        } catch (\Throwable $e) {
+                            \Log::warning('Skip check showtimeSeat@store: '.$e->getMessage());
+                        }
                         
                         if ($showtimeSeat) {
                             // Allow if seat is holding by current user (from selectSeats)
@@ -1077,225 +869,38 @@ class BookingController extends Controller
                             'gia' => $price
                         ]);
                         
-                        // Update showtime_seats: convert holding to booked, or create new booked entry
-                        $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
-                            ->where('id_ghe', $seat->id)
->>>>>>> origin/hoanganh
-                            ->first();
-                        
-                        if ($showtimeSeat) {
-                            // If holding, convert to booked
-                            if ($showtimeSeat->isHolding() || $showtimeSeat->status === 'holding') {
-                                $showtimeSeat->status = 'booked';
-                                $showtimeSeat->hold_expires_at = null;
-                                $showtimeSeat->save();
-                            } elseif ($showtimeSeat->status !== 'booked') {
-                                // If available or other status, mark as booked
-                                $showtimeSeat->status = 'booked';
-                                $showtimeSeat->hold_expires_at = null;
-                                $showtimeSeat->save();
+                        // Update showtime_seats: convert holding to booked, or create new booked entry (if table exists)
+                        try {
+                            if (Schema::hasTable('suat_chieu_ghe')) {
+                                $showtimeSeat = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                    ->where('id_ghe', $seat->id)
+                                    ->first();
+                                
+                                if ($showtimeSeat) {
+                                    // If holding, convert to booked
+                                    if ($showtimeSeat->isHolding() || $showtimeSeat->status === 'holding') {
+                                        $showtimeSeat->status = 'booked';
+                                        $showtimeSeat->hold_expires_at = null;
+                                        $showtimeSeat->save();
+                                    } elseif ($showtimeSeat->status !== 'booked') {
+                                        // If available or other status, mark as booked
+                                        $showtimeSeat->status = 'booked';
+                                        $showtimeSeat->hold_expires_at = null;
+                                        $showtimeSeat->save();
+                                    }
+                                } else {
+                                    // Create new showtime_seat entry as booked
+                                    ShowtimeSeat::create([
+                                        'id_suat_chieu' => $data['showtime'],
+                                        'id_ghe' => $seat->id,
+                                        'status' => 'booked',
+                                        'hold_expires_at' => null,
+                                    ]);
+                                }
                             }
-                        } else {
-                            // Create new showtime_seat entry as booked
-                            ShowtimeSeat::create([
-<<<<<<< HEAD
-                                'id_suat_chieu' => $showtime->id,
-                                'id_ghe' => $item['seat']->id,
-=======
-                                'id_suat_chieu' => $data['showtime'],
-                                'id_ghe' => $seat->id,
->>>>>>> origin/hoanganh
-                                'status' => 'booked',
-                                'hold_expires_at' => null,
-                            ]);
+                        } catch (\Throwable $e) {
+                            \Log::warning('Skip update showtime_seat@store: '.$e->getMessage());
                         }
-<<<<<<< HEAD
-                    } catch (\Exception $e) {
-                        \Log::warning('Could not update showtime_seats: ' . $e->getMessage());
-                    }
-                }
-
-                // 6. Lưu Chi tiết Combo
-                if ($selectedCombo) {
-                    ChiTietCombo::create([
-                        'id_dat_ve'   => $booking->id,
-                        'id_combo'    => $selectedCombo->id,
-                        'so_luong'    => 1,
-                        'gia_ap_dung' => (float)$selectedCombo->gia,
-                    ]);
-                }
-
-                // 7. Tạo Thanh Toán (QUAN TRỌNG ĐỂ ADMIN BIẾT MÀ HỦY VÉ)
-                ThanhToan::create([
-                    'id_dat_ve'    => $booking->id,
-                    'phuong_thuc'  => ($paymentMethod === 'online') ? 'VNPAY' : 'Tiền mặt',
-                    'so_tien'      => $totalAmount,
-                    'trang_thai'   => 0, // Chưa thanh toán
-                    'thoi_gian'    => now()
-                ]);
-
-                // 8. Trả về kết quả
-                if ($paymentMethod === 'online') {
-                    $vnp_Url = $this->createVnpayUrl($booking->id, $totalAmount);
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Đang chuyển hướng thanh toán...',
-                        'payment_url' => $vnp_Url,
-                        'is_redirect' => true
-                    ]);
-                } else {
-                    // Offline
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Đặt vé thành công! Vui lòng thanh toán tại quầy trong 5 phút.',
-                        'booking_id' => $booking->id,
-                        'is_redirect' => false
-                    ]);
-                }
-            });
-        } catch (\Exception $e) {
-            Log::error('Booking error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Lỗi: ' . $e->getMessage()]);
-        }
-    }
-
-    // =========================================================================
-    // === HÀM VNPAY RETURN (QUAN TRỌNG: ĐÃ SỬA UPDATE) ===
-    // =========================================================================
-    public function vnpayReturn(Request $request)
-    {
-        $vnp_HashSecret = trim(env('VNP_HASH_SECRET'));
-        $inputData = array();
-        foreach ($request->all() as $key => $value) {
-            if (substr($key, 0, 4) == "vnp_") $inputData[$key] = $value;
-        }
-        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
-        unset($inputData['vnp_SecureHash']);
-        ksort($inputData);
-        $i = 0;
-        $hashData = "";
-        foreach ($inputData as $key => $value) {
-            if ($i == 1) $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
-            else {
-                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
-                $i = 1;
-            }
-        }
-        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
-
-        if ($secureHash == $vnp_SecureHash) {
-            $parts = explode("_", $request->vnp_TxnRef);
-            $bookingId = $parts[0];
-
-            // Load booking kèm chi tiết để xử lý ghế
-            $booking = DatVe::with(['chiTietDatVe.ghe', 'chiTietCombo', 'thanhToan'])->find($bookingId);
-
-            if ($request->vnp_ResponseCode == '00') {
-                // --- THANH TOÁN THÀNH CÔNG ---
-                if ($booking && $booking->trang_thai == 0) {
-                    DB::transaction(function () use ($booking, $request) {
-                        // 1. Cập nhật vé thành công
-                        $booking->update(['trang_thai' => 1]);
-
-                        // 2. Cập nhật bản ghi thanh toán
-                        if ($booking->thanhToan) {
-                            $booking->thanhToan()->update([
-                                'trang_thai' => 1,
-                                'ma_giao_dich' => $request->vnp_TransactionNo,
-                                'thoi_gian' => now()
-                            ]);
-                        } else {
-                            // Fallback an toàn (tạo mới nếu chưa có)
-                            ThanhToan::create([
-                                'id_dat_ve' => $booking->id,
-                                'phuong_thuc' => 'VNPAY',
-                                'so_tien' => $request->vnp_Amount / 100,
-                                'ma_giao_dich' => $request->vnp_TransactionNo,
-                                'trang_thai' => 1,
-                                'thoi_gian' => now()
-                            ]);
-                        }
-                    });
-                    return redirect()->route('user.bookings')->with('success', 'Thanh toán thành công!');
-                }
-            } else {
-                // --- [SỬA] THANH TOÁN THẤT BẠI / HỦY ---
-                // Thay vì lưu trạng thái hủy, ta XÓA LUÔN bản ghi
-                if ($booking && $booking->trang_thai == 0) {
-                    DB::transaction(function () use ($booking) {
-                        // 1. Nhả ghế trước (Quan trọng: Trả lại trạng thái ghế trống)
-                        foreach ($booking->chiTietDatVe as $detail) {
-                            if ($detail->ghe) {
-                                $detail->ghe->update(['trang_thai' => 1]); // 1 = Trống
-                            }
-                        }
-
-                        // 2. Xóa các bảng chi tiết liên quan (Laravel Cascade có thể tự làm, nhưng làm thủ công cho chắc)
-                        $booking->chiTietDatVe()->delete();
-                        $booking->chiTietCombo()->delete();
-                        if ($booking->thanhToan) {
-                            $booking->thanhToan()->delete();
-                        }
-
-                        // 3. Xóa vé chính (Xóa vĩnh viễn khỏi DB)
-                        $booking->delete();
-                    });
-                }
-                // Chuyển hướng về trang đặt vé (hoặc trang chủ) thay vì trang lịch sử (vì vé đã mất)
-                return redirect()->route('home')->with('error', 'Giao dịch đã bị hủy. Vui lòng đặt lại vé.');
-            }
-        } else {
-            return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
-        }
-        return redirect()->route('home');
-    }
-
-    // Helper tạo URL VNPAY
-    private function createVnpayUrl($orderId, $amount)
-    {
-        $vnp_Url = env('VNP_URL');
-        $vnp_HashSecret = env('VNP_HASH_SECRET');
-        $vnp_TmnCode = env('VNP_TMN_CODE');
-
-        $inputData = [
-            "vnp_Version" => "2.1.0",
-            "vnp_TmnCode" => $vnp_TmnCode,
-            "vnp_Amount" => $amount * 100,
-            "vnp_Command" => "pay",
-            "vnp_CreateDate" => date('YmdHis'),
-            "vnp_CurrCode" => "VND",
-            "vnp_IpAddr" => request()->ip(),
-            "vnp_Locale" => "vn",
-            "vnp_OrderInfo" => "Thanh toan ve #$orderId",
-            "vnp_OrderType" => "billpayment",
-            "vnp_ReturnUrl" => env('VNP_RETURN_URL'),
-            "vnp_TxnRef" => $orderId . "_" . time()
-        ];
-
-        ksort($inputData);
-        $query = "";
-        $i = 0;
-        $hashdata = "";
-        foreach ($inputData as $key => $value) {
-            if ($i == 1) {
-                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
-            } else {
-                $hashdata .= urlencode($key) . "=" . urlencode($value);
-                $i = 1;
-            }
-            $query .= urlencode($key) . "=" . urlencode($value) . '&';
-        }
-
-        $vnp_Url = $vnp_Url . "?" . $query;
-        if (isset($vnp_HashSecret)) {
-            $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-            $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
-        }
-
-        return $vnp_Url;
-    }
-
-=======
                         
                         // Lock seat (legacy behavior)
                         $seat->trang_thai = 0;
@@ -1332,7 +937,6 @@ class BookingController extends Controller
     /**
      * Public API: Get ticket details by id for check page
      */
->>>>>>> origin/hoanganh
     public function getTicket($id)
     {
         try {
@@ -1347,13 +951,7 @@ class BookingController extends Controller
                 return response()->json(['success' => false, 'message' => 'Không tìm thấy vé'], 404);
             }
 
-<<<<<<< HEAD
-            $seats = $booking->chiTietDatVe->map(function ($ct) {
-                return optional($ct->ghe)->so_ghe;
-            })->filter()->values();
-=======
             $seats = $booking->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->values();
->>>>>>> origin/hoanganh
 
             $method = $booking->phuong_thuc_thanh_toan;
             if (!$method) {
@@ -1361,11 +959,7 @@ class BookingController extends Controller
                 $method = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
             }
 
-<<<<<<< HEAD
-            $payloadUrl = url('/api/ticket/' . $booking->id);
-=======
             $payloadUrl = url('/api/ticket/'.$booking->id);
->>>>>>> origin/hoanganh
 
             return response()->json([
                 'success' => true,
@@ -1386,26 +980,15 @@ class BookingController extends Controller
                     'price' => (float) ($booking->tong_tien ?? $booking->tong_tien_hien_thi ?? 0),
                     'status' => (int) ($booking->trang_thai ?? 0),
                     'created_at' => optional($booking->created_at)->format('d/m/Y H:i'),
-<<<<<<< HEAD
-                    'payment_method' => $method,
-                    'qr' => [
-                        'data' => $payloadUrl,
-                        'image' => 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' . urlencode($payloadUrl)
-=======
                     'payment_method' => $method, // 1 online, 2 tại quầy
                     'qr' => [
                         'data' => $payloadUrl,
                         'image' => 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='.urlencode($payloadUrl)
->>>>>>> origin/hoanganh
                     ],
                 ]
             ]);
         } catch (\Throwable $e) {
-<<<<<<< HEAD
-            Log::error('Get ticket error: ' . $e->getMessage());
-=======
             Log::error('Get ticket error: '.$e->getMessage());
->>>>>>> origin/hoanganh
             return response()->json(['success' => false, 'message' => 'Lỗi hệ thống'], 500);
         }
     }
@@ -1476,21 +1059,27 @@ class BookingController extends Controller
                 $seatsByCode[$code] = $ghe;
             }
 
-            // Check if seats are available
+            // Check if seats are available (skip if mapping table doesn't exist)
             $unavailableSeats = [];
             foreach ($seatIds as $index => $seatId) {
-                $showtimeSeat = ShowtimeSeat::firstOrNew([
-                    'id_suat_chieu' => $showtimeId,
-                    'id_ghe' => $seatId,
-                ]);
+                try {
+                    if (Schema::hasTable('suat_chieu_ghe')) {
+                        $showtimeSeat = ShowtimeSeat::firstOrNew([
+                            'id_suat_chieu' => $showtimeId,
+                            'id_ghe' => $seatId,
+                        ]);
 
-                if (!$showtimeSeat->exists) {
-                    $showtimeSeat->status = 'available';
-                }
+                        if (!$showtimeSeat->exists) {
+                            $showtimeSeat->status = 'available';
+                        }
 
-                if (!$showtimeSeat->isAvailable()) {
-                    $code = $seatCodes[$index];
-                    $unavailableSeats[] = $code;
+                        if (!$showtimeSeat->isAvailable()) {
+                            $code = $seatCodes[$index];
+                            $unavailableSeats[] = $code;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip availability check (suat_chieu_ghe missing?): '.$e->getMessage());
                 }
             }
 
@@ -1509,32 +1098,58 @@ class BookingController extends Controller
             try {
                 // Create temporary booking with pending status
                 $bookingData = [
-                    'id_nguoi_dung' => Auth::id(),
                     'id_suat_chieu' => $showtimeId,
                     'tong_tien' => 0,
                     'trang_thai' => 0, // pending
                 ];
+                // Only set user id if authenticated (allow guest holds)
+                try {
+                    if (Schema::hasColumn('dat_ve', 'id_nguoi_dung')) {
+                        $uid = Auth::id();
+                        if ($uid) {
+                            $bookingData['id_nguoi_dung'] = $uid;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Schema check failed; ignore and proceed without user id
+                }
                 
-                // Only add phuong_thuc_thanh_toan if column exists
+                // Optional columns
                 if (Schema::hasColumn('dat_ve', 'phuong_thuc_thanh_toan')) {
                     $bookingData['phuong_thuc_thanh_toan'] = null;
                 }
+                if (Schema::hasColumn('dat_ve', 'tong_tien_hien_thi')) {
+                    $bookingData['tong_tien_hien_thi'] = 0;
+                }
                 
-                $booking = DatVe::create($bookingData);
+                // Create booking while handling missing timestamps columns gracefully
+                if (Schema::hasColumn('dat_ve', 'created_at') && Schema::hasColumn('dat_ve', 'updated_at')) {
+                    $booking = DatVe::create($bookingData);
+                } else {
+                    $booking = DatVe::withoutTimestamps(function () use ($bookingData) {
+                        return DatVe::create($bookingData);
+                    });
+                }
                 $bookingId = $booking->id;
 
-                // Set seats to holding status
-                foreach ($seatIds as $seatId) {
-                    ShowtimeSeat::updateOrCreate(
-                        [
-                            'id_suat_chieu' => $showtimeId,
-                            'id_ghe' => $seatId,
-                        ],
-                        [
-                            'status' => 'holding',
-                            'hold_expires_at' => $holdExpiresAt,
-                        ]
-                    );
+                // Set seats to holding status (skip if mapping table doesn't exist)
+                try {
+                    if (Schema::hasTable('suat_chieu_ghe')) {
+                        foreach ($seatIds as $seatId) {
+                            ShowtimeSeat::updateOrCreate(
+                                [
+                                    'id_suat_chieu' => $showtimeId,
+                                    'id_ghe' => $seatId,
+                                ],
+                                [
+                                    'status' => 'holding',
+                                    'hold_expires_at' => $holdExpiresAt,
+                                ]
+                            );
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip holding seats (suat_chieu_ghe missing?): '.$e->getMessage());
                 }
 
                 DB::commit();
@@ -1551,14 +1166,14 @@ class BookingController extends Controller
                 Log::error('Error holding seats: ' . $e->getMessage());
                 return response()->json([
                     'success' => false,
-                    'message' => 'Có lỗi xảy ra khi giữ ghế. Vui lòng thử lại!'
+                    'message' => 'Có lỗi xảy ra khi giữ ghế: ' . $e->getMessage()
                 ], 500);
             }
         } catch (\Exception $e) {
             Log::error('Select seats error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra. Vui lòng thử lại!'
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
         }
     }
