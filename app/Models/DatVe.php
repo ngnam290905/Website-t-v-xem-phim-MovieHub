@@ -13,6 +13,8 @@ class DatVe extends Model
 {
     protected $table = 'dat_ve';
     public $timestamps = true;
+    // Bảng không có cột updated_at
+    public const UPDATED_AT = null;
     
     protected $fillable = [
         'id_nguoi_dung',
