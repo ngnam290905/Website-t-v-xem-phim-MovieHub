@@ -191,7 +191,7 @@
                                                 $isCash =
                                                     optional($booking->thanhToan)->phuong_thuc == 'Tiền mặt' ||
                                                     empty($booking->thanhToan);
-                                                $expireTime = $booking->created_at->addMinutes(1    );
+                                                $expireTime = $booking->created_at->addMinutes(5    );
                                                 $isOver = now()->greaterThan($expireTime);
                                             @endphp
 
