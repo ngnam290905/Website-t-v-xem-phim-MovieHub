@@ -98,4 +98,88 @@ class ScanController extends Controller
 
         return view('admin.scan.show', compact('ticket', 'seats'));
     }
+
+    /**
+     * AJAX: Check ticket validity (Admin)
+     */
+    public function check(Request $request)
+    {
+        $ticketId = $request->input('ticket_id');
+        if (!$ticketId) {
+            return response()->json(['valid' => false, 'message' => 'Vui lòng nhập mã vé']);
+        }
+
+        // Accept formats like ticket_id=123, MV000123, plain 123
+        $raw = (string)$ticketId;
+        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) {
+            $raw = $m[1];
+        }
+        // Prefer numeric id if digits present (e.g., MV000290 -> 290)
+        $numeric = null;
+        if (preg_match('/(\d+)/', $raw, $m2)) {
+            $numeric = (int)$m2[1];
+        }
+        $ticket = DatVe::with(['suatChieu.phim','chiTietDatVe.ghe'])
+            ->when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
+            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
+            ->orWhere('ticket_code', $raw)
+            ->first();
+
+        if (!$ticket) {
+            return response()->json(['valid' => false, 'message' => 'Vé không tồn tại']);
+        }
+        if ($ticket->trang_thai != 1) {
+            return response()->json(['valid' => false, 'message' => 'Vé chưa thanh toán']);
+        }
+        if ($ticket->checked_in) {
+            return response()->json(['valid' => false, 'message' => 'Vé này đã được quét trước đó']);
+        }
+
+        $seats = $ticket->chiTietDatVe->map(fn($d) => $d->ghe->so_ghe ?? 'N/A')->filter()->implode(', ');
+        return response()->json([
+            'valid' => true,
+            'ticket' => [
+                'id' => $ticket->id,
+                'ticket_code' => $ticket->ticket_code ?? sprintf('MV%06d', $ticket->id),
+                'movie' => $ticket->suatChieu->phim->ten_phim ?? 'N/A',
+                'seats' => $seats,
+                'showtime' => optional($ticket->suatChieu->thoi_gian_bat_dau)->format('d/m/Y H:i') ?? 'N/A'
+            ]
+        ]);
+    }
+
+    /**
+     * AJAX: Confirm check-in (Admin)
+     */
+    public function confirm(Request $request)
+    {
+        $ticketId = $request->input('ticket_id');
+        if (!$ticketId) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng nhập mã vé']);
+        }
+
+        $raw = (string)$ticketId;
+        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) { $raw = $m[1]; }
+        $numeric = null;
+        if (preg_match('/(\d+)/', $raw, $m2)) { $numeric = (int)$m2[1]; }
+
+        $ticket = DatVe::when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
+            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
+            ->orWhere('ticket_code', $raw)
+            ->first();
+        if (!$ticket) {
+            return response()->json(['success' => false, 'message' => 'Vé không tồn tại']);
+        }
+        if ($ticket->trang_thai != 1) {
+            return response()->json(['success' => false, 'message' => 'Vé chưa thanh toán']);
+        }
+        if ($ticket->checked_in) {
+            return response()->json(['success' => false, 'message' => 'Vé này đã được quét trước đó']);
+        }
+
+        $ticket->checked_in = true;
+        $ticket->save();
+
+        return response()->json(['success' => true, 'message' => 'Xác nhận thành công']);
+    }
 }

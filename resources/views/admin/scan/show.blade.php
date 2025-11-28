@@ -21,7 +21,7 @@
             <div class="space-y-3">
                 <div class="flex justify-between">
                     <span class="text-[#a6a6b0]">Mã vé:</span>
-                    <span class="text-white font-mono font-semibold">{{ $ticket->ticket_code ?? 'N/A' }}</span>
+                    <span class="text-white font-mono font-semibold">{{ $ticket->ticket_code ?: sprintf('MV%06d', $ticket->id) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-[#a6a6b0]">Trạng thái quét:</span>

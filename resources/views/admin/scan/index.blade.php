@@ -221,7 +221,7 @@
                         <tr class="border-b border-[#262833] hover:bg-[#1a1d24]">
                             <td class="py-3">{{ $ticket->id }}</td>
                             <td>
-                                <span class="font-mono text-white">{{ $ticket->ticket_code ?? 'N/A' }}</span>
+                                <span class="font-mono text-white">{{ $ticket->ticket_code ?: sprintf('MV%06d', $ticket->id) }}</span>
                             </td>
                             <td>
                                 <a href="{{ route('admin.scan.show', $ticket->id) }}" class="text-[#F53003] hover:underline">
@@ -470,7 +470,7 @@ async function checkTicket(ticketId) {
     try {
         scanning = false;
         
-        const response = await fetch('{{ route("staff.scan.check") }}', {
+        const response = await fetch('{{ route("admin.scan.check") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -528,7 +528,7 @@ confirmCheckinBtn.addEventListener('click', async () => {
     if (!currentTicketId) return;
     
     try {
-        const response = await fetch('{{ route("staff.scan.confirm") }}', {
+        const response = await fetch('{{ route("admin.scan.confirm") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

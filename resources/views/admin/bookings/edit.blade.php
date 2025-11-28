@@ -203,17 +203,32 @@
 
             function renderSeatMap(data, selectedIds) {
                 const byRow = {};
-                data.seats.forEach(s => { (byRow[s.row] ||= []).push(s); });
-                Object.values(byRow).forEach(arr => arr.sort((a,b) => a.label.localeCompare(b.label, undefined, {numeric:true})));
+                let maxCol = 0;
+                // Build row->col map and compute max column number
+                data.seats.forEach(s => {
+                    const label = String(s.label || '');
+                    const m = label.match(/(\d+)/);
+                    const col = m ? parseInt(m[1], 10) : 0;
+                    maxCol = Math.max(maxCol, col);
+                    (byRow[s.row] ||= []);
+                    byRow[s.row][col] = s; // sparse array by column
+                });
                 let html = '';
                 html += '<div class="mb-3 text-center"><span class="inline-block bg-[#0f121a] border border-[#262833] px-3 py-1 rounded text-xs text-gray-300">Màn hình</span></div>';
                 html += '<div class="space-y-2">';
                 Object.keys(byRow).sort((a,b)=>a-b).forEach(row => {
-                    html += '<div class="flex items-center gap-2">';
                     const rLabel = rowLabel(row);
+                    html += '<div class="flex items-center gap-2">';
                     html += '<div class="w-6 text-xs text-gray-400 text-right">' + rLabel + '</div>';
-                    html += '<div class="flex flex-wrap gap-2">';
-                    byRow[row].forEach(seat => {
+                    // Fixed columns grid per row
+                    html += `<div class="grid gap-2" style="grid-template-columns: repeat(${maxCol}, 2.25rem);">`;
+                    for (let c = 1; c <= maxCol; c++) {
+                        const seat = byRow[row][c];
+                        if (!seat) {
+                            // Placeholder to keep alignment
+                            html += '<span class="inline-block w-9 h-9"></span>';
+                            continue;
+                        }
                         const isBooked = !!seat.booked;
                         const isSelected = selectedIds.has(seat.id);
                         const base = 'inline-flex items-center justify-center w-9 h-9 text-xs rounded border transition';
@@ -225,7 +240,7 @@
                             const t = typeClass(seat);
                             html += `<button type="button" class="seat ${base} ${t.bg} ${t.border} ${t.text} hover:brightness-110" data-id="${seat.id}" title="${seat.label}">${seat.label}</button>`;
                         }
-                    });
+                    }
                     html += `</div><div class="w-6 text-xs text-gray-400">${rLabel}</div></div>`;
                 });
                 html += '</div>';

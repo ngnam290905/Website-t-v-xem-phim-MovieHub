@@ -281,6 +281,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
         Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
+        Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
 
         // API cho UI chỉnh sửa vé
         Route::get('/{id}/available-showtimes', [QuanLyDatVeController::class, 'availableShowtimes'])->name('available-showtimes');
@@ -324,6 +325,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     Route::prefix('scan')->name('scan.')->group(function () {
         Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::get('/{id}', [ScanController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('/check', [ScanController::class, 'check'])->name('check');
+        Route::post('/confirm', [ScanController::class, 'confirm'])->name('confirm');
     });
 });
 
