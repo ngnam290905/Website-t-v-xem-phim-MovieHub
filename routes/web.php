@@ -9,6 +9,7 @@ use App\Http\Controllers\GheController;
 use App\Http\Controllers\PhongChieuController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ScanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminKhuyenMaiController;
@@ -318,6 +319,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     });
     // Admin & Staff: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('combos/{combo}', [ComboController::class, 'show'])->whereNumber('combo')->name('combos.show');
+
+    // Quản lý Scan vé
+    Route::prefix('scan')->name('scan.')->group(function () {
+        Route::get('/', [ScanController::class, 'index'])->name('index');
+        Route::get('/{id}', [ScanController::class, 'show'])->whereNumber('id')->name('show');
+    });
 });
 
 // BÁO CÁO - CHỈ ADMIN
@@ -351,6 +358,11 @@ Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->grou
     Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
     Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
     Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
+    
+    // Scan ticket routes
+    Route::get('scan', [\App\Http\Controllers\Staff\ScanController::class, 'index'])->name('scan');
+    Route::post('scan/check', [\App\Http\Controllers\Staff\ScanController::class, 'checkTicket'])->name('scan.check');
+    Route::post('scan/confirm', [\App\Http\Controllers\Staff\ScanController::class, 'confirmCheckIn'])->name('scan.confirm');
 });
 
 Route::post('/seat-price', [BookingController::class, 'getSeatPrice']);

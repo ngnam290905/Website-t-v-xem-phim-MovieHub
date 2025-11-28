@@ -162,6 +162,38 @@
                         <p>SĐT: <span class="text-white">{{ $booking->nguoiDung->sdt ?? '—' }}</span></p>
                     </div>
                 </div>
+
+                <!-- QR Code for Confirmed Tickets -->
+                @if($booking->trang_thai == 1)
+                    @php
+                        // Generate QR code data
+                        $qrData = 'ticket_id=' . $booking->id;
+                        if ($booking->ticket_code) {
+                            $qrData = 'ticket_id=' . $booking->ticket_code;
+                        }
+                        // Use QR code API for reliable display
+                        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrData);
+                    @endphp
+                    <div class="bg-[#151822] p-5 rounded-xl border border-[#262833]">
+                        <h3 class="font-semibold mb-3 text-white flex items-center gap-2">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Mã QR Vé</span>
+                        </h3>
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="bg-white p-3 rounded-lg mb-3" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                                <img src="{{ $qrCodeUrl }}" alt="QR Code" id="qrcode-img-admin" style="width: 200px; height: 200px; display: block;" onerror="console.error('QR Image failed to load'); this.style.display='none'; document.getElementById('qrcode-fallback-admin').style.display='block'; generateQRCodeFallbackAdmin('{{ $qrData }}');">
+                                <div id="qrcode-fallback-admin" style="display: none; width: 200px; height: 200px;"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 text-center">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Mã QR để quét tại rạp
+                            </p>
+                            <p class="text-xs text-gray-500 text-center mt-1">
+                                Mã vé: #{{ str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}
+                            </p>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -171,4 +203,48 @@
             </a>
         </div>
     </div>
+
+    @push('scripts')
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+    // Generate QR Code fallback for admin booking detail
+    function generateQRCodeFallbackAdmin(qrData) {
+        const fallbackElement = document.getElementById('qrcode-fallback-admin');
+        const imgElement = document.getElementById('qrcode-img-admin');
+        
+        if (fallbackElement && typeof QRCode !== 'undefined') {
+            if (imgElement) imgElement.style.display = 'none';
+            fallbackElement.style.display = 'block';
+            new QRCode(fallbackElement, {
+                text: qrData,
+                width: 200,
+                height: 200,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            // If QRCode library not loaded, try to load it
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+            script.onload = function() {
+                if (fallbackElement) {
+                    if (imgElement) imgElement.style.display = 'none';
+                    fallbackElement.style.display = 'block';
+                    new QRCode(fallbackElement, {
+                        text: qrData,
+                        width: 200,
+                        height: 200,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }
+            };
+            document.head.appendChild(script);
+        }
+    }
+    </script>
+    @endpush
 @endsection

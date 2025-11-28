@@ -25,22 +25,44 @@ class QuanLyDatVeController extends Controller
      */
     public function index(Request $request)
     {
-        $expired = DatVe::with('thanhToan')
-            ->where('trang_thai', 0)
-            ->where('created_at', '<', now()->subMinutes(5))
+        // Auto cancel expired offline bookings (using expires_at or created_at + 5 minutes)
+        $expiredQuery = DatVe::with('thanhToan')
+            ->where('trang_thai', 0);
+        
+        // Check if phuong_thuc_thanh_toan column exists before filtering
+        if (Schema::hasColumn('dat_ve', 'phuong_thuc_thanh_toan')) {
+            $expiredQuery->where('phuong_thuc_thanh_toan', 2); // offline payment
+        }
+        // If column doesn't exist, we'll check all pending bookings (backward compatibility)
+        
+        $expired = $expiredQuery->where(function($query) {
+                // Check if expires_at column exists
+                if (Schema::hasColumn('dat_ve', 'expires_at')) {
+                    $query->where('expires_at', '<=', now())
+                          ->orWhere(function($q) {
+                              // Fallback: check created_at + 5 minutes if expires_at is null
+                              $q->whereNull('expires_at')
+                                ->where('created_at', '<=', now()->subMinutes(5));
+                          });
+                } else {
+                    // Fallback: use created_at + 5 minutes
+                    $query->where('created_at', '<=', now()->subMinutes(5));
+                }
+            })
             ->get();
 
         foreach ($expired as $bk) {
-            $method = optional($bk->thanhToan)->phuong_thuc;
-            if ($method === 'Tiền mặt' || empty($method)) {
+            try {
+                DB::transaction(function () use ($bk) {
+                    $bk->update(['trang_thai' => 2]);
+                    $this->releaseSeats($bk);
+                });
+            } catch (\Throwable $e) {
+                Log::error('Auto-cancel error: '.$e->getMessage());
                 try {
-                    DB::transaction(function () use ($bk) {
-                        $bk->update(['trang_thai' => 2]);
-                        $this->releaseSeats($bk);
-                    });
-                } catch (\Throwable $e) {
-                    Log::error('Auto-cancel error: '.$e->getMessage());
-                    $bk->update(['trang_thai' => 2, 'ghi_chu_noi_bo' => 'Lỗi hệ thống khi hủy tự động']);
+                    $bk->update(['trang_thai' => 2]);
+                } catch (\Throwable $e2) {
+                    Log::error('Failed to update booking status: '.$e2->getMessage());
                 }
             }
         }

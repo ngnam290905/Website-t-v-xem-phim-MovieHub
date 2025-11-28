@@ -24,14 +24,19 @@ class DatVe extends Model
         'so_dien_thoai',
         'email',
         'tong_tien',
-        'trang_thai'
+        'trang_thai',
+        'checked_in',
+        'expires_at',
+        'phuong_thuc_thanh_toan'
     ];
 
     protected $casts = [
         'tong_tien' => 'decimal:2',
         'trang_thai' => 'integer',
         'phuong_thuc_thanh_toan' => 'integer',
+        'checked_in' => 'boolean',
         'created_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     // Relationship with NguoiDung

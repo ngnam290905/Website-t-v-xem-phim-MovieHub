@@ -473,6 +473,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         button.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
                     } else if (seatType.includes('đôi') || seatType.includes('doi') || seatType.includes('couple')) {
                         button.classList.add('bg-pink-600', 'hover:bg-pink-700');
+                        // Also deselect the paired seat if currently selected
+                        const code = button.dataset.seat;
+                        const row = code.charAt(0);
+                        const num = parseInt(code.substring(1));
+                        const pairNum = (num % 2 === 1) ? num + 1 : num - 1;
+                        const pairCode = row + pairNum;
+                        const pairBtn = Array.from(selected).find(b => b.dataset.seat === pairCode);
+                        if (pairBtn) {
+                            selected.delete(pairBtn);
+                            pairBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'selected');
+                            // restore base color for couple seat
+                            pairBtn.classList.add('bg-pink-600', 'hover:bg-pink-700');
+                        }
                     } else {
                         button.classList.add('bg-gray-700', 'hover:bg-gray-600');
                     }
@@ -493,34 +506,73 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Validate seat selection before adding
                     const currentSelected = Array.from(selected).map(btn => btn.dataset.seat);
                     const newSeat = button.dataset.seat;
-                    const allSeats = [...currentSelected, newSeat];
-                    
-                    // Frontend validation: Check same row
-                    const rows = allSeats.map(seat => seat.charAt(0));
-                    const uniqueRows = [...new Set(rows)];
-                    if (uniqueRows.length > 1) {
-                        alert('Tất cả ghế phải nằm trên cùng một hàng!');
-                        isProcessing = false;
-                        return;
-                    }
-                    
-                    // Frontend validation: Check consecutive
-                    if (allSeats.length > 1) {
-                        const numbers = allSeats.map(seat => parseInt(seat.substring(1))).sort((a, b) => a - b);
-                        for (let i = 1; i < numbers.length; i++) {
-                            if (numbers[i] - numbers[i - 1] !== 1) {
-                                alert('Các ghế phải liền nhau! Ví dụ: A5-A6-A7 (không được A5-A7).');
+                    // Build selection set; if selecting a couple seat, include its fixed pair for validation
+                    let allSeats = [...currentSelected, newSeat];
+                    const seatTypeForNew = (button.dataset.type || '').toLowerCase();
+                    if (seatTypeForNew.includes('đôi') || seatTypeForNew.includes('doi') || seatTypeForNew.includes('couple')) {
+                        const rowNew = newSeat.charAt(0);
+                        const numNew = parseInt(newSeat.substring(1));
+                        const pairNum = (numNew % 2 === 1) ? numNew + 1 : numNew - 1;
+                        const pairCode = rowNew + pairNum;
+                        if (!allSeats.includes(pairCode)) {
+                            const pairBtnCheck = document.querySelector('[data-seat="' + pairCode + '"]');
+                            if (!pairBtnCheck || pairBtnCheck.disabled) {
+                                alert(`Ghế đôi phải đặt theo cặp ${rowNew}${Math.min(numNew, pairNum)}-${rowNew}${Math.max(numNew, pairNum)}! Ghế còn lại không khả dụng.`);
                                 isProcessing = false;
                                 return;
+                            }
+                            allSeats.push(pairCode);
+                        }
+                    }
+                    
+                    // Frontend validation: Require consecutiveness within each row only
+                    if (allSeats.length > 1) {
+                        // Group by row
+                        const groups = allSeats.reduce((acc, code) => {
+                            const row = code.charAt(0);
+                            const num = parseInt(code.substring(1));
+                            if (!acc[row]) acc[row] = [];
+                            acc[row].push(num);
+                            return acc;
+                        }, {});
+
+                        // Validate each row group is consecutive
+                        for (const [row, nums] of Object.entries(groups)) {
+                            nums.sort((a, b) => a - b);
+                            if (nums.length > 1) {
+                                for (let i = 1; i < nums.length; i++) {
+                                    if (nums[i] - nums[i - 1] !== 1) {
+                                        alert(`Các ghế trong hàng ${row} phải liền nhau! Ví dụ: ${row}5-${row}6-${row}7 (không được ${row}5-${row}7).`);
+                                        isProcessing = false;
+                                        return;
+                                    }
+                                }
                             }
                         }
                     }
                     
-                    // Select seat
-                    selected.add(button);
-                    button.classList.remove('bg-gray-700', 'hover:bg-gray-600', 'bg-yellow-600', 'hover:bg-yellow-700', 'bg-pink-600', 'hover:bg-pink-700');
-                    button.classList.add('selected');
-                    button.classList.add('bg-green-600', 'hover:bg-green-700');
+                    // Select seat (and auto-select pair if couple)
+                    const addToSelected = (btn) => {
+                        if (!btn) return;
+                        selected.add(btn);
+                        btn.classList.remove('bg-gray-700', 'hover:bg-gray-600', 'bg-yellow-600', 'hover:bg-yellow-700', 'bg-pink-600', 'hover:bg-pink-700');
+                        btn.classList.add('selected');
+                        btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                    };
+
+                    addToSelected(button);
+
+                    // If couple seat, also add its pair
+                    if (seatTypeForNew.includes('đôi') || seatTypeForNew.includes('doi') || seatTypeForNew.includes('couple')) {
+                        const rowNew2 = newSeat.charAt(0);
+                        const numNew2 = parseInt(newSeat.substring(1));
+                        const pairNum2 = (numNew2 % 2 === 1) ? numNew2 + 1 : numNew2 - 1;
+                        const pairCode2 = rowNew2 + pairNum2;
+                        const pairBtn = document.querySelector('[data-seat="' + pairCode2 + '"]');
+                        if (pairBtn && !pairBtn.disabled) {
+                            addToSelected(pairBtn);
+                        }
+                    }
                     
                     // Hold seats via API (backend will do full validation including orphan seat check)
                     console.log('Before holdSelectedSeats - selected.size:', selected.size, 'seat:', button.dataset.seat);
