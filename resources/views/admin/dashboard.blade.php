@@ -22,8 +22,13 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      @php
+        $userRole = optional(auth()->user()->vaiTro)->ten;
+        $isAdmin = in_array(mb_strtolower(trim($userRole ?? '')), ['admin']);
+      @endphp
+      
       <!-- Doanh thu hôm nay -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="window.location='{{ route('admin.reports.dashboard') }}'">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 {{ $isAdmin ? 'cursor-pointer' : '' }}" @if($isAdmin) onclick="window.location='{{ route('admin.reports.dashboard') }}'" @endif>
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Doanh thu hôm nay</div>
@@ -40,7 +45,7 @@
       </div>
 
       <!-- Doanh thu tháng này -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="window.location='{{ route('admin.reports.dashboard') }}'">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 {{ $isAdmin ? 'cursor-pointer' : '' }}" @if($isAdmin) onclick="window.location='{{ route('admin.reports.dashboard') }}'" @endif>
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Doanh thu tháng này</div>
@@ -57,7 +62,7 @@
       </div>
 
       <!-- Tổng số phim -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="window.location='{{ route('admin.phong-chieu.index') }}'">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="window.location='{{ route('admin.movies.index') }}'">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Tổng số phim</div>
@@ -74,7 +79,7 @@
       </div>
 
       <!-- Người dùng -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="window.location='{{ route('admin.users.index') }}'">
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 {{ $isAdmin ? 'cursor-pointer' : '' }}" @if($isAdmin) onclick="window.location='{{ route('admin.users.index') }}'" @endif>
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Tổng người dùng</div>
@@ -149,27 +154,55 @@
           Thao tác nhanh
         </h3>
         <div class="space-y-2">
-          <a href="{{ route('admin.suat-chieu.create') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-            <div class="flex items-center space-x-3">
-              <i class="fas fa-plus-circle text-green-400"></i>
-              <span class="text-white text-sm">Tạo suất chiếu</span>
-            </div>
-            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </a>
+          @php
+            $userRole = optional(auth()->user()->vaiTro)->ten;
+            $isAdmin = in_array(mb_strtolower(trim($userRole ?? '')), ['admin']);
+          @endphp
+          
+          @if($isAdmin)
+            <a href="{{ route('admin.suat-chieu.create') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-plus-circle text-green-400"></i>
+                <span class="text-white text-sm">Tạo suất chiếu</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @else
+            <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-calendar-alt text-green-400"></i>
+                <span class="text-white text-sm">Xem suất chiếu</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @endif
+          
           <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
             <div class="flex items-center space-x-3">
               <i class="fas fa-video text-blue-400"></i>
-              <span class="text-white text-sm">Quản lý phòng chiếu</span>
+              <span class="text-white text-sm">{{ $isAdmin ? 'Quản lý' : 'Xem' }} phòng chiếu</span>
             </div>
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
           </a>
-          <a href="{{ route('admin.users.create') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-            <div class="flex items-center space-x-3">
-              <i class="fas fa-user-plus text-purple-400"></i>
-              <span class="text-white text-sm">Thêm người dùng</span>
-            </div>
-            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </a>
+          
+          @if($isAdmin)
+            <a href="{{ route('admin.users.create') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-user-plus text-purple-400"></i>
+                <span class="text-white text-sm">Thêm người dùng</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @else
+            <a href="{{ route('admin.movies.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-film text-purple-400"></i>
+                <span class="text-white text-sm">Quản lý phim</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @endif
+          
           <a href="{{ route('admin.bookings.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
             <div class="flex items-center space-x-3">
               <i class="fas fa-ticket-alt text-orange-400"></i>
@@ -177,13 +210,25 @@
             </div>
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
           </a>
-          <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-            <div class="flex items-center space-x-3">
-              <i class="fas fa-chart-bar text-yellow-400"></i>
-              <span class="text-white text-sm">Xem báo cáo</span>
-            </div>
-            <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </a>
+          
+          @if($isAdmin)
+            <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-chart-bar text-yellow-400"></i>
+                <span class="text-white text-sm">Xem báo cáo</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @else
+            <a href="{{ route('admin.ghe.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-chair text-yellow-400"></i>
+                <span class="text-white text-sm">Xem ghế ngồi</span>
+              </div>
+              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+            </a>
+          @endif
+          
           <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
             <div class="flex items-center space-x-3">
               <i class="fas fa-gift text-pink-400"></i>
