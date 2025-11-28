@@ -10,10 +10,12 @@ use App\Models\KhuyenMai;
 use App\Models\HangThanhVien;
 use App\Models\DiemThanhVien;
 use App\Models\ChiTietDatVe;
+use App\Mail\TicketMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 
 class QuanLyDatVeController extends Controller
@@ -146,7 +148,11 @@ class QuanLyDatVeController extends Controller
                 }
             });
             $this->updateMemberStats($booking->id_nguoi_dung);
-            return redirect()->route('admin.bookings.index')->with('success', 'Đã xác nhận vé.');
+            
+            // Send email notification
+            $this->sendTicketEmail($booking);
+            
+            return redirect()->route('admin.bookings.index')->with('success', 'Đã xác nhận vé và gửi email.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Lỗi: '.$e->getMessage());
         }
@@ -485,6 +491,93 @@ class QuanLyDatVeController extends Controller
             HangThanhVien::updateOrCreate(['id_nguoi_dung' => $userId], ['ten_hang' => $tier]);
         } else {
             HangThanhVien::where('id_nguoi_dung', $userId)->delete();
+        }
+    }
+
+    /**
+     * Send ticket email to customer
+     */
+    public function sendTicket($id)
+    {
+        $this->authorizeAction('gửi email vé');
+        $booking = DatVe::findOrFail($id);
+        
+        try {
+            $this->sendTicketEmail($booking);
+            
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Email đã được gửi thành công!'
+                ]);
+            }
+            
+            return back()->with('success', 'Email đã được gửi thành công!');
+        } catch (\Throwable $e) {
+            Log::error('Send ticket email error: '.$e->getMessage());
+            
+            // Extract user-friendly error message
+            $errorMessage = $e->getMessage();
+            $userMessage = 'Lỗi khi gửi email.';
+            
+            if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials')) {
+                $userMessage = 'Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email trong file .env. Xem hướng dẫn: GMAIL_SETUP_GUIDE.md';
+            } elseif (str_contains($errorMessage, 'Connection') || str_contains($errorMessage, 'timeout')) {
+                $userMessage = 'Không thể kết nối đến máy chủ email. Vui lòng kiểm tra kết nối mạng.';
+            } elseif (str_contains($errorMessage, 'no email address')) {
+                $userMessage = 'Không tìm thấy địa chỉ email của khách hàng.';
+            } else {
+                $userMessage = 'Lỗi khi gửi email: ' . (strlen($errorMessage) > 200 ? substr($errorMessage, 0, 200) . '...' : $errorMessage);
+            }
+            
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $userMessage
+                ], 500);
+            }
+            
+            return back()->with('error', $userMessage);
+        }
+    }
+
+    /**
+     * Helper method to send ticket email
+     */
+    private function sendTicketEmail(DatVe $booking): void
+    {
+        $email = $booking->email ?? ($booking->nguoiDung->email ?? null);
+        
+        if (!$email) {
+            Log::warning("Cannot send ticket email: no email address for booking ID {$booking->id}");
+            throw new \Exception('Không tìm thấy địa chỉ email của khách hàng.');
+        }
+
+        try {
+            Mail::to($email)->send(new TicketMail($booking));
+            Log::info("Ticket email sent successfully to {$email} for booking ID {$booking->id}");
+        } catch (\Throwable $e) {
+            $errorMessage = $e->getMessage();
+            
+            // Check if it's a Gmail authentication error
+            if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials') || str_contains($errorMessage, 'Username and Password not accepted')) {
+                $helpMessage = "\n\n" . 
+                    "⚠️ LỖI XÁC THỰC GMAIL:\n" .
+                    "Gmail không chấp nhận mật khẩu thông thường. Bạn cần:\n" .
+                    "1. Bật 2-Step Verification: https://myaccount.google.com/security\n" .
+                    "2. Tạo App Password: https://myaccount.google.com/apppasswords\n" .
+                    "3. Sử dụng App Password (16 ký tự) trong file .env\n" .
+                    "4. Chạy: php artisan config:clear\n\n" .
+                    "Hoặc tạm thời dùng log driver trong .env:\n" .
+                    "MAIL_MAILER=log\n\n" .
+                    "Xem hướng dẫn chi tiết: GMAIL_SETUP_GUIDE.md";
+                
+                Log::error("Gmail authentication failed for booking ID {$booking->id}: {$errorMessage}");
+                throw new \Exception('Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email.' . $helpMessage);
+            }
+            
+            Log::error("Failed to send ticket email to {$email} for booking ID {$booking->id}: {$errorMessage}");
+            throw $e;
         }
     }
 }

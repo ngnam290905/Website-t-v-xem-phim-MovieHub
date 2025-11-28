@@ -281,6 +281,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
         Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
+        Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
 
         // API cho UI chỉnh sửa vé
         Route::get('/{id}/available-showtimes', [QuanLyDatVeController::class, 'availableShowtimes'])->name('available-showtimes');
