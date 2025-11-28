@@ -196,20 +196,16 @@
                         </div>
                     </div>
 
-                    <!-- Right Column: QR Code -->
+                    <!-- Right Column: Ticket Info -->
                     <div class="flex flex-col items-center justify-center">
-                        <div class="bg-white p-6 rounded-2xl shadow-lg mb-4">
-                            <div id="qrcode" class="flex items-center justify-center"></div>
-                        </div>
-                        
-                        <div class="text-center mb-4">
-                            <p class="text-[#a6a6b0] text-sm mb-2">Quét mã QR để xác thực vé</p>
-                            <p class="text-white font-medium">{{ url('/api/ticket/' . $booking->id) }}</p>
-                        </div>
-
-                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center">
+                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
                             <p class="text-[#a6a6b0] text-sm mb-1">Ngày đặt vé</p>
                             <p class="text-white font-medium">{{ optional($booking->created_at)->format('d/m/Y H:i') }}</p>
+                        </div>
+
+                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
+                            <p class="text-[#a6a6b0] text-sm mb-1">Mã vé</p>
+                            <p class="text-white font-medium font-mono">{{ $booking->ticket_code ?? 'N/A' }}</p>
                         </div>
 
                         <!-- Action Buttons -->
@@ -237,7 +233,7 @@
                                 <svg class="w-5 h-5 inline mr-1 text-[#F53003]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                Vui lòng xuất trình mã QR này khi đến rạp
+                                Vui lòng xuất trình mã vé này khi đến rạp
                             </p>
                         </div>
                     </div>
@@ -261,23 +257,10 @@
     </div>
 </div>
 
-<!-- QR Code Library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
 <script>
-// Generate QR Code
+// Ticket functions
 document.addEventListener('DOMContentLoaded', function() {
-    const qrcodeContainer = document.getElementById('qrcode');
-    const qrData = '{{ url("/api/ticket/" . $booking->id) }}';
-    
-    new QRCode(qrcodeContainer, {
-        text: qrData,
-        width: 200,
-        height: 200,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-    });
+    // Ticket functions initialized
 });
 
 // Download ticket function

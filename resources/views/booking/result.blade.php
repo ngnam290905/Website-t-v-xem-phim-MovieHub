@@ -16,10 +16,10 @@
         <h1 class="text-3xl font-bold text-white mb-2">Thanh toán thành công!</h1>
         <p class="text-[#a6a6b0] mb-6">Vé của bạn đã được xác nhận</p>
 
-        <!-- QR Code -->
-        <div class="bg-white p-6 rounded-lg inline-block mb-6">
-          <div id="qrcode" class="w-64 h-64 mx-auto"></div>
-          <p class="text-sm text-gray-600 mt-2">Mã đặt vé: <strong>{{ $booking->id }}</strong></p>
+        <!-- Ticket Code -->
+        <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-6 inline-block mb-6">
+          <p class="text-[#a6a6b0] text-sm mb-2">Mã vé</p>
+          <p class="text-white font-mono text-2xl font-bold">{{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}</p>
         </div>
 
         <!-- Booking Info -->
@@ -77,15 +77,5 @@
   </div>
 </div>
 
-@if($booking->trang_thai === 'PAID')
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-new QRCode(document.getElementById("qrcode"), {
-  text: "{{ route('booking.result', ['booking_id' => $booking->id]) }}",
-  width: 256,
-  height: 256
-});
-</script>
-@endif
 @endsection
 

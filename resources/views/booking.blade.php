@@ -298,7 +298,7 @@
                     <input type="radio" name="payment_method" value="online" checked class="mr-3 text-red-600">
                     <div class="flex-1">
                       <div class="text-white font-medium">Thanh toán online</div>
-                      <div class="text-gray-400 text-sm">Chuyển khoản ngân hàng qua mã QR</div>
+                      <div class="text-gray-400 text-sm">Chuyển khoản ngân hàng</div>
                     </div>
                     <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
@@ -342,51 +342,6 @@
   </div>
 </div>
 
-<!-- Payment Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-  <div class="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-xl font-bold text-white">Thanh toán online</h3>
-      <button onclick="closePaymentModal()" class="text-gray-400 hover:text-white">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
-    </div>
-    
-    <div class="text-center mb-6">
-      <p class="text-gray-300 mb-4">Quét mã QR để thanh toán</p>
-      <div class="bg-white p-4 rounded-lg inline-block">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=MOCK_PAYMENT_{{ time() }}" alt="QR Code" class="w-48 h-48">
-      </div>
-      <p class="text-gray-400 text-sm mt-4">Mã thanh toán: MOCK{{ date('YmdHis') }}</p>
-    </div>
-    
-    <div class="bg-gray-800 rounded-lg p-4 mb-4">
-      <div class="flex justify-between text-white mb-2">
-        <span>Số tiền:</span>
-        <span id="paymentAmount" class="font-bold">0đ</span>
-      </div>
-      <div class="flex justify-between text-white mb-2">
-        <span>Phương thức:</span>
-        <span class="text-green-400">Chuyển khoản ngân hàng</span>
-      </div>
-      <div class="flex justify-between text-white">
-        <span>Trạng thái:</span>
-        <span id="paymentStatus" class="text-yellow-400">Chờ thanh toán</span>
-      </div>
-    </div>
-    
-    <div class="flex gap-3">
-      <button onclick="console.log('Button clicked'); confirmPayment();" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-        Tôi đã thanh toán
-      </button>
-      <button onclick="closePaymentModal();" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-        Hủy
-      </button>
-    </div>
-  </div>
-</div>
 
 @endsection
 
@@ -1120,33 +1075,112 @@ document.addEventListener('DOMContentLoaded', function() {
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
         
         if (paymentMethod === 'online') {
-            // Show payment modal
-            showPaymentModal();
+            // Process online payment - redirect to VNPAY
+            await processOnlinePayment();
         } else {
             // Process offline payment directly
             processOfflinePayment();
         }
     });
     
+    // Process online payment - redirect to VNPAY
+    async function processOnlinePayment() {
+        try {
+            payButton.disabled = true;
+            payButton.textContent = 'Đang xử lý...';
+            
+            const selectedSeats = Array.from(selected).map(btn => btn.dataset.seat);
+            const comboRadio = document.querySelector('input[name="combo"]:checked');
+            const selectedComboPayload = (comboRadio && comboRadio.value) ? { id: comboRadio.value } : null;
+            const promoSel = document.getElementById('promotion');
+            const selectedPromotionId = (promoSel && promoSel.value) ? promoSel.value : null;
+            
+            const bookingIdToSend = (typeof currentBookingId !== 'undefined' && currentBookingId !== null) ? currentBookingId : null;
+            console.log('=== PAYMENT REQUEST DEBUG ===');
+            console.log('Current booking_id:', currentBookingId);
+            console.log('Booking ID to send:', bookingIdToSend);
+            console.log('Selected seats:', selectedSeats);
+            console.log('Showtime:', selectedShowtime);
+            
+            const response = await fetch('/booking/store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    showtime: selectedShowtime,
+                    seats: selectedSeats,
+                    payment_method: 'online',
+                    combo: selectedComboPayload,
+                    promotion: selectedPromotionId,
+                    booking_id: bookingIdToSend
+                })
+            });
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Non-JSON response:', text.substring(0, 200));
+                alert('Có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+                payButton.disabled = false;
+                payButton.textContent = 'Thanh toán';
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                if (data.is_redirect && data.payment_url) {
+                    // Redirect to VNPAY
+                    window.location.href = data.payment_url;
+                } else {
+                    alert('Đặt vé thành công!');
+                    window.location.href = '/user/bookings';
+                }
+            } else {
+                alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+                payButton.disabled = false;
+                payButton.textContent = 'Thanh toán';
+                
+                // If unauthorized, redirect to login
+                if (response.status === 401) {
+                    setTimeout(() => {
+                        window.location.href = '{{ route("login.form") }}';
+                    }, 1500);
+                }
+            }
+        } catch (error) {
+            console.error('Error booking:', error);
+            alert('Có lỗi xảy ra, vui lòng thử lại!');
+            payButton.disabled = false;
+            payButton.textContent = 'Thanh toán';
+        }
+    }
+    
     // Process offline payment
     async function processOfflinePayment() {
         try {
+            payButton.disabled = true;
+            payButton.textContent = 'Đang xử lý...';
+            
             const selectedSeats = Array.from(selected).map(btn => btn.dataset.seat);
-        const response = await fetch('/booking/store', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                showtime: selectedShowtime,
-                seats: selectedSeats,
-                payment_method: 'offline',
-                combo: selectedCombo ? { id: selectedCombo.id } : null,
-                promotion: selectedPromotion ? selectedPromotion.id : null,
-                booking_id: currentBookingId
-            })
-        });
+            const response = await fetch('/booking/store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    showtime: selectedShowtime,
+                    seats: selectedSeats,
+                    payment_method: 'offline',
+                    combo: selectedCombo ? { id: selectedCombo.id } : null,
+                    promotion: selectedPromotion ? selectedPromotion.id : null,
+                    booking_id: currentBookingId
+                })
+            });
             
             const data = await response.json();
             
@@ -1155,10 +1189,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/user/bookings';
             } else {
                 alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+                payButton.disabled = false;
+                payButton.textContent = 'Thanh toán';
             }
         } catch (error) {
             console.error('Error booking:', error);
             alert('Có lỗi xảy ra, vui lòng thử lại!');
+            payButton.disabled = false;
+            payButton.textContent = 'Thanh toán';
         }
     }
     
@@ -1206,111 +1244,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateUI();
 });
 
-// Payment Modal Functions (Global scope)
-function showPaymentModal() {
-    const modal = document.getElementById('paymentModal');
-    const paymentAmount = document.getElementById('paymentAmount');
-    // Simply mirror the current total displayed in the summary
-    const totalText = document.getElementById('total-price')?.textContent || '0đ';
-    paymentAmount.textContent = totalText;
-    modal.style.display = 'flex';
-}
-
-function closePaymentModal() {
-    const modal = document.getElementById('paymentModal');
-    modal.style.display = 'none';
-    document.getElementById('paymentStatus').textContent = 'Chờ thanh toán';
-    document.getElementById('paymentStatus').className = 'text-yellow-400';
-}
-
-async function confirmPayment() {
-    const paymentStatus = document.getElementById('paymentStatus');
-    
-    // Update status to processing
-    paymentStatus.textContent = 'Đang xử lý...';
-    paymentStatus.className = 'text-blue-400';
-    
-    try {
-        // Get selected seats using the same method as pay button
-        const selectedButtons = document.querySelectorAll('.seat.selected, .seat-couple.selected');
-        const selectedSeats = Array.from(selectedButtons).map(btn => btn.dataset.seat);
-        const selectedShowtime = document.querySelector('input[name="showtime"]:checked')?.value;
-        
-        if (selectedSeats.length === 0 || !selectedShowtime) {
-            paymentStatus.textContent = 'Vui lòng chọn suất chiếu và ghế!';
-            paymentStatus.className = 'text-red-400';
-            return;
-        }
-        
-        
-        // Read current combo/promotion directly from DOM to avoid scope issues
-        const comboRadio = document.querySelector('input[name="combo"]:checked');
-        const selectedComboPayload = (comboRadio && comboRadio.value) ? { id: comboRadio.value } : null;
-        const promoSel = document.getElementById('promotion');
-        const selectedPromotionId = (promoSel && promoSel.value) ? promoSel.value : null;
-
-        const response = await fetch('/booking/store', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                showtime: selectedShowtime,
-                seats: selectedSeats,
-                payment_method: 'online',
-                combo: selectedComboPayload,
-                promotion: selectedPromotionId,
-                booking_id: (typeof currentBookingId !== 'undefined' ? currentBookingId : null)
-            })
-        });
-        
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Non-JSON response:', text.substring(0, 200));
-            paymentStatus.textContent = 'Lỗi: Server trả về dữ liệu không hợp lệ';
-            paymentStatus.className = 'text-red-400';
-            alert('Có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
-            return;
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Update status to success
-            paymentStatus.textContent = 'Thanh toán thành công!';
-            paymentStatus.className = 'text-green-400';
-            
-            // Close modal after 2 seconds and redirect
-            setTimeout(() => {
-                closePaymentModal();
-                alert('Đặt vé và thanh toán thành công!');
-                window.location.href = '/user/bookings';
-            }, 2000);
-        } else {
-            // Update status to error
-            paymentStatus.textContent = 'Thanh toán thất bại';
-            paymentStatus.className = 'text-red-400';
-            const errorMsg = data.message || 'Có lỗi xảy ra, vui lòng thử lại!';
-            alert(errorMsg);
-            
-            // If unauthorized, redirect to login
-            if (response.status === 401) {
-                setTimeout(() => {
-                    window.location.href = '{{ route("login.form") }}';
-                }, 1500);
-            }
-        }
-    } catch (error) {
-        console.error('Error booking:', error);
-        paymentStatus.textContent = 'Thanh toán thất bại';
-        paymentStatus.className = 'text-red-400';
-        alert('Có lỗi xảy ra, vui lòng thử lại!');
-    }
-}
 
 // Format function (Global scope)
 function format(num) {

@@ -600,6 +600,79 @@ class BookingController extends Controller
             } catch (\Throwable $e) {
                 \Log::warning('Skip releaseExpiredSeats@store: '.$e->getMessage());
             }
+            
+            // If there's an existing booking, release its seats first
+            if (isset($data['booking_id']) && $data['booking_id']) {
+                try {
+                    $existingBooking = DatVe::where('id', $data['booking_id'])
+                        ->where('id_nguoi_dung', Auth::id())
+                        ->where('id_suat_chieu', $data['showtime'])
+                        ->where('trang_thai', 0)
+                        ->first();
+                    
+                    if ($existingBooking && Schema::hasTable('suat_chieu_ghe')) {
+                        // Release seats from existing booking
+                        $existingSeats = ChiTietDatVe::where('id_dat_ve', $existingBooking->id)
+                            ->with('ghe')
+                            ->get();
+                        
+                        foreach ($existingSeats as $seatDetail) {
+                            if ($seatDetail->ghe) {
+                                ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                    ->where('id_ghe', $seatDetail->ghe->id)
+                                    ->where('status', 'holding')
+                                    ->update([
+                                        'status' => 'available',
+                                        'hold_expires_at' => null
+                                    ]);
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip release existing booking seats@store: '.$e->getMessage());
+                }
+            }
+
+            // Get existing booking seats if booking_id is provided
+            $existingBookingSeats = [];
+            $existingBookingHoldingSeats = []; // Seats held by this booking in suat_chieu_ghe
+            if (isset($data['booking_id']) && $data['booking_id']) {
+                try {
+                    $existingBooking = DatVe::where('id', $data['booking_id'])
+                        ->where('id_nguoi_dung', Auth::id())
+                        ->where('id_suat_chieu', $data['showtime'])
+                        ->where('trang_thai', 0)
+                        ->first();
+                    
+                    if ($existingBooking) {
+                        // Get seats from chi_tiet_dat_ve (if any)
+                        $existingBookingSeats = ChiTietDatVe::where('id_dat_ve', $existingBooking->id)
+                            ->with('ghe')
+                            ->get()
+                            ->pluck('ghe.id')
+                            ->toArray();
+                        
+                        // Also get seats that are holding for this booking from suat_chieu_ghe
+                        if (Schema::hasTable('suat_chieu_ghe')) {
+                            $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $data['showtime'])
+                                ->where('status', 'holding')
+                                ->with('ghe')
+                                ->get();
+                            
+                            // Check if these holding seats belong to our booking
+                            // Since selectSeats doesn't create chi_tiet_dat_ve, we need to check by showtime
+                            // All holding seats for this showtime by this user should be considered as from this booking
+                            foreach ($holdingSeats as $holdingSeat) {
+                                if ($holdingSeat->ghe) {
+                                    $existingBookingHoldingSeats[] = $holdingSeat->ghe->id;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Skip get existing booking seats@store: '.$e->getMessage());
+                }
+            }
 
             // Check if seats are already booked or holding
             $unavailableSeats = [];
@@ -631,7 +704,17 @@ class BookingController extends Controller
                         ->first();
                     
                     if ($ghe) {
-                        // Check showtime_seats table (if exists)
+                        // Skip check if this seat is already in existing booking (from chi_tiet_dat_ve)
+                        if (in_array($ghe->id, $existingBookingSeats)) {
+                            continue;
+                        }
+                        
+                        // Skip check if this seat is being held by existing booking (from suat_chieu_ghe)
+                        if (in_array($ghe->id, $existingBookingHoldingSeats)) {
+                            continue;
+                        }
+                        
+                        // Check showtime_seats table (if exists) - only check for booked seats, ignore holding
                         $showtimeSeat = null;
                         try {
                             if (Schema::hasTable('suat_chieu_ghe')) {
@@ -644,30 +727,23 @@ class BookingController extends Controller
                         }
                         
                         if ($showtimeSeat) {
-                            // Allow if seat is holding by current user (from selectSeats)
-                            $isHoldingByCurrentUser = false;
-                            if ($showtimeSeat->isHolding() && isset($data['booking_id']) && $data['booking_id']) {
-                                // Check if this holding is from our booking
-                                $holdingBooking = DatVe::where('id', $data['booking_id'])
-                                    ->where('id_nguoi_dung', Auth::id())
-                                    ->where('id_suat_chieu', $data['showtime'])
-                                    ->where('trang_thai', 0)
-                                    ->first();
-                                if ($holdingBooking) {
-                                    $isHoldingByCurrentUser = true;
-                                }
-                            }
-                            
-                            if ($showtimeSeat->isBooked() || ($showtimeSeat->isHolding() && !$isHoldingByCurrentUser)) {
+                            // Only check if seat is booked (permanently), ignore holding status
+                            // Holding seats will be converted to booked during payment processing
+                            if ($showtimeSeat->isBooked()) {
                                 $unavailableSeats[] = $code;
+                                continue;
                             }
+                            // Skip checking holding status - allow all holding seats
                         }
                         
-                        // Also check old booking system for backward compatibility
+                        // Also check old booking system for backward compatibility (exclude existing booking)
                         $exists = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
                             ->where('dat_ve.id_suat_chieu', $data['showtime'])
                             ->where('chi_tiet_dat_ve.id_ghe', $ghe->id)
                             ->whereIn('dat_ve.trang_thai', [0, 1])
+                            ->when(isset($data['booking_id']) && $data['booking_id'], function($query) use ($data) {
+                                $query->where('dat_ve.id', '!=', $data['booking_id']);
+                            })
                             ->exists();
                         
                         if ($exists) {
@@ -997,10 +1073,6 @@ class BookingController extends Controller
                     'status' => (int) ($booking->trang_thai ?? 0),
                     'created_at' => optional($booking->created_at)->format('d/m/Y H:i'),
                     'payment_method' => $method, // 1 online, 2 tại quầy
-                    'qr' => [
-                        'data' => $payloadUrl,
-                        'image' => 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='.urlencode($payloadUrl)
-                    ],
                 ]
             ]);
         } catch (\Throwable $e) {

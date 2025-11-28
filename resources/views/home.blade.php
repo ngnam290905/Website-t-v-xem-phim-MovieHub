@@ -86,8 +86,13 @@
           </div>
         </div>
         <div class="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#262833] p-4">
-          <img id="t-qr" alt="QR vé" class="w-44 h-44 bg-[#151822] rounded-md object-contain" />
-          <div class="text-[#a6a6b0] text-xs">Quét mã để xác thực vé</div>
+          <div class="w-44 h-44 bg-[#151822] rounded-md flex items-center justify-center">
+            <div class="text-center">
+              <p class="text-white font-mono text-lg font-bold" id="t-code-display">—</p>
+              <p class="text-[#a6a6b0] text-xs mt-2">Mã vé</p>
+            </div>
+          </div>
+          <div class="text-[#a6a6b0] text-xs">Xuất trình mã vé khi đến rạp</div>
         </div>
       </div>
     </div>
@@ -110,7 +115,7 @@
       var priceEl = document.getElementById('t-price');
       var createdEl = document.getElementById('t-created');
       var methodEl = document.getElementById('t-method');
-      var qrEl = document.getElementById('t-qr');
+      var codeDisplayEl = document.getElementById('t-code-display');
 
       function openOverlay(){ overlay.classList.remove('hidden'); overlay.classList.add('flex'); }
       function closeOverlay(){ overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
@@ -141,7 +146,7 @@
         if(t.showtime){ if(t.showtime.movie) showParts.push(t.showtime.movie); if(t.showtime.room) showParts.push(t.showtime.room); if(t.showtime.start) showParts.push(t.showtime.start); }
         showEl.textContent = showParts.join(' • ');
         seatsEl.textContent = Array.isArray(t.seats) ? t.seats.join(', ') : '—';
-        if(t.qr && t.qr.image){ qrEl.src = t.qr.image; qrEl.alt = t.qr.data || 'QR'; }
+        codeDisplayEl.textContent = t.code || '—';
       }
       function load(id){
         err.classList.add('hidden'); loading.classList.remove('hidden'); view.classList.add('hidden');
