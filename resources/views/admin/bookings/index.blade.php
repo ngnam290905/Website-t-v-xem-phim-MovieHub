@@ -168,7 +168,19 @@
                                 <td class="px-4 py-3">
                                     @switch($booking->trang_thai)
                                         @case(0)
-                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
+                                            @php
+                                                $isOffline = ($booking->phuong_thuc_thanh_toan ?? 0) == 2;
+                                                $expiresAt = $booking->expires_at ?? ($booking->created_at ? $booking->created_at->copy()->addMinutes(5) : null);
+                                                $hasExpires = $isOffline && $expiresAt && $expiresAt->isFuture();
+                                            @endphp
+                                            <div class="flex flex-col gap-1">
+                                                <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
+                                                @if($hasExpires)
+                                                    <div class="text-xs text-orange-400" id="countdown-{{ $booking->id }}" data-expires="{{ $expiresAt->timestamp }}">
+                                                        <i class="fas fa-clock"></i> <span class="countdown-text">Đang tính...</span>
+                                                    </div>
+                                                @endif
+                                            </div>
                                             @break
                                         @case(1)
                                             @php
@@ -246,4 +258,29 @@
             </div>
         @endif
     </div>
+
+    @push('scripts')
+    <script>
+        function updateCountdowns() {
+            document.querySelectorAll('[id^="countdown-"]').forEach(function(el) {
+                const expiresTimestamp = parseInt(el.getAttribute('data-expires'));
+                const now = Math.floor(Date.now() / 1000);
+                const remaining = expiresTimestamp - now;
+                
+                if (remaining <= 0) {
+                    el.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span class="text-red-400">Đã hết hạn</span>';
+                    return;
+                }
+                
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                el.querySelector('.countdown-text').textContent = `Còn ${minutes}:${String(seconds).padStart(2, '0')}`;
+            });
+        }
+        
+        // Update every second
+        setInterval(updateCountdowns, 1000);
+        updateCountdowns(); // Initial call
+    </script>
+    @endpush
 @endsection
