@@ -116,7 +116,7 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
 })->name('booking-dynamic');
 
 
-Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+Route::get('/payment/vnpay-return', [\App\Http\Controllers\PaymentController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 
 // Mini game route
 Route::get('/mini-game', function () {

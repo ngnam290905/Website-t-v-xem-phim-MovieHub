@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
+use App\Http\Controllers\PaymentController;
 
 class BookingController extends Controller
 {
@@ -891,8 +892,14 @@ class BookingController extends Controller
                 ]);
             }
             
-            // Release expired seats first
-            ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+            // Release expired seats first (only if mapping table exists)
+            try {
+                if (Schema::hasTable('suat_chieu_ghe')) {
+                    ShowtimeSeat::releaseExpiredSeats($data['showtime']);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Skip releaseExpiredSeats before saving seats: '.$e->getMessage());
+            }
 
             // Save seat details and update showtime_seats status
             foreach ($data['seats'] as $seatCode) {
@@ -991,7 +998,7 @@ class BookingController extends Controller
 
             // Return result
             if ($paymentMethod === 'online') {
-                $vnp_Url = $this->createVnpayUrl($booking->id, $totalAmount);
+                $vnp_Url = app(PaymentController::class)->createVnpayUrl($booking->id, $totalAmount);
                 return response()->json([
                     'success' => true,
                     'message' => 'Đang chuyển hướng thanh toán...',
