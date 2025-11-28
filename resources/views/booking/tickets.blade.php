@@ -15,6 +15,42 @@
             <p class="text-[#a6a6b0]">Quản lý và xem chi tiết các vé đã đặt</p>
         </div>
 
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+            <div class="mb-6 bg-green-500/20 border-2 border-green-500 rounded-xl p-6 animate-fade-in">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check-circle text-white text-2xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-green-400 mb-1">Thanh toán thành công!</h3>
+                        <p class="text-green-300">{{ session('success') }}</p>
+                        <p class="text-sm text-green-400/80 mt-2">Vé của bạn đã được xác nhận. Vui lòng kiểm tra email để nhận vé.</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-green-400 hover:text-green-300 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="mb-6 bg-red-500/20 border-2 border-red-500 rounded-xl p-6 animate-fade-in">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-white text-2xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-red-400 mb-1">Có lỗi xảy ra</h3>
+                        <p class="text-red-300">{{ session('error') }}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-red-400 hover:text-red-300 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        @endif
+
         <!-- Statistics Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div class="bg-gradient-to-br from-[#1a1d24] to-[#151822] border border-[#2a2d3a] rounded-xl p-5 hover:border-[#0077c8] transition-all">

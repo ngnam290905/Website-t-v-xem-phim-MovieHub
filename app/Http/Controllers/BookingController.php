@@ -131,6 +131,14 @@ class BookingController extends Controller
     }
 
     /**
+     * Show detailed ticket view with QR code (alias for ticketDetail)
+     */
+    public function ticketDetail($id)
+    {
+        return $this->show($id);
+    }
+
+    /**
      * Show detailed ticket view with QR code
      */
     public function show($id)
@@ -183,7 +191,21 @@ class BookingController extends Controller
             $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
         }
 
-        return view('user.ticket-detail', compact(
+        // Generate QR code data for confirmed tickets
+        $qrCodeData = null;
+        if ($booking->trang_thai == 1) {
+            // QR code contains ticket_id for scanning
+            $qrCodeData = 'ticket_id=' . $booking->id;
+            // If ticket_code exists, use it instead
+            if ($booking->ticket_code) {
+                $qrCodeData = 'ticket_id=' . $booking->ticket_code;
+            }
+        }
+
+        // Check which view exists and use it
+        $viewName = view()->exists('booking.ticket-detail') ? 'booking.ticket-detail' : 'user.ticket-detail';
+        
+        return view($viewName, compact(
             'booking', 
             'showtime', 
             'movie', 
@@ -193,7 +215,8 @@ class BookingController extends Controller
             'promo', 
             'promoDiscount', 
             'computedTotal',
-            'pt'
+            'pt',
+            'qrCodeData'
         ));
     }
     
@@ -853,11 +876,11 @@ class BookingController extends Controller
             }
             
             // If no existing booking found, try to find any pending booking for this user and showtime
+            // Remove tong_tien = 0 condition to avoid duplicate bookings
             if (!$existingBooking) {
                 $existingBooking = DatVe::where('id_nguoi_dung', Auth::id())
                     ->where('id_suat_chieu', $data['showtime'])
                     ->where('trang_thai', 0) // pending
-                    ->where('tong_tien', 0) // from selectSeats
                     ->orderBy('created_at', 'desc')
                     ->first();
             }
@@ -867,28 +890,42 @@ class BookingController extends Controller
             $bookingStatus = ($paymentMethod === 'online') ? 1 : 0; // 1 = đã thanh toán, 0 = chờ thanh toán tại quầy
             $methodCode = ($paymentMethod === 'online') ? 1 : 2; // 1=online, 2=tai quay
             
+            // Set expires_at for offline bookings (5 minutes from now)
+            $expiresAt = null;
+            if ($paymentMethod === 'offline' && $bookingStatus === 0) {
+                $expiresAt = \Carbon\Carbon::now()->addMinutes(5);
+            }
+            
             if ($existingBooking) {
                 // Delete old seat details if any
                 ChiTietDatVe::where('id_dat_ve', $existingBooking->id)->delete();
                 
                 // Update existing booking
-                $existingBooking->update([
+                $updateData = [
                     'id_khuyen_mai' => $promotionId,
                     'tong_tien' => $totalAmount,
                     'trang_thai' => $bookingStatus,
                     'phuong_thuc_thanh_toan' => $methodCode,
-                ]);
+                ];
+                if ($expiresAt) {
+                    $updateData['expires_at'] = $expiresAt;
+                }
+                $existingBooking->update($updateData);
                 $booking = $existingBooking;
             } else {
                 // Create new booking
-                $booking = DatVe::create([
+                $createData = [
                     'id_nguoi_dung'   => Auth::id(),
                     'id_suat_chieu'   => $data['showtime'] ?? null,
                     'id_khuyen_mai'   => $promotionId,
                     'tong_tien'       => $totalAmount,
                     'trang_thai'      => $bookingStatus,
                     'phuong_thuc_thanh_toan' => $methodCode,
-                ]);
+                ];
+                if ($expiresAt) {
+                    $createData['expires_at'] = $expiresAt;
+                }
+                $booking = DatVe::create($createData);
             }
             
             // Release expired seats first
@@ -1542,5 +1579,39 @@ class BookingController extends Controller
         }
 
         return $vnp_Url;
+    }
+
+    /**
+     * Show user tickets list
+     */
+    public function tickets()
+    {
+        $userId = Auth::id();
+        
+        if (!$userId) {
+            return redirect()->route('login.form')->with('error', 'Vui lòng đăng nhập để xem vé');
+        }
+
+        $bookings = DatVe::with([
+            'suatChieu.phim',
+            'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe',
+            'chiTietCombo.combo',
+            'thanhToan',
+            'nguoiDung'
+        ])
+        ->where('id_nguoi_dung', $userId)
+        ->orderByDesc('created_at')
+        ->paginate(10);
+
+        // Statistics
+        $stats = [
+            'total' => DatVe::where('id_nguoi_dung', $userId)->count(),
+            'paid' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 1)->count(),
+            'pending' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 0)->count(),
+            'cancelled' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 2)->count(),
+        ];
+
+        return view('booking.tickets', compact('bookings', 'stats'));
     }
 }
