@@ -168,7 +168,28 @@
                                 <td class="px-4 py-3">
                                     @switch($booking->trang_thai)
                                         @case(0)
-                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
+                                            {{-- LOGIC: Đếm ngược 5 phút cho vé Tiền mặt --}}
+                                            @php
+                                                $isCash =
+                                                    optional($booking->thanhToan)->phuong_thuc == 'Tiền mặt' ||
+                                                    empty($booking->thanhToan);
+                                                $expireTime = $booking->created_at->addMinutes(5);
+                                                $isOver = now()->greaterThan($expireTime);
+                                            @endphp
+
+                                            <div class="flex flex-col gap-1">
+                                                <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs w-fit">
+                                                    Chờ xác nhận
+                                                </span>
+                                                @if ($isCash && !$isOver)
+                                                    <span class="text-xs font-bold text-red-400 countdown-timer"
+                                                        data-expire="{{ $expireTime->format('Y-m-d H:i:s') }}">
+                                                        Đang tính giờ...
+                                                    </span>
+                                                @elseif($isCash && $isOver)
+                                                    <span class="text-xs text-gray-500 italic">Đang hủy...</span>
+                                                @endif
+                                            </div>
                                             @break
                                         @case(1)
                                             @php
