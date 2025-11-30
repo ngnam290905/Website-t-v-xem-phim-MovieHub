@@ -1,0 +1,56 @@
+/* Global Image Enhancements */
+
+/* Prevent layout shift */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Image quality optimization */
+img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+
+/* Smooth image loading */
+img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+img[loading="lazy"].loaded {
+    opacity: 1;
+}
+
+/* Better image scaling */
+img {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Responsive images */
+@media (max-width: 768px) {
+    img {
+        image-rendering: auto;
+    }
+}
+
+/* Print optimization */
+@media print {
+    img {
+        page-break-inside: avoid;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    img {
+        image-rendering: -webkit-optimize-contrast;
+    }
+}
+

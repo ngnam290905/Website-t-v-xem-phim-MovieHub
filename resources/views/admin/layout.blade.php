@@ -147,13 +147,7 @@
           @if(request()->routeIs('admin.*'))
             <!-- Admin only menu items -->
             <div class="space-y-1">
-              @php
-                $userRole = optional(auth()->user()->vaiTro)->ten;
-                $isAdmin = in_array(mb_strtolower(trim($userRole ?? '')), ['admin']);
-              @endphp
-              
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">{{ $isAdmin ? 'Quản lý' : 'Xem thông tin' }}</div>
-              
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Quản lý</div>
               <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-video w-5"></i>
                 <span>Phòng chiếu</span>
@@ -174,18 +168,18 @@
                 <i class="fas fa-ticket-alt w-5"></i>
                 <span>Đặt vé</span>
               </a>
-              
-              @if($isAdmin)
-                <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                  <i class="fas fa-users w-5"></i>
-                  <span>Người dùng</span>
-                </a>
-                <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.reports.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-                  <i class="fas fa-chart-bar w-5"></i>
-                  <span>Báo cáo</span>
-                </a>
-              @endif
-              
+              <a href="{{ route('admin.scan.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.scan.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-qrcode w-5"></i>
+                <span>Quản lý Scan</span>
+              </a>
+              <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-users w-5"></i>
+                <span>Người dùng</span>
+              </a>
+              <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.reports.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-chart-bar w-5"></i>
+                <span>Báo cáo</span>
+              </a>
               <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyenmai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-gift w-5"></i>
                 <span>Khuyến mãi</span>
@@ -198,7 +192,7 @@
           @else
             <!-- Staff only menu items -->
             <div class="space-y-1">
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Xem thông tin</div>
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">{{ auth()->user()->vaiTro->ten === 'admin' ? 'Quản lý' : 'Xem thông tin' }}</div>
             
             <!-- Movies -->
             <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
@@ -228,6 +222,18 @@
             <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
               <i class="fas fa-ticket-alt w-5"></i>
               <span>Vé</span>
+            </a>
+            
+            <!-- Scan Management -->
+            <a href="{{ route('admin.scan.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.scan.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-qrcode w-5"></i>
+              <span>Quản lý Scan</span>
+            </a>
+            
+            <!-- Users -->
+            <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-users w-5"></i>
+              <span>Tài khoản</span>
             </a>
             
             <!-- Combos -->

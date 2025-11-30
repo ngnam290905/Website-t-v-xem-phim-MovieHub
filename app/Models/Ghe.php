@@ -16,11 +16,18 @@ class Ghe extends Model
         'id_loai',
         'so_hang',
         'so_ghe',
-        'trang_thai'
+        'trang_thai',
+        'pos_x',
+        'pos_y',
+        'zone',
+        'meta'
     ];
 
     protected $casts = [
         'trang_thai' => 'integer',
+        'pos_x' => 'integer',
+        'pos_y' => 'integer',
+        'meta' => 'array',
     ];
 
     // Relationship with PhongChieu (Room)

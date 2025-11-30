@@ -26,13 +26,41 @@ class SuatChieuSeeder extends Seeder
             for ($day = 0; $day < 7; $day++) {
                 $date = Carbon::now()->addDays($day);
                 
-                // Tạo 3-4 suất chiếu mỗi ngày cho mỗi phim
+                // Tạo 4 suất chiếu mỗi ngày cho mỗi phim
+                // Đảm bảo thời gian luôn trong tương lai
+                $times = [];
+                $now = Carbon::now();
+                
+                if ($day == 0) {
+                    // Hôm nay: chỉ tạo suất chiếu sau giờ hiện tại
+                    $currentHour = $now->hour;
+                    if ($currentHour < 14) {
                 $times = ['14:00', '16:30', '19:00', '21:30'];
+                    } elseif ($currentHour < 16) {
+                        $times = ['16:30', '19:00', '21:30'];
+                    } elseif ($currentHour < 19) {
+                        $times = ['19:00', '21:30'];
+                    } elseif ($currentHour < 21) {
+                        $times = ['21:30'];
+                    } else {
+                        // Quá muộn, không tạo suất chiếu hôm nay
+                        continue;
+                    }
+                } else {
+                    // Các ngày khác: tạo đầy đủ
+                    $times = ['10:00', '14:00', '16:30', '19:00', '21:30'];
+                }
                 
                 foreach ($times as $time) {
                     $phong = $phongChieu->random();
                     $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . $time);
-                    $endTime = $startTime->copy()->addMinutes($movie->do_dai + 15); // Thêm 15 phút nghỉ
+                    
+                    // Đảm bảo thời gian bắt đầu luôn trong tương lai
+                    if ($startTime->lte($now)) {
+                        continue;
+                    }
+                    
+                    $endTime = $startTime->copy()->addMinutes(($movie->do_dai ?? 120) + 15); // Thêm 15 phút nghỉ
                     
                     $suatChieu[] = [
                         'id_phim' => $movie->id,

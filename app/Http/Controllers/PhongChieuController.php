@@ -68,6 +68,94 @@ class PhongChieuController extends Controller
     /**
      * Show the form for creating a new resource.
      */
+    
+    /**
+     * Show form to configure showtimes for all rooms during peak hours
+     */
+    public function showPeakHoursConfig()
+    {
+        $phims = \App\Models\Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])->get();
+        $phongChieus = PhongChieu::where('trang_thai', 1)->get();
+        
+        return view('admin.phong-chieu.peak-hours', compact('phims', 'phongChieus'));
+    }
+    
+    /**
+     * Create showtimes for all rooms during peak hours
+     */
+    public function createPeakHoursShowtimes(Request $request)
+    {
+        $request->validate([
+            'phim_id' => 'required|exists:phim,id',
+            'ngay_chieu' => 'required|date|after_or_equal:today',
+            'gio_bat_dau' => 'required|date_format:H:i',
+            'gio_ket_thuc' => 'required|date_format:H:i|after:gio_bat_dau',
+            'thoi_gian_ngung' => 'required|integer|min:15|max:60',
+            'phong_chieu' => 'required|array|min:1',
+            'phong_chieu.*' => 'exists:phong_chieu,id',
+        ]);
+        
+        $phim = \App\Models\Phim::findOrFail($request->phim_id);
+        $ngayChieu = $request->ngay_chieu;
+        $gioBatDau = $request->gio_bat_dau;
+        $gioKetThuc = $request->gio_ket_thuc;
+        $thoiGianNgung = $request->thoi_gian_ngung;
+        
+        // Calculate time slots
+        $batDau = \Carbon\Carbon::parse("$ngayChieu $gioBatDau");
+        $ketThuc = \Carbon\Carbon::parse("$ngayChieu $gioKetThuc");
+        $thoiLuongPhut = $phim->thoi_luong; // Assuming thoi_luong is in minutes
+        
+        $createdCount = 0;
+        
+        DB::beginTransaction();
+        try {
+            foreach ($request->phong_chieu as $phongId) {
+                $currentTime = clone $batDau;
+                
+                while ($currentTime->addMinutes($thoiLuongPhut + $thoiGianNgung)->lte($ketThuc)) {
+                    $showtimeEnd = (clone $currentTime)->addMinutes($thoiLuongPhut);
+                    
+                    // Check for overlapping showtimes
+                    $exists = SuatChieu::where('id_phong', $phongId)
+                        ->where(function($query) use ($currentTime, $showtimeEnd) {
+                            $query->whereBetween('thoi_gian_bat_dau', [$currentTime, $showtimeEnd])
+                                  ->orWhereBetween('thoi_gian_ket_thuc', [$currentTime, $showtimeEnd])
+                                  ->orWhere(function($q) use ($currentTime, $showtimeEnd) {
+                                      $q->where('thoi_gian_bat_dau', '<', $currentTime)
+                                        ->where('thoi_gian_ket_thuc', '>', $showtimeEnd);
+                                  });
+                        })
+                        ->exists();
+                    
+                    if (!$exists) {
+                        SuatChieu::create([
+                            'id_phim' => $phim->id,
+                            'id_phong' => $phongId,
+                            'thoi_gian_bat_dau' => $currentTime,
+                            'thoi_gian_ket_thuc' => $showtimeEnd,
+                            'trang_thai' => 1
+                        ]);
+                        $createdCount++;
+                    }
+                    
+                    $currentTime = $showtimeEnd;
+                }
+            }
+            
+            DB::commit();
+            return redirect()->route('admin.phong-chieu.index')
+                ->with('success', "Đã tạo thành công $createdCount suất chiếu cho phim '{$phim->ten_phim}'");
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
     public function create()
     {
         $loaiGhe = LoaiGhe::all();

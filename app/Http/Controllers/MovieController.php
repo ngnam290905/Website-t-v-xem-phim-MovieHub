@@ -19,8 +19,106 @@ class MovieController extends Controller
      */
     public function index()
     {
-        $movies = Phim::orderByDesc('ngay_khoi_chieu')->get();
-        return view('home', compact('movies'));
+        // Get featured movies for hero banner (top 5 movies with highest rating and currently showing)
+        $featuredMovies = Phim::where('trang_thai', 'dang_chieu')
+            ->orderByDesc('diem_danh_gia')
+            ->orderByDesc('ngay_khoi_chieu')
+            ->limit(5)
+            ->get();
+        
+        // If not enough "dang_chieu" movies, add "sap_chieu"
+        if ($featuredMovies->count() < 5) {
+            $upcomingMovies = Phim::where('trang_thai', 'sap_chieu')
+                ->orderByDesc('diem_danh_gia')
+                ->orderByDesc('ngay_khoi_chieu')
+                ->limit(5 - $featuredMovies->count())
+                ->get();
+            $featuredMovies = $featuredMovies->merge($upcomingMovies);
+        }
+        
+        // Get featured movie IDs to exclude from other sections
+        $featuredMovieIds = $featuredMovies->pluck('id')->toArray();
+        
+        // Phim hot (rating >= 8.0 và đang chiếu, exclude featured movies)
+        $hotMovies = Phim::where('trang_thai', 'dang_chieu')
+            ->where('diem_danh_gia', '>=', 8.0)
+            ->whereNotIn('id', $featuredMovieIds)
+            ->orderByDesc('diem_danh_gia')
+            ->orderByDesc('so_luot_danh_gia')
+            ->limit(8)
+            ->get();
+        
+        // Get hot movie IDs to exclude from now showing section
+        $hotMovieIds = $hotMovies->pluck('id')->toArray();
+        $excludedIds = array_merge($featuredMovieIds, $hotMovieIds);
+        
+        // Phim đang chiếu (exclude featured and hot movies)
+        $nowShowingMovies = Phim::where('trang_thai', 'dang_chieu')
+            ->whereNotIn('id', $excludedIds)
+            ->orderByDesc('ngay_khoi_chieu')
+            ->orderByDesc('diem_danh_gia')
+            ->get();
+        
+        // Phim sắp chiếu (exclude featured movies that are sap_chieu)
+        $upcomingMovies = Phim::where('trang_thai', 'sap_chieu')
+            ->whereNotIn('id', $featuredMovieIds)
+            ->orderBy('ngay_khoi_chieu')
+            ->orderByDesc('diem_danh_gia')
+            ->get();
+        
+        return view('home', compact('featuredMovies', 'nowShowingMovies', 'hotMovies', 'upcomingMovies'));
+    }
+
+    /**
+     * Hiển thị tất cả phim theo category
+     */
+    public function category($category)
+    {
+        $query = Phim::query();
+        $title = '';
+        $description = '';
+        $icon = '';
+        $color = '';
+        
+        switch ($category) {
+            case 'hot':
+                $query->where('trang_thai', 'dang_chieu')
+                    ->where('diem_danh_gia', '>=', 8.0)
+                    ->orderByDesc('diem_danh_gia')
+                    ->orderByDesc('so_luot_danh_gia');
+                $title = 'Phim Hot';
+                $description = 'Những bộ phim được đánh giá cao nhất';
+                $icon = 'fa-fire';
+                $color = '#FF784E';
+                break;
+                
+            case 'now':
+                $query->where('trang_thai', 'dang_chieu')
+                    ->orderByDesc('ngay_khoi_chieu')
+                    ->orderByDesc('diem_danh_gia');
+                $title = 'Phim Đang Chiếu';
+                $description = 'Đặt vé ngay để không bỏ lỡ';
+                $icon = 'fa-video';
+                $color = '#60a5fa';
+                break;
+                
+            case 'coming':
+                $query->where('trang_thai', 'sap_chieu')
+                    ->orderBy('ngay_khoi_chieu')
+                    ->orderByDesc('diem_danh_gia');
+                $title = 'Phim Sắp Chiếu';
+                $description = 'Sắp ra mắt - Đặt vé sớm để nhận ưu đãi';
+                $icon = 'fa-calendar-alt';
+                $color = '#a78bfa';
+                break;
+                
+            default:
+                abort(404);
+        }
+        
+        $movies = $query->paginate(20);
+        
+        return view('movies.category', compact('movies', 'title', 'description', 'icon', 'color', 'category'));
     }
 
     /**
@@ -378,11 +476,40 @@ class MovieController extends Controller
     
     public function show(Phim $movie)
     {
-        // Phân trang lịch chiếu (7 suất chiếu/trang)
-        $suatChieuPaginate = $movie->suatChieu()->with('phongChieu')->orderByDesc('thoi_gian_bat_dau')->paginate(7);
         $movie->load(['suatChieu.phongChieu']);
+        
         if (request()->routeIs('movie-detail')) {
-            return view('movie-detail', compact('movie', 'suatChieuPaginate'));
+            // Group showtimes by date
+            $showtimesByDate = [];
+            $selectedDate = request()->get('date', now()->format('Y-m-d'));
+            
+            // Lấy showtimes từ hôm nay trở đi (trong 7 ngày tới)
+            $showtimes = SuatChieu::where('id_phim', $movie->id)
+                ->where('trang_thai', 1)
+                ->where('thoi_gian_bat_dau', '>', now()) // Chỉ lấy showtimes chưa bắt đầu
+                ->where('thoi_gian_bat_dau', '<=', now()->addDays(7)) // Trong 7 ngày tới
+                ->with(['phongChieu'])
+                ->orderBy('thoi_gian_bat_dau')
+                ->get();
+            
+            foreach ($showtimes as $showtime) {
+                $date = $showtime->thoi_gian_bat_dau->format('Y-m-d');
+                if (!isset($showtimesByDate[$date])) {
+                    $showtimesByDate[$date] = [];
+                }
+                $showtimesByDate[$date][] = $showtime;
+            }
+            
+            // Get available dates (limit to 7 days)
+            $availableDates = array_slice(array_keys($showtimesByDate), 0, 7);
+            sort($availableDates);
+            
+            // Nếu selectedDate không có trong availableDates, chọn ngày đầu tiên
+            if (!in_array($selectedDate, $availableDates) && !empty($availableDates)) {
+                $selectedDate = $availableDates[0];
+            }
+            
+            return view('movie-detail', compact('movie', 'showtimesByDate', 'selectedDate', 'availableDates'));
         }
 
         // Admin detail: support date-based filtering and quick stats
@@ -411,7 +538,6 @@ class MovieController extends Controller
             'selectedDate' => $selectedDate,
             'days' => $days,
             'suatChieu' => $suatChieu,
-            'suatChieuPaginate' => $suatChieuPaginate,
             'doanhThu' => $doanhThu,
             'loiNhuan' => $loiNhuan,
         ]);

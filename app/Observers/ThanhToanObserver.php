@@ -3,66 +3,58 @@
 namespace App\Observers;
 
 use App\Models\ThanhToan;
-use App\Models\Phim;
+use App\Models\DiemThanhVien;
+use App\Models\HangThanhVien;
+use App\Models\NguoiDung;
+use Illuminate\Support\Facades\DB;
 
 class ThanhToanObserver
 {
-    /**
-     * Handle the ThanhToan "created" event.
-     */
-    public function created(ThanhToan $thanhToan): void
+    public function created(ThanhToan $thanhToan)
     {
-        $this->updatePhimRevenue($thanhToan);
-    }
+        if ($thanhToan->trang_thai != 1) return; // chỉ xử lý khi thanh toán thành công
 
-    /**
-     * Handle the ThanhToan "updated" event.
-     */
-    public function updated(ThanhToan $thanhToan): void
-    {
-        // Chỉ cập nhật nếu trạng thái thay đổi
-        if ($thanhToan->isDirty('trang_thai')) {
-            $this->updatePhimRevenue($thanhToan);
-        }
-    }
-
-    /**
-     * Handle the ThanhToan "deleted" event.
-     */
-    public function deleted(ThanhToan $thanhToan): void
-    {
-        $this->updatePhimRevenue($thanhToan);
-    }
-
-    /**
-     * Cập nhật doanh thu và lợi nhuận của phim
-     */
-    protected function updatePhimRevenue(ThanhToan $thanhToan): void
-    {
-        // Lấy thông tin đặt vé -> suất chiếu -> phim
         $datVe = $thanhToan->datVe;
-        if ($datVe && $datVe->suatChieu) {
-            $phim = $datVe->suatChieu->phim;
-            if ($phim) {
-                // Cập nhật doanh thu & lợi nhuận
-                $phim->updateDoanhThuLoiNhuan();
-            }
+        if (!$datVe || !$datVe->id_nguoi_dung) return;
+
+        $user = $datVe->nguoiDung;
+        $soTien = $thanhToan->so_tien;
+
+        // === 1. CẬP NHẬT TỔNG CHI TIÊU ===
+        if ($user && method_exists($user, 'increment')) {
+            $user->increment('tong_chi_tieu', $soTien);
+        }
+
+        // === 2. TÍCH ĐIỂM: 100.000đ = 1 điểm ===
+        $diemMoi = floor($soTien / 100000);
+        if ($diemMoi > 0) {
+            $diemTV = DiemThanhVien::updateOrCreate(
+                ['id_nguoi_dung' => $user->id],
+                ['tong_diem' => DB::raw("COALESCE(tong_diem, 0) + {$diemMoi}")]
+            );
+
+            // === 3. TỰ ĐỘNG LÊN HẠNG ===
+            $this->capNhatHangThanhVien($user, $diemTV->tong_diem);
         }
     }
 
-    /**
-     * Handle the ThanhToan "restored" event.
-     */
-    public function restored(ThanhToan $thanhToan): void
+    private function capNhatHangThanhVien(NguoiDung $user, $tongDiem)
     {
-        $this->updatePhimRevenue($thanhToan);
-    }
+        $hangMoi = match (true) {
+            $tongDiem >= 40 => 'Kim Cương',
+            $tongDiem >= 30 => 'Bạch Kim',
+            $tongDiem >= 20 => 'Vàng',
+            $tongDiem >= 10 => 'Bạc',
+            default => 'Thường',
+        };
 
-    /**
-     * Handle the ThanhToan "force deleted" event.
-     */
-    public function forceDeleted(ThanhToan $thanhToan): void
-    {
-        $this->updatePhimRevenue($thanhToan);
+        // Chỉ cập nhật nếu thay đổi
+        $hangHienTai = $user->hangThanhVien?->ten_hang;
+        if ($hangHienTai !== $hangMoi) {
+            HangThanhVien::updateOrCreate(
+                ['id_nguoi_dung' => $user->id],
+                ['ten_hang' => $hangMoi]
+            );
+        }
     }
 }
