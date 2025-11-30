@@ -62,7 +62,7 @@ Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name(
 Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
 Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats');
-
+Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
 Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->name('booking.showtimes');

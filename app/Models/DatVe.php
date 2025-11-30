@@ -26,8 +26,7 @@ class DatVe extends Model
         'tong_tien',
         'trang_thai',
         'checked_in',
-        'expires_at',
-        'phuong_thuc_thanh_toan'
+        'expires_at'
     ];
 
     protected $casts = [
@@ -112,19 +111,6 @@ class DatVe extends Model
                 }
             }
         }
-
-        $memberDiscount = 0;
-        if ($this->id_nguoi_dung) {
-            $tier = optional(HangThanhVien::where('id_nguoi_dung', $this->id_nguoi_dung)->first())->ten_hang;
-            if ($tier) {
-                $normalized = mb_strtolower($tier);
-                if ($normalized === 'đồng' || $normalized === 'dong') { $memberDiscount = 10000; }
-                elseif ($normalized === 'bạc' || $normalized === 'bac') { $memberDiscount = 15000; }
-                elseif ($normalized === 'vàng' || $normalized === 'vang') { $memberDiscount = 20000; }
-                elseif ($normalized === 'kim cương' || $normalized === 'kim cuong') { $memberDiscount = 25000; }
-            }
-        }
-
-        return max(0, ($seatTotal + $comboTotal) - $discount - $memberDiscount);
+        return max(0, ($seatTotal + $comboTotal) - $discount);
     }
 }

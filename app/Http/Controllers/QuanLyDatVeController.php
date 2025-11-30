@@ -10,6 +10,7 @@ use App\Models\KhuyenMai;
 use App\Models\HangThanhVien;
 use App\Models\DiemThanhVien;
 use App\Models\ChiTietDatVe;
+use App\Models\ChiTietCombo; // Thêm dòng này nếu thiếu
 use App\Mail\TicketMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,40 +18,34 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use App\Models\ShowtimeSeat;
 
 class QuanLyDatVeController extends Controller
 {
     private const BASE_TICKET_PRICE = 100000;
 
-    /**
-     * Danh sách đặt vé + tự động hủy vé quá hạn 5 phút (COD/chưa chọn PTTT)
-     */
     public function index(Request $request)
     {
         // Auto cancel expired offline bookings (using expires_at or created_at + 5 minutes)
         $expiredQuery = DatVe::with('thanhToan')
             ->where('trang_thai', 0);
-        
+
         // Check if phuong_thuc_thanh_toan column exists before filtering
         if (Schema::hasColumn('dat_ve', 'phuong_thuc_thanh_toan')) {
             $expiredQuery->where('phuong_thuc_thanh_toan', 2); // offline payment
         }
-        // If column doesn't exist, we'll check all pending bookings (backward compatibility)
-        
-        $expired = $expiredQuery->where(function($query) {
-                // Check if expires_at column exists
-                if (Schema::hasColumn('dat_ve', 'expires_at')) {
-                    $query->where('expires_at', '<=', now())
-                          ->orWhere(function($q) {
-                              // Fallback: check created_at + 5 minutes if expires_at is null
-                              $q->whereNull('expires_at')
-                                ->where('created_at', '<=', now()->subMinutes(5));
-                          });
-                } else {
-                    // Fallback: use created_at + 5 minutes
-                    $query->where('created_at', '<=', now()->subMinutes(5));
-                }
-            })
+
+        $expired = $expiredQuery->where(function ($query) {
+            if (Schema::hasColumn('dat_ve', 'expires_at')) {
+                $query->where('expires_at', '<=', now())
+                    ->orWhere(function ($q) {
+                        $q->whereNull('expires_at')
+                            ->where('created_at', '<=', now()->subMinutes(5));
+                    });
+            } else {
+                $query->where('created_at', '<=', now()->subMinutes(5));
+            }
+        })
             ->get();
 
         foreach ($expired as $bk) {
@@ -60,19 +55,25 @@ class QuanLyDatVeController extends Controller
                     $this->releaseSeats($bk);
                 });
             } catch (\Throwable $e) {
-                Log::error('Auto-cancel error: '.$e->getMessage());
+                Log::error('Auto-cancel error: ' . $e->getMessage());
                 try {
                     $bk->update(['trang_thai' => 2]);
                 } catch (\Throwable $e2) {
-                    Log::error('Failed to update booking status: '.$e2->getMessage());
+                    Log::error('Failed to update booking status: ' . $e2->getMessage());
                 }
             }
         }
 
         $query = DatVe::with([
-                'nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu',
-                'chiTietDatVe.ghe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
-            ])
+            'nguoiDung',
+            'suatChieu.phim',
+            'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe',
+            'chiTietDatVe.ghe',
+            'chiTietCombo.combo',
+            'thanhToan',
+            'khuyenMai'
+        ])
             ->orderBy('created_at', 'desc');
 
         $this->applyFilters($query, $request);
@@ -98,9 +99,14 @@ class QuanLyDatVeController extends Controller
     public function show($id)
     {
         $booking = DatVe::with([
-            'nguoiDung.diemThanhVien', 'nguoiDung.hangThanhVien',
-            'suatChieu.phim', 'suatChieu.phongChieu',
-            'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
+            'nguoiDung.diemThanhVien',
+            'nguoiDung.hangThanhVien',
+            'suatChieu.phim',
+            'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe',
+            'chiTietCombo.combo',
+            'thanhToan',
+            'khuyenMai'
         ])->findOrFail($id);
 
         return view('admin.bookings.show', compact('booking'));
@@ -126,7 +132,7 @@ class QuanLyDatVeController extends Controller
             $this->updateMemberStats($booking->id_nguoi_dung);
             return back()->with('success', 'Đã hủy vé và giải phóng ghế.');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Lỗi khi hủy: '.$e->getMessage());
+            return back()->with('error', 'Lỗi khi hủy: ' . $e->getMessage());
         }
     }
 
@@ -148,13 +154,13 @@ class QuanLyDatVeController extends Controller
                 }
             });
             $this->updateMemberStats($booking->id_nguoi_dung);
-            
+
             // Send email notification
             $this->sendTicketEmail($booking);
-            
+
             return redirect()->route('admin.bookings.index')->with('success', 'Đã xác nhận vé và gửi email.');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Lỗi: '.$e->getMessage());
+            return back()->with('error', 'Lỗi: ' . $e->getMessage());
         }
     }
 
@@ -263,17 +269,9 @@ class QuanLyDatVeController extends Controller
                         : (float)$promo->gia_tri_giam;
                 }
 
-                // Hạng thành viên
-                $memberDiscount = 0;
-                if ($booking->id_nguoi_dung) {
-                    $tier = optional(HangThanhVien::where('id_nguoi_dung', $booking->id_nguoi_dung)->first())->ten_hang;
-                    if ($tier) {
-                        $normalized = mb_strtolower($tier);
-                        $discounts = ['đồng' => 10000, 'bạc' => 15000, 'vàng' => 20000, 'kim cương' => 25000];
-                        $discounts = array_change_key_case($discounts, CASE_LOWER);
-                        $memberDiscount = $discounts[$normalized] ?? 0;
-                    }
-                }
+                // Hạng thành viên - ĐÃ XÓA LOGIC GIẢM GIÁ Ở ĐÂY
+                // Logic tính tổng tiền mới: Chỉ trừ Khuyến mãi (nếu có)
+                $booking->tong_tien = max(0, ($tongGhe + $tongCombo) - $discount);
 
                 // Trạng thái
                 if ($request->has('trang_thai') && $booking->trang_thai != $request->trang_thai) {
@@ -285,7 +283,6 @@ class QuanLyDatVeController extends Controller
                     }
                 }
 
-                $booking->tong_tien = max(0, ($tongGhe + $tongCombo) - $discount - $memberDiscount);
                 $booking->save();
             });
 
@@ -379,23 +376,48 @@ class QuanLyDatVeController extends Controller
             }
         }
         if ($request->filled('phim')) {
-            $query->whereHas('suatChieu.phim', fn($q) => $q->where('ten_phim', 'like', '%'.$request->phim.'%'));
+            $query->whereHas('suatChieu.phim', fn($q) => $q->where('ten_phim', 'like', '%' . $request->phim . '%'));
         }
         if ($request->filled('nguoi_dung')) {
-            $query->whereHas('nguoiDung', fn($q) => $q->where('ho_ten', 'like', '%'.$request->nguoi_dung.'%'));
+            $query->whereHas('nguoiDung', fn($q) => $q->where('ho_ten', 'like', '%' . $request->nguoi_dung . '%'));
+        }
+        if ($request->filled('booking_date')) {
+            $query->whereDate('created_at', $request->booking_date);
+        }
+
+        // Filter theo Ngày chiếu (Showtime Date)
+        if ($request->filled('show_date')) {
+            $query->whereHas('suatChieu', function ($q) use ($request) {
+                $q->whereDate('thoi_gian_bat_dau', $request->show_date);
+            });
         }
     }
 
     private function releaseSeats(DatVe $booking): void
     {
         try {
+            // 1. Nhả ghế trong bảng showtime_seats
+            if (Schema::hasTable('suat_chieu_ghe')) {
+                foreach ($booking->chiTietDatVe as $detail) {
+                    if ($detail->id_ghe) {
+                        ShowtimeSeat::where('id_suat_chieu', $booking->id_suat_chieu)
+                            ->where('id_ghe', $detail->id_ghe)
+                            ->update([
+                                'status' => 'available',
+                                'hold_expires_at' => null
+                            ]);
+                    }
+                }
+            }
+
+            // 2. Nhả ghế trong bảng ghe (tương thích ngược)
             foreach ($booking->chiTietDatVe as $detail) {
                 if ($detail->ghe) {
                     $detail->ghe->update(['trang_thai' => 1]);
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('Error releasing seats: '.$e->getMessage());
+            Log::error('Error releasing seats: ' . $e->getMessage());
         }
     }
 
@@ -420,8 +442,8 @@ class QuanLyDatVeController extends Controller
                 : (float)$booking->khuyenMai->gia_tri_giam;
         }
 
-        $memberDiscount = $this->getMemberDiscount($booking->id_nguoi_dung);
-        $final = max(0, $subtotal - $discount - $memberDiscount);
+        // ĐÃ XÓA LOGIC GIẢM GIÁ HẠNG THÀNH VIÊN
+        $final = max(0, $subtotal - $discount);
 
         if (Schema::hasColumn('dat_ve', 'tong_tien')) {
             $booking->tong_tien = $final;
@@ -430,20 +452,6 @@ class QuanLyDatVeController extends Controller
             $booking->tong_tien_hien_thi = $final;
         }
         $booking->saveQuietly();
-    }
-
-    private function getMemberDiscount(?int $userId): float
-    {
-        if (!$userId) return 0;
-        $tier = HangThanhVien::where('id_nguoi_dung', $userId)->value('ten_hang');
-        if (!$tier) return 0;
-        return match (mb_strtolower(trim($tier))) {
-            'đồng', 'dong' => 10000,
-            'bạc', 'bac' => 15000,
-            'vàng', 'vang' => 20000,
-            'kim cương', 'kim cuong' => 25000,
-            default => 0,
-        };
     }
 
     private function recalcMemberPoints(int $userId): void
@@ -501,25 +509,25 @@ class QuanLyDatVeController extends Controller
     {
         $this->authorizeAction('gửi email vé');
         $booking = DatVe::findOrFail($id);
-        
+
         try {
             $this->sendTicketEmail($booking);
-            
+
             if (request()->ajax() || request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Email đã được gửi thành công!'
                 ]);
             }
-            
+
             return back()->with('success', 'Email đã được gửi thành công!');
         } catch (\Throwable $e) {
-            Log::error('Send ticket email error: '.$e->getMessage());
-            
+            Log::error('Send ticket email error: ' . $e->getMessage());
+
             // Extract user-friendly error message
             $errorMessage = $e->getMessage();
             $userMessage = 'Lỗi khi gửi email.';
-            
+
             if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials')) {
                 $userMessage = 'Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email trong file .env. Xem hướng dẫn: GMAIL_SETUP_GUIDE.md';
             } elseif (str_contains($errorMessage, 'Connection') || str_contains($errorMessage, 'timeout')) {
@@ -529,14 +537,14 @@ class QuanLyDatVeController extends Controller
             } else {
                 $userMessage = 'Lỗi khi gửi email: ' . (strlen($errorMessage) > 200 ? substr($errorMessage, 0, 200) . '...' : $errorMessage);
             }
-            
+
             if (request()->ajax() || request()->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'error' => $userMessage
                 ], 500);
             }
-            
+
             return back()->with('error', $userMessage);
         }
     }
@@ -547,7 +555,7 @@ class QuanLyDatVeController extends Controller
     private function sendTicketEmail(DatVe $booking): void
     {
         $email = $booking->email ?? ($booking->nguoiDung->email ?? null);
-        
+
         if (!$email) {
             Log::warning("Cannot send ticket email: no email address for booking ID {$booking->id}");
             throw new \Exception('Không tìm thấy địa chỉ email của khách hàng.');
@@ -558,10 +566,8 @@ class QuanLyDatVeController extends Controller
             Log::info("Ticket email sent successfully to {$email} for booking ID {$booking->id}");
         } catch (\Throwable $e) {
             $errorMessage = $e->getMessage();
-            
-            // Check if it's a Gmail authentication error
             if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials') || str_contains($errorMessage, 'Username and Password not accepted')) {
-                $helpMessage = "\n\n" . 
+                $helpMessage = "\n\n" .
                     "⚠️ LỖI XÁC THỰC GMAIL:\n" .
                     "Gmail không chấp nhận mật khẩu thông thường. Bạn cần:\n" .
                     "1. Bật 2-Step Verification: https://myaccount.google.com/security\n" .
@@ -571,14 +577,13 @@ class QuanLyDatVeController extends Controller
                     "Hoặc tạm thời dùng log driver trong .env:\n" .
                     "MAIL_MAILER=log\n\n" .
                     "Xem hướng dẫn chi tiết: GMAIL_SETUP_GUIDE.md";
-                
+
                 Log::error("Gmail authentication failed for booking ID {$booking->id}: {$errorMessage}");
                 throw new \Exception('Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email.' . $helpMessage);
             }
-            
+
             Log::error("Failed to send ticket email to {$email} for booking ID {$booking->id}: {$errorMessage}");
             throw $e;
         }
     }
 }
-
