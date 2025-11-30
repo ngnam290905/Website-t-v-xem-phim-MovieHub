@@ -28,7 +28,7 @@
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-white">{{ $movie->ten_phim }}</h1>
       <div class="flex items-center gap-2">
-        <a href="{{ route('admin.movies.index') }}" class="inline-flex items-center px-3 py-2 rounded-lg border border-[#2f3240] text-sm text-[#a6a6b0] hover:bg-[#222533]"><i class="fas fa-arrow-left mr-2"></i> Quay lại</a>
+        <button onclick="window.history.back()" class="inline-flex items-center px-3 py-2 rounded-lg border border-[#2f3240] text-sm text-[#a6a6b0] hover:bg-[#222533] cursor-pointer"><i class="fas fa-arrow-left mr-2"></i> Quay lại</button>
         @if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
           <a href="{{ route('admin.movies.edit', $movie) }}" class="inline-flex items-center px-3 py-2 rounded-lg bg-yellow-600/20 text-yellow-300 text-sm hover:bg-yellow-600/30"><i class="fas fa-edit mr-2"></i> Chỉnh sửa</a>
         @endif
@@ -42,7 +42,11 @@
         <div>
           <div class="relative w-full overflow-hidden rounded-xl border border-[#262833] bg-[#0f0f12]">
             @if($movie->poster)
-              <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3">
+              @if(str_starts_with($movie->poster, 'http'))
+                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3">
+              @else
+                <img src="{{ asset('storage/' . $movie->poster) }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3">
+              @endif
             @else
               <div class="flex items-center justify-center" style="aspect-ratio: 2/3">
                 <div class="text-[#a6a6b0] text-sm flex flex-col items-center">

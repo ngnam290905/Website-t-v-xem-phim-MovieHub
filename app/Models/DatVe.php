@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 class DatVe extends Model
 {
     protected $table = 'dat_ve';
-    public $timestamps = false;
+    public $timestamps = true;
+    // Bảng không có cột updated_at
+    public const UPDATED_AT = null;
     
     protected $fillable = [
         'id_nguoi_dung',
@@ -22,14 +24,18 @@ class DatVe extends Model
         'so_dien_thoai',
         'email',
         'tong_tien',
-        'trang_thai'
+        'trang_thai',
+        'checked_in',
+        'expires_at'
     ];
 
     protected $casts = [
         'tong_tien' => 'decimal:2',
         'trang_thai' => 'integer',
         'phuong_thuc_thanh_toan' => 'integer',
+        'checked_in' => 'boolean',
         'created_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     // Relationship with NguoiDung
@@ -105,19 +111,6 @@ class DatVe extends Model
                 }
             }
         }
-
-        $memberDiscount = 0;
-        if ($this->id_nguoi_dung) {
-            $tier = optional(HangThanhVien::where('id_nguoi_dung', $this->id_nguoi_dung)->first())->ten_hang;
-            if ($tier) {
-                $normalized = mb_strtolower($tier);
-                if ($normalized === 'đồng' || $normalized === 'dong') { $memberDiscount = 10000; }
-                elseif ($normalized === 'bạc' || $normalized === 'bac') { $memberDiscount = 15000; }
-                elseif ($normalized === 'vàng' || $normalized === 'vang') { $memberDiscount = 20000; }
-                elseif ($normalized === 'kim cương' || $normalized === 'kim cuong') { $memberDiscount = 25000; }
-            }
-        }
-
-        return max(0, ($seatTotal + $comboTotal) - $discount - $memberDiscount);
+        return max(0, ($seatTotal + $comboTotal) - $discount);
     }
 }

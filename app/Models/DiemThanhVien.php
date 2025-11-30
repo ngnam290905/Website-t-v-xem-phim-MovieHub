@@ -10,6 +10,7 @@ class DiemThanhVien extends Model
     use HasFactory;
     public $timestamps = false;
     protected $table = 'diem_thanh_vien';
+
     protected $fillable = [
         'id_nguoi_dung',
         'tong_diem',
