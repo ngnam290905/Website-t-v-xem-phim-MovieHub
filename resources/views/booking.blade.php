@@ -283,11 +283,12 @@
                   <option value="">Không áp dụng</option>
                   @foreach($khuyenmais as $km)
                     @php $min = $km->dieu_kien ? (int)preg_replace('/\D+/', '', $km->dieu_kien) : 0; @endphp
-                    <option value="{{ $km->id }}" data-type="{{ $km->loai_giam }}" data-value="{{ (float)$km->gia_tri_giam }}" data-min="{{ $min }}">
+                    <option value="{{ $km->id }}" data-type="{{ $km->loai_giam }}" data-value="{{ (float)$km->gia_tri_giam }}" data-min="{{ $min }}" data-max="{{ (float)$km->gia_tri_giam_toi_da ?? 0 }}">
                       {{ $km->ma_km }} - {{ $km->mo_ta }}
                     </option>
                   @endforeach
                 </select>
+                <div id="promotion-info" class="text-xs text-gray-400 mt-2 min-h-5"></div>
               </div>
 
               <!-- Payment Method Selection -->
@@ -663,10 +664,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (subtotal < min) return 0;
         const type = (promo.type || '').toLowerCase();
         const val = toNumber(promo.value);
-        if (type === 'phantram') return Math.round(subtotal * (val / 100));
-        // Fixed amount: if value looks like VND (>=1000) use directly, else treat as thousands
-        const fixed = val >= 1000 ? val : val * 1000;
-        return Math.round(fixed);
+        const maxDiscount = toNumber(promo.max || 0);
+        
+        let discount;
+        if (type === 'phantram') {
+            discount = Math.round(subtotal * (val / 100));
+        } else {
+            // Fixed amount: if value looks like VND (>=1000) use directly, else treat as thousands
+            const fixed = val >= 1000 ? val : val * 1000;
+            discount = Math.round(fixed);
+        }
+        
+        // Apply max discount limit if set
+        if (maxDiscount > 0 && discount > maxDiscount) {
+            discount = Math.round(maxDiscount);
+        }
+        
+        return discount;
     };
     
     // Update UI
@@ -681,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (promoSelect) {
             const opt = promoSelect.selectedOptions[0];
             if (promoSelect.value) {
-                selectedPromotion = { id: promoSelect.value, type: opt.dataset.type, value: toNumber(opt.dataset.value), min: toNumber(opt.dataset.min) };
+                selectedPromotion = { id: promoSelect.value, type: opt.dataset.type, value: toNumber(opt.dataset.value), min: toNumber(opt.dataset.min), max: toNumber(opt.dataset.max || 0) };
             } else {
                 selectedPromotion = null;
             }
@@ -711,6 +725,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Total price element:', totalPriceElement);
         
         if (totalPriceElement) {
+            // Animate price update with smooth transition
+            totalPriceElement.style.transition = 'all 0.3s ease-in-out';
             totalPriceElement.textContent = format(total);
             console.log('Updated total price to:', format(total));
         } else {
@@ -779,8 +795,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                  '<span class="text-gray-400">Khuyến mãi</span>' +
                                  '<span>- ' + format(discount) + '</span>' +
                                  '</div>';
+                
+                // Show max discount limit if applicable
+                if (selectedPromotion && selectedPromotion.max > 0 && selectedPromotion.type === 'phantram') {
+                    breakdownHTML += '<div class="flex justify-between text-xs text-gray-500 italic">' +
+                                     '<span>(Giảm tối đa: ' + format(selectedPromotion.max) + ')</span>' +
+                                     '</div>';
+                }
             }
-            priceBreakdown.innerHTML = breakdownHTML || '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
+            
+            // Update breakdown with animation
+            if (priceBreakdown) {
+                priceBreakdown.style.transition = 'all 0.3s ease-in-out';
+                priceBreakdown.innerHTML = breakdownHTML || '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
+            }
         } else {
             summarySeats.textContent = 'Chưa chọn ghế';
             summarySeatTypes.textContent = 'Chưa chọn ghế';
@@ -1034,7 +1062,63 @@ document.addEventListener('DOMContentLoaded', function() {
     // Promotion selection changes
     if (promoSelect) {
         promoSelect.addEventListener('change', () => {
+            console.log('Promotion changed to:', promoSelect.value);
+            
+            // Update promotion info display
+            const promotionInfo = document.getElementById('promotion-info');
+            if (promoSelect.value) {
+                const opt = promoSelect.selectedOptions[0];
+                const type = opt.dataset.type;
+                const value = toNumber(opt.dataset.value);
+                const max = toNumber(opt.dataset.max || 0);
+                
+                // Calculate discount based on current cart
+                const selectedArray = Array.from(selected);
+                const seatTotal = selectedArray.reduce((sum, seatButton) => {
+                    return sum + priceFor(seatButton);
+                }, 0);
+                const comboTotal = selectedCombo ? selectedCombo.price : 0;
+                const subtotal = seatTotal + comboTotal;
+                
+                let infoText = '';
+                let calculatedDiscount = 0;
+                
+                if (type === 'phantram') {
+                    calculatedDiscount = Math.round(subtotal * (value / 100));
+                    if (max > 0 && calculatedDiscount > max) {
+                        calculatedDiscount = Math.round(max);
+                        infoText = `Giảm ${value}% (tối đa: ${format(max)}) - Sử dụng: ${format(calculatedDiscount)}`;
+                    } else {
+                        infoText = `Giảm ${value}%`;
+                        if (max > 0) {
+                            infoText += ` (tối đa: ${format(max)})`;
+                        }
+                        if (subtotal > 0) {
+                            infoText += ` - Sẽ giảm: ${format(calculatedDiscount)}`;
+                        }
+                    }
+                } else {
+                    calculatedDiscount = value >= 1000 ? value : value * 1000;
+                    infoText = `Giảm ${format(calculatedDiscount)}`;
+                }
+                
+                promotionInfo.textContent = infoText;
+                promotionInfo.style.color = '#10b981'; // green-500
+            } else {
+                promotionInfo.textContent = '';
+            }
+            
             updateUI();
+            
+            // Add visual feedback
+            const breakdownDiv = document.getElementById('price-breakdown');
+            if (breakdownDiv) {
+                breakdownDiv.style.opacity = '0.7';
+                breakdownDiv.style.transition = 'opacity 0.2s ease-in-out';
+                setTimeout(() => {
+                    breakdownDiv.style.opacity = '1';
+                }, 100);
+            }
         });
     }
     

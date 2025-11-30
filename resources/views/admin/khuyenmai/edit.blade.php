@@ -64,7 +64,7 @@
         <!-- Thông tin giảm giá -->
         <div class="mb-6">
             <h2 class="text-lg font-semibold mb-4 text-yellow-400 border-b border-[#262833] pb-2">Thông tin giảm giá</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block mb-2 font-semibold text-gray-300">Loại giảm <span class="text-red-500">*</span></label>
                     <select name="loai_giam" id="loai_giam" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-yellow-500 transition-colors">
@@ -80,6 +80,12 @@
                     <input type="number" step="1" min="0" name="gia_tri_giam" id="gia_tri_giam" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-yellow-500 transition-colors" placeholder="0" value="{{ old('gia_tri_giam', $khuyenmai->gia_tri_giam) }}">
                     <small class="text-gray-400 text-xs mt-1 block" id="hint_gia_tri_giam">{{ $khuyenmai->loai_giam == 'phantram' ? 'Tối đa 40% cho giảm theo phần trăm' : 'Nhập số tiền giảm cố định' }}</small>
                     @error('gia_tri_giam')<div class="text-red-500 text-sm mt-1">{{ $message }}</div>@enderror
+                </div>
+                <div>
+                    <label class="block mb-2 font-semibold text-gray-300">Giá trị giảm tối đa (VNĐ)</label>
+                    <input type="number" step="0.01" min="0" name="gia_tri_giam_toi_da" id="gia_tri_giam_toi_da" class="w-full px-4 py-2 rounded bg-[#222533] border border-[#262833] focus:outline-none focus:border-yellow-500 transition-colors" placeholder="0" value="{{ old('gia_tri_giam_toi_da', $khuyenmai->gia_tri_giam_toi_da) }}">
+                    <small class="text-gray-400 text-xs mt-1 block">Áp dụng cho loại giảm theo %</small>
+                    @error('gia_tri_giam_toi_da')<div class="text-red-500 text-sm mt-1">{{ $message }}</div>@enderror
                 </div>
             </div>
         </div>

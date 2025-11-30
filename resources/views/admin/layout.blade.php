@@ -201,10 +201,7 @@
             </a>
             
             <!-- Showtimes -->
-            <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
-              <i class="fas fa-calendar-alt w-5"></i>
-              <span>Suất chiếu</span>
-            </a>
+            color ojos white !important;
             
             <!-- Rooms -->
             <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
