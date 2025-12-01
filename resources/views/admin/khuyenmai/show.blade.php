@@ -117,6 +117,12 @@
 					@endif
 				</p>
 			</div>
+			@if($khuyenmai->gia_tri_giam_toi_da)
+			<div class="pt-2 border-t border-[#262833]">
+				<label class="text-gray-400 text-sm">Giá trị giảm tối đa</label>
+				<p class="text-2xl font-bold mt-1 text-yellow-400">{{ number_format($khuyenmai->gia_tri_giam_toi_da, 0, ',', '.') }}₫</p>
+			</div>
+			@endif
 		</div>
 	</div>
 

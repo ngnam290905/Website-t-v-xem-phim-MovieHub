@@ -37,6 +37,7 @@
             </div>
         </div>
 
+
         <!-- Main Content -->
         <div class="max-w-7xl mx-auto px-4 py-6">
             <div class="grid lg:grid-cols-3 gap-6">
@@ -59,6 +60,105 @@
                                 </div>
                             </div>
                         </div>
+
+        <!-- Right Column - Payment Summary -->
+        <div class="space-y-6">
+          <!-- Summary -->
+          <div class="bg-gray-900 rounded-lg p-6 sticky top-6">
+            <h3 class="text-lg font-semibold mb-4">Thông tin đặt vé</h3>
+            
+            <div class="space-y-4">
+              <!-- Movie Info -->
+              <div>
+                <p class="text-sm text-gray-400">Phim</p>
+                <p class="font-medium">{{ $movie->ten_phim ?? 'Movie Title' }}</p>
+                <p class="text-xs text-gray-500 mt-1">Thời lượng: {{ $movie->thoi_luong ?? '120' }} phút</p>
+              </div>
+
+              <!-- Showtime Info -->
+              <div>
+                <p class="text-sm text-gray-400">Suất chiếu</p>
+                <p class="font-medium" id="summary-showtime">Chọn suất chiếu</p>
+                <p class="text-xs text-gray-500 mt-1" id="summary-date">Chọn ngày chiếu</p>
+                <p class="text-xs text-gray-500" id="summary-time">Chọn giờ chiếu</p>
+              </div>
+
+              <!-- Seats Info -->
+              <div>
+                <p class="text-sm text-gray-400">Ghế</p>
+                <p class="font-medium" id="summary-seats">Chưa chọn ghế</p>
+                <p class="text-xs text-gray-500 mt-1" id="summary-seat-types">Chưa chọn ghế</p>
+              </div>
+
+              <!-- Hold Timer Notification -->
+              <div id="hold-notification" class="hidden border-t border-gray-800 pt-4">
+                <div class="bg-yellow-600/20 border border-yellow-600/50 rounded-lg p-3">
+                  <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p class="text-sm font-medium text-yellow-400">Ghế đã được giữ chỗ</p>
+                  </div>
+                  <p class="text-xs text-yellow-300" id="hold-timer-text">Thời gian còn lại: 5:00</p>
+                  <p class="text-xs text-yellow-400/80 mt-1">Vui lòng hoàn tất thanh toán trong thời gian này</p>
+                </div>
+              </div>
+
+              <!-- Price Breakdown -->
+              <div class="border-t border-gray-800 pt-4 space-y-2" id="price-breakdown">
+                <div class="flex justify-between text-sm text-gray-500">
+                  <span>Chưa chọn ghế</span>
+                  <span>0đ</span>
+                </div>
+              </div>
+
+              <!-- Combo Selection -->
+              <div class="border-t border-gray-800 pt-4">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Chọn Combo (tuỳ chọn)</label>
+                <div class="space-y-2">
+                  @forelse($combos as $c)
+                    <label class="flex items-center p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                      <input type="radio" name="combo" value="{{ $c->id }}" data-price="{{ (int)$c->gia }}" class="mr-3 text-red-600">
+                      <div class="flex-1">
+                        <div class="text-white font-medium">{{ $c->ten }}</div>
+                        <div class="text-gray-400 text-sm">{{ number_format((int)$c->gia,0) }}đ</div>
+                      </div>
+                    </label>
+                  @empty
+                    <div class="text-sm text-gray-500">Hiện chưa có combo khả dụng</div>
+                  @endforelse
+                  <label class="flex items-center p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                    <input type="radio" name="combo" value="" class="mr-3 text-red-600">
+                    <div class="flex-1 text-gray-400 text-sm">Không chọn combo</div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Promotion Selection -->
+              <div class="border-t border-gray-800 pt-4">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Khuyến mãi</label>
+                <select id="promotion" class="w-full bg-gray-800 text-white rounded-lg p-2 border border-gray-700">
+                  <option value="">Không áp dụng</option>
+                  @foreach($khuyenmais as $km)
+                    @php $min = $km->dieu_kien ? (int)preg_replace('/\D+/', '', $km->dieu_kien) : 0; @endphp
+                    <option value="{{ $km->id }}" data-type="{{ $km->loai_giam }}" data-value="{{ (float)$km->gia_tri_giam }}" data-min="{{ $min }}" data-max="{{ (float)$km->gia_tri_giam_toi_da ?? 0 }}">
+                      {{ $km->ma_km }} - {{ $km->mo_ta }}
+                    </option>
+                  @endforeach
+                </select>
+                <div id="promotion-info" class="text-xs text-gray-400 mt-2 min-h-5"></div>
+              </div>
+
+              <!-- Payment Method Selection -->
+              <div class="border-t border-gray-800 pt-4">
+                <label class="block text-sm font-medium text-gray-400 mb-2">Phương thức thanh toán</label>
+                <div class="space-y-2">
+                  <label class="flex items-center p-3 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                    <input type="radio" name="payment_method" value="online" checked class="mr-3 text-red-600">
+                    <div class="flex-1">
+                      <div class="text-white font-medium">Thanh toán online</div>
+                      <div class="text-gray-400 text-sm">Chuyển khoản ngân hàng</div>
+
                     </div>
 
                     <!-- Showtime Selection -->
@@ -683,7 +783,293 @@
                         button.title = 'Click to select seat ' + seatCode;
                         console.log('Seat', seatCode, 'is enabled and clickable');
                     } else {
+
                         console.warn('Seat', seatCode, 'is disabled');
+
+                        console.log('API succeeded, seat remains selected. Current selected.size:', selected.size);
+                        // Update UI after successful selection - ensure selected seats are preserved
+                        updateUI();
+                    }
+                    isProcessing = false;
+                }
+            };
+            
+            // Attach click event only (remove mousedown to avoid double trigger)
+            button.addEventListener('click', handleSeatClick, { passive: false });
+            
+            // Also add touchstart for mobile
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleSeatClick(e);
+            }, { passive: false });
+            
+            // Ensure button is clickable
+            if (!button.disabled) {
+                button.style.cursor = 'pointer';
+                button.style.pointerEvents = 'auto';
+                button.title = 'Click to select seat ' + seatCode;
+                console.log('Seat', seatCode, 'is enabled and clickable');
+            } else {
+                console.warn('Seat', seatCode, 'is disabled');
+            }
+        });
+        
+        console.log('Seat listeners attached to', buttons.length, 'buttons');
+    }
+    
+    // Format price
+    const format = (n) => n.toLocaleString('vi-VN') + 'đ';
+    
+    // Helpers
+    const toNumber = (v) => {
+        if (v === undefined || v === null) return 0;
+        return parseInt(String(v).replace(/[^0-9.-]/g, '')) || 0;
+    };
+    // Price calculation - use price from data attribute
+    const priceFor = (seatButton) => {
+        const price = toNumber(seatButton.dataset.price);
+        console.log('priceFor - seat:', seatButton.dataset.seat, 'price from dataset:', seatButton.dataset.price, 'parsed:', price);
+        if (price > 0) {
+            return price;
+        }
+        // Fallback: determine price by seat type
+        const seatType = (seatButton.dataset.type || '').toLowerCase();
+        if (seatType.includes('vip')) {
+            return 120000;
+        } else if (seatType.includes('đôi') || seatType.includes('doi') || seatType.includes('couple')) {
+            return 200000;
+        }
+        return 80000; // Default regular seat price
+    };
+    // Compute promotion discount with condition and unit alignment
+    const computePromotionDiscount = (subtotal, promo) => {
+        if (!promo) return 0;
+        const min = toNumber(promo.min || 0);
+        if (subtotal < min) return 0;
+        const type = (promo.type || '').toLowerCase();
+        const val = toNumber(promo.value);
+        const maxDiscount = toNumber(promo.max || 0);
+        
+        let discount;
+        if (type === 'phantram') {
+            discount = Math.round(subtotal * (val / 100));
+        } else {
+            // Fixed amount: if value looks like VND (>=1000) use directly, else treat as thousands
+            const fixed = val >= 1000 ? val : val * 1000;
+            discount = Math.round(fixed);
+        }
+        
+        // Apply max discount limit if set
+        if (maxDiscount > 0 && discount > maxDiscount) {
+            discount = Math.round(maxDiscount);
+        }
+        
+        return discount;
+    };
+    
+    // Update UI
+    const updateUI = () => {
+
+        const currentCombo = document.querySelector('input[name="combo"]:checked');
+        if (currentCombo && currentCombo.value) {
+            selectedCombo = { id: currentCombo.value, price: toNumber(currentCombo.dataset.price) };
+        } else {
+            selectedCombo = null;
+        }
+        if (promoSelect) {
+            const opt = promoSelect.selectedOptions[0];
+            if (promoSelect.value) {
+                selectedPromotion = { id: promoSelect.value, type: opt.dataset.type, value: toNumber(opt.dataset.value), min: toNumber(opt.dataset.min), max: toNumber(opt.dataset.max || 0) };
+            } else {
+                selectedPromotion = null;
+            }
+        }
+
+        // Calculate seat total - ensure we have the selected seats
+        const selectedArray = Array.from(selected);
+        console.log('=== UPDATE UI DEBUG ===');
+        console.log('Selected seats count:', selected.size);
+        console.log('Selected seats array:', selectedArray.map(btn => btn.dataset.seat));
+        
+        const seatTotal = selectedArray.reduce((sum, seatButton) => {
+            const price = priceFor(seatButton);
+            console.log('Seat:', seatButton.dataset.seat, 'Price:', price);
+            return sum + price;
+        }, 0);
+        
+        const comboTotal = selectedCombo ? selectedCombo.price : 0;
+        let discount = computePromotionDiscount(seatTotal + comboTotal, selectedPromotion);
+        if (discount > seatTotal + comboTotal) discount = seatTotal + comboTotal;
+        const total = Math.max(0, seatTotal + comboTotal - discount);
+        
+        console.log('Seat total:', seatTotal);
+        console.log('Combo total:', comboTotal);
+        console.log('Discount:', discount);
+        console.log('Total:', total);
+        console.log('Total price element:', totalPriceElement);
+        
+        if (totalPriceElement) {
+            // Animate price update with smooth transition
+            totalPriceElement.style.transition = 'all 0.3s ease-in-out';
+            totalPriceElement.textContent = format(total);
+            console.log('Updated total price to:', format(total));
+        } else {
+            console.error('totalPriceElement not found!');
+        }
+        
+        if (selected.size > 0) {
+            const seatCodes = Array.from(selected).map(btn => btn.dataset.seat);
+            summarySeats.textContent = seatCodes.join(', ');
+            
+            // Count seat types and calculate prices
+            let regularCount = 0, vipCount = 0, coupleCount = 0;
+            let regularTotal = 0, vipTotal = 0, coupleTotal = 0;
+            
+            selected.forEach(button => {
+                const price = priceFor(button);
+                const seatType = button.dataset.type || '';
+                
+                if (seatType.includes('vip') || seatType.includes('VIP')) {
+                    vipCount++;
+                    vipTotal += price;
+                } else if (seatType.includes('đôi') || seatType.includes('doi') || seatType.includes('couple')) {
+                    coupleCount++;
+                    coupleTotal += price;
+                } else {
+                    regularCount++;
+                    regularTotal += price;
+                }
+            });
+            
+            // Update seat types summary
+            const seatTypeInfo = [];
+            if (regularCount > 0) seatTypeInfo.push('Ghế thường (' + regularCount + ')');
+            if (vipCount > 0) seatTypeInfo.push('Ghế VIP (' + vipCount + ')');
+            if (coupleCount > 0) seatTypeInfo.push('Ghế đôi (' + coupleCount + ')');
+            summarySeatTypes.textContent = seatTypeInfo.join(', ');
+            
+            // Update price breakdown
+            let breakdownHTML = '';
+            if (regularCount > 0) {
+                breakdownHTML += '<div class="flex justify-between text-sm">' +
+                                 '<span class="text-gray-400">Ghế thường (' + regularCount + ')</span>' +
+                                 '<span>' + format(regularTotal) + '</span>' +
+                                 '</div>';
+            }
+            if (vipCount > 0) {
+                breakdownHTML += '<div class="flex justify-between text-sm">' +
+                                 '<span class="text-gray-400">Ghế VIP (' + vipCount + ')</span>' +
+                                 '<span>' + format(vipTotal) + '</span>' +
+                                 '</div>';
+            }
+            if (coupleCount > 0) {
+                breakdownHTML += '<div class="flex justify-between text-sm">' +
+                                 '<span class="text-gray-400">Ghế đôi (' + coupleCount + ')</span>' +
+                                 '<span>' + format(coupleTotal) + '</span>' +
+                                 '</div>';
+            }
+            if (comboTotal > 0) {
+                breakdownHTML += '<div class="flex justify-between text-sm">' +
+                                 '<span class="text-gray-400">Combo</span>' +
+                                 '<span>' + format(comboTotal) + '</span>' +
+                                 '</div>';
+            }
+            if (discount > 0) {
+                breakdownHTML += '<div class="flex justify-between text-sm">' +
+                                 '<span class="text-gray-400">Khuyến mãi</span>' +
+                                 '<span>- ' + format(discount) + '</span>' +
+                                 '</div>';
+                
+                // Show max discount limit if applicable
+                if (selectedPromotion && selectedPromotion.max > 0 && selectedPromotion.type === 'phantram') {
+                    breakdownHTML += '<div class="flex justify-between text-xs text-gray-500 italic">' +
+                                     '<span>(Giảm tối đa: ' + format(selectedPromotion.max) + ')</span>' +
+                                     '</div>';
+                }
+            }
+            
+            // Update breakdown with animation
+            if (priceBreakdown) {
+                priceBreakdown.style.transition = 'all 0.3s ease-in-out';
+                priceBreakdown.innerHTML = breakdownHTML || '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
+            }
+        } else {
+            summarySeats.textContent = 'Chưa chọn ghế';
+            summarySeatTypes.textContent = 'Chưa chọn ghế';
+            const comboOnly = selectedCombo ? '<div class="flex justify-between text-sm"><span class="text-gray-400">Combo</span><span>' + format(selectedCombo.price) + '</span></div>' : '';
+            const promoOnly = (selectedPromotion ? (function(){
+                const base = (selectedCombo ? selectedCombo.price : 0);
+                const d = computePromotionDiscount(base, selectedPromotion);
+                return d>0 ? '<div class="flex justify-between text-sm"><span class="text-gray-400">Khuyến mãi</span><span>- ' + format(d) + '</span></div>' : '';
+            })() : '');
+            priceBreakdown.innerHTML = (comboOnly || promoOnly) ? comboOnly + promoOnly : '<div class="flex justify-between text-sm text-gray-500"><span>Chưa chọn ghế</span><span>0đ</span></div>';
+            
+            // Update total price (only combo/promo if no seats)
+            const comboPrice = selectedCombo ? selectedCombo.price : 0;
+            const promoDiscount = selectedPromotion ? computePromotionDiscount(comboPrice, selectedPromotion) : 0;
+            const total = comboPrice - promoDiscount;
+            if (totalPrice) {
+                totalPrice.textContent = format(total);
+            }
+        }
+        
+        // Enable/disable pay button
+        payButton.disabled = selected.size === 0 || !selectedShowtime;
+    };
+    
+    // Load seats for showtime - MUST be defined before use
+    const loadSeatsForShowtime = async (showtimeId) => {
+        console.log('=== LOADING SEATS FOR SHOWTIME ===');
+        console.log('Showtime ID:', showtimeId);
+        try {
+            const response = await fetch('/showtime-seats/' + showtimeId);
+            console.log('API Response status:', response.status);
+            const data = await response.json();
+            console.log('API Response data:', data);
+            console.log('Number of seats in response:', Object.keys(data.seats || {}).length);
+            
+            // Update seat map with new data
+            const seatMapContainer = document.getElementById('seat-map');
+            if (seatMapContainer) {
+                seatMapContainer.querySelectorAll('button.seat, button.seat-couple').forEach(button => {
+                    const seatCode = button.dataset.seat;
+                    const seatData = data.seats && data.seats[seatCode] ? data.seats[seatCode] : null;
+                    
+                    if (seatData) {
+                        // Update button based on actual seat data
+                        button.disabled = !seatData.available;
+                        button.dataset.price = seatData.price;
+                        button.dataset.type = seatData.type;
+                        
+                        // Ensure button is clickable if available
+                        if (seatData.available) {
+                            button.style.pointerEvents = 'auto';
+                            button.style.cursor = 'pointer';
+                            button.removeAttribute('disabled');
+                        } else {
+                            button.setAttribute('disabled', 'disabled');
+                        }
+                        
+                        // Update button classes
+                        button.classList.remove('bg-gray-700', 'hover:bg-gray-600', 'bg-yellow-600', 'hover:bg-yellow-700', 'bg-pink-600', 'hover:bg-pink-700', 'bg-red-600', 'cursor-not-allowed', 'bg-green-600', 'selected');
+                        
+                        if (!seatData.available) {
+                            button.classList.add('bg-red-600', 'cursor-not-allowed');
+                        } else if (seatData.type && (seatData.type.includes('vip') || seatData.type.includes('VIP'))) {
+                            button.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+                        } else if (seatData.type && (seatData.type.includes('đôi') || seatData.type.includes('doi') || seatData.type.includes('couple'))) {
+                            button.classList.add('bg-pink-600', 'hover:bg-pink-700');
+                            button.classList.add('w-12', 'h-8');
+                        } else {
+                            button.classList.add('bg-gray-700', 'hover:bg-gray-600');
+                        }
+                        
+                        // Update button text
+                        button.textContent = seatCode.substring(1);
+                    } else {
+                        // Seat not found in API response - keep current state but log
+                        console.log('Seat', seatCode, 'not found in API response, keeping current state');
+
                     }
                 });
 
@@ -1168,6 +1554,7 @@
                     }
                 });
 
+
                 // Trigger change event if already checked (for auto-selected first showtime)
                 if (radio.checked) {
                     console.log('Auto-selected showtime found:', radio.value);
@@ -1381,6 +1768,85 @@
                 selectedShowtime = initialShowtime.value;
                 console.log('Setting selectedShowtime to:', selectedShowtime);
                 const label = initialShowtime.nextElementSibling;
+
+    // Combo selection changes
+    comboRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            updateUI();
+        });
+    });
+    // Promotion selection changes
+    if (promoSelect) {
+        promoSelect.addEventListener('change', () => {
+            console.log('Promotion changed to:', promoSelect.value);
+            
+            // Update promotion info display
+            const promotionInfo = document.getElementById('promotion-info');
+            if (promoSelect.value) {
+                const opt = promoSelect.selectedOptions[0];
+                const type = opt.dataset.type;
+                const value = toNumber(opt.dataset.value);
+                const max = toNumber(opt.dataset.max || 0);
+                
+                // Calculate discount based on current cart
+                const selectedArray = Array.from(selected);
+                const seatTotal = selectedArray.reduce((sum, seatButton) => {
+                    return sum + priceFor(seatButton);
+                }, 0);
+                const comboTotal = selectedCombo ? selectedCombo.price : 0;
+                const subtotal = seatTotal + comboTotal;
+                
+                let infoText = '';
+                let calculatedDiscount = 0;
+                
+                if (type === 'phantram') {
+                    calculatedDiscount = Math.round(subtotal * (value / 100));
+                    if (max > 0 && calculatedDiscount > max) {
+                        calculatedDiscount = Math.round(max);
+                        infoText = `Giảm ${value}% (tối đa: ${format(max)}) - Sử dụng: ${format(calculatedDiscount)}`;
+                    } else {
+                        infoText = `Giảm ${value}%`;
+                        if (max > 0) {
+                            infoText += ` (tối đa: ${format(max)})`;
+                        }
+                        if (subtotal > 0) {
+                            infoText += ` - Sẽ giảm: ${format(calculatedDiscount)}`;
+                        }
+                    }
+                } else {
+                    calculatedDiscount = value >= 1000 ? value : value * 1000;
+                    infoText = `Giảm ${format(calculatedDiscount)}`;
+                }
+                
+                promotionInfo.textContent = infoText;
+                promotionInfo.style.color = '#10b981'; // green-500
+            } else {
+                promotionInfo.textContent = '';
+            }
+            
+            updateUI();
+            
+            // Add visual feedback
+            const breakdownDiv = document.getElementById('price-breakdown');
+            if (breakdownDiv) {
+                breakdownDiv.style.opacity = '0.7';
+                breakdownDiv.style.transition = 'opacity 0.2s ease-in-out';
+                setTimeout(() => {
+                    breakdownDiv.style.opacity = '1';
+                }, 100);
+            }
+        });
+    }
+    
+    // Showtime selection
+    const showtimeRadios = document.querySelectorAll('input[name="showtime"]');
+    showtimeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.checked) {
+                selectedShowtime = radio.value;
+                console.log('Showtime selected:', selectedShowtime);
+                const label = radio.nextElementSibling;
+
                 const timeText = label.querySelector('.font-semibold').textContent;
                 const dateText = label.querySelector('.text-gray-400').textContent;
                 summaryShowtime.textContent = '' + dateText + ' - ' + timeText + '';
