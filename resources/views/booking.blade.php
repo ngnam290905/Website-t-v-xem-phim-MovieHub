@@ -1307,4 +1307,3 @@ function format(num) {
 }
 </script>
 @endsection
-
