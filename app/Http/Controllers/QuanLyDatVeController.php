@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use App\Models\ShowtimeSeat;
 
+
 class QuanLyDatVeController extends Controller
 {
     private const BASE_TICKET_PRICE = 100000;
@@ -59,10 +60,16 @@ class QuanLyDatVeController extends Controller
                 try {
                     $bk->update(['trang_thai' => 2]);
                 } catch (\Throwable $e2) {
+<<<<<<< HEAD
                     Log::error('Failed to update booking status: ' . $e2->getMessage());
+=======
+                    Log::error('Failed to update booking status: '.$e2->getMessage());
+
+>>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
                 }
             }
         }
+
 
         $query = DatVe::with([
             'nguoiDung',
@@ -89,21 +96,34 @@ class QuanLyDatVeController extends Controller
                 ->whereHas('suatChieu', fn($q) => $q->where('thoi_gian_bat_dau', '<', now()))
                 ->count(),
             'revenueToday' => DatVe::where('trang_thai', 1)
-                ->whereDate('created_at', now())
-                ->get()->sum(fn($b) => (float)($b->tong_tien ?? $b->tong_tien_hien_thi ?? 0)),
+                ->whereDate('created_at', now()->toDateString())
+                ->get()
+                ->sum(fn($b) => (float) ($b->tong_tien ?? $b->tong_tien_hien_thi ?? 0)),
         ];
 
         return view('admin.bookings.index', array_merge(['bookings' => $bookings], $stats));
     }
 
+    
     public function show($id)
     {
         $booking = DatVe::with([
+<<<<<<< HEAD
             'nguoiDung.diemThanhVien',
             'nguoiDung.hangThanhVien',
             'suatChieu.phim',
             'suatChieu.phongChieu',
             'chiTietDatVe.ghe.loaiGhe',
+=======
+            'suatChieu.phim', 'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
+            'nguoiDung.diemThanhVien',
+            'nguoiDung',
+            'suatChieu.phim', 'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
+            'suatChieu.phongChieu',
+            'chiTietDatVe.ghe',
+>>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
             'chiTietCombo.combo',
             'thanhToan',
             'khuyenMai'
@@ -112,16 +132,14 @@ class QuanLyDatVeController extends Controller
         return view('admin.bookings.show', compact('booking'));
     }
 
-    /**
-     * Hủy vé (admin/staff)
-     */
+    // --- 2. LOGIC HỦY VÉ ---
     public function cancel($id)
     {
         $this->authorizeAction('hủy vé');
         $booking = DatVe::with(['chiTietDatVe.ghe'])->findOrFail($id);
 
         if (!in_array($booking->trang_thai, [0, 3])) {
-            return back()->with('error', 'Chỉ hủy vé đang chờ hoặc có yêu cầu hủy.');
+            return back()->with('error', 'Chỉ có thể hủy vé đang chờ hoặc có yêu cầu hủy.');
         }
 
         try {
@@ -129,26 +147,36 @@ class QuanLyDatVeController extends Controller
                 $booking->update(['trang_thai' => 2]);
                 $this->releaseSeats($booking);
             });
+            // Trừ điểm (thực tế là tính lại tổng chi tiêu)
             $this->updateMemberStats($booking->id_nguoi_dung);
+<<<<<<< HEAD
             return back()->with('success', 'Đã hủy vé và giải phóng ghế.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Lỗi khi hủy: ' . $e->getMessage());
+=======
+
+            return back()->with('success', 'Đã hủy vé và giải phóng ghế thành công.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Lỗi khi hủy vé: ' . $e->getMessage());
+>>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
         }
     }
 
-    /**
-     * Xác nhận vé (admin/staff)
-     */
+    // --- 3. LOGIC XÁC NHẬN (ĐÃ CHUẨN) ---
     public function confirm($id)
     {
         $this->authorizeAction('xác nhận vé');
         $booking = DatVe::with('thanhToan')->findOrFail($id);
-        if ($booking->trang_thai == 2) return back()->with('error', 'Vé đã hủy.');
+        if ($booking->trang_thai == 2) return back()->with('error', 'Vé này đã hủy.');
         if ($booking->trang_thai != 0) return back()->with('error', 'Chỉ xác nhận vé đang chờ.');
 
         try {
             DB::transaction(function () use ($booking) {
                 $booking->update(['trang_thai' => 1]);
+                // Vé -> 1
+                $booking->update(['trang_thai' => 1]);
+
+                // Thanh toán -> 1 (Thành công)
                 if ($booking->thanhToan) {
                     $booking->thanhToan()->update(['trang_thai' => 1, 'thoi_gian' => now()]);
                 }
@@ -180,9 +208,6 @@ class QuanLyDatVeController extends Controller
         ]);
     }
 
-    /**
-     * Cập nhật vé
-     */
     public function update(Request $request, $id)
     {
         $this->authorizeAction('cập nhật vé');
@@ -198,12 +223,12 @@ class QuanLyDatVeController extends Controller
 
         try {
             DB::transaction(function () use ($request, $booking) {
-                // Suất chiếu
+                // Cập nhật Suất chiếu
                 if ($request->filled('suat_chieu_id')) {
-                    $booking->id_suat_chieu = (int)$request->input('suat_chieu_id');
+                    $booking->id_suat_chieu = (int) $request->input('suat_chieu_id');
                 }
 
-                // Ghế
+                // Cập nhật Ghế
                 $tongGhe = 0;
                 if ($request->has('ghe_ids')) {
                     $this->releaseSeats($booking);
@@ -212,17 +237,18 @@ class QuanLyDatVeController extends Controller
                     $seatIds = array_filter(array_unique(explode(',', $request->input('ghe_ids'))), 'is_numeric');
                     foreach ($seatIds as $gheId) {
                         $ghe = Ghe::with('loaiGhe')->find($gheId);
-                        if (!$ghe || $ghe->trang_thai != 1) continue;
+                        // Nếu ghế bận (và không phải của chính mình) thì bỏ qua
+                        if (!$ghe || ($ghe->trang_thai != 1)) continue;
                         $gia = ($ghe->loaiGhe->he_so_gia ?? 1) * self::BASE_TICKET_PRICE;
                         $booking->chiTietDatVe()->create(['id_ghe' => $gheId, 'gia' => $gia]);
                         $ghe->update(['trang_thai' => 0]);
                         $tongGhe += $gia;
                     }
                 } else {
-                    $tongGhe = (float)$booking->chiTietDatVe()->sum('gia');
+                    $tongGhe = (float) $booking->chiTietDatVe()->sum('gia');
                 }
 
-                // Combo
+                // Cập nhật Combo
                 $tongCombo = 0;
                 if ($request->has('combo_ids')) {
                     $booking->chiTietCombo()->delete();
@@ -234,7 +260,7 @@ class QuanLyDatVeController extends Controller
                         $booking->chiTietCombo()->create([
                             'id_combo' => $cb->id,
                             'so_luong' => $qty,
-                            'gia_ap_dung' => $cb->gia,
+                            'gia_ap_dung' => $cb->gia
                         ]);
                         $tongCombo += ($cb->gia * $qty);
                     }
@@ -264,20 +290,37 @@ class QuanLyDatVeController extends Controller
                     $booking->id_khuyen_mai = null;
                 } elseif ($booking->id_khuyen_mai && $booking->khuyenMai) {
                     $promo = $booking->khuyenMai;
-                    $discount = $promo->loai_giam === 'phantram'
+                    $discount = ($promo->loai_giam === 'phantram')
                         ? round(($tongGhe + $tongCombo) * ((float)$promo->gia_tri_giam / 100))
                         : (float)$promo->gia_tri_giam;
                 }
 
+<<<<<<< HEAD
                 // Hạng thành viên - ĐÃ XÓA LOGIC GIẢM GIÁ Ở ĐÂY
                 // Logic tính tổng tiền mới: Chỉ trừ Khuyến mãi (nếu có)
                 $booking->tong_tien = max(0, ($tongGhe + $tongCombo) - $discount);
 
                 // Trạng thái
+=======
+                // Hạng thành viên
+                $memberDiscount = 0;
+                if ($booking->id_nguoi_dung) {
+                    $tier = optional(HangThanhVien::where('id_nguoi_dung', $booking->id_nguoi_dung)->first())->ten_hang;
+                    if ($tier) {
+                        $normalized = mb_strtolower($tier);
+                        $discounts = ['đồng' => 10000, 'bạc' => 15000, 'vàng' => 20000, 'kim cương' => 25000];
+                        // Sửa lỗi key map tiếng việt có dấu
+                        $discounts = array_change_key_case($discounts, CASE_LOWER);
+                        $memberDiscount = $discounts[$normalized] ?? 0;
+                    }
+                }
+                // Cập nhật Trạng thái
+>>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
                 if ($request->has('trang_thai') && $booking->trang_thai != $request->trang_thai) {
                     $newStatus = (int)$request->trang_thai;
                     if ($newStatus == 2) $this->releaseSeats($booking);
                     $booking->trang_thai = $newStatus;
+                    // [FIX QUAN TRỌNG] Nếu sửa trạng thái thành 1 -> Update luôn thanh toán
                     if ($newStatus == 1 && $booking->thanhToan) {
                         $booking->thanhToan()->update(['trang_thai' => 1, 'thoi_gian' => now()]);
                     }
@@ -288,55 +331,45 @@ class QuanLyDatVeController extends Controller
 
             if ($booking->id_nguoi_dung) $this->updateMemberStats($booking->id_nguoi_dung);
             return redirect()->route('admin.bookings.index')->with('success', 'Cập nhật thành công.');
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
     }
-
-    /**
-     * API: Danh sách suất chiếu còn hiệu lực theo phim của đơn hiện tại
-     */
+    // --- 5. CÁC HÀM API (ĐÃ ĐIỀN LOGIC) ---
     public function availableShowtimes($id)
     {
         $booking = DatVe::with('suatChieu.phim')->findOrFail($id);
-        $movieId = $booking->suatChieu?->id_phim;
+        $movieId = optional($booking->suatChieu)->id_phim;
         if (!$movieId) return response()->json([]);
 
         $showtimes = SuatChieu::with('phongChieu')
-            ->where('id_phim', $movieId)
-            ->where('trang_thai', 1)
-            ->where('thoi_gian_bat_dau', '>=', now()->subMinutes(1))
-            ->orderBy('thoi_gian_bat_dau')
-            ->get()
+            ->where('id_phim', $movieId)->where('trang_thai', 1)
+            ->where(function ($q) {
+                $q->where('thoi_gian_bat_dau', '>', now()); // Chỉ lấy suất tương lai
+            })
+            ->orderBy('thoi_gian_bat_dau')->get()
             ->map(fn($s) => [
                 'id' => $s->id,
-                'label' => $s->thoi_gian_bat_dau?->format('d/m/Y H:i') . ' • ' . ($s->phongChieu->ten_phong ?? 'N/A'),
+                'label' => ($s->thoi_gian_bat_dau ? \Carbon\Carbon::parse($s->thoi_gian_bat_dau)->format('H:i d/m') : '') . ' - ' . optional($s->phongChieu)->ten_phong,
                 'current' => $s->id === $booking->id_suat_chieu,
             ]);
 
         return response()->json($showtimes);
     }
 
-    /**
-     * API: Sơ đồ ghế theo suất chiếu (đánh dấu ghế đã đặt)
-     */
     public function seatsByShowtime($suatChieuId, Request $request)
     {
         $suat = SuatChieu::with('phongChieu')->findOrFail($suatChieuId);
-        $excludeBookingId = $request->query('exclude_booking_id');
+        $seats = Ghe::where('id_phong', $suat->id_phong)->orderBy('so_hang')->orderBy('so_ghe')->get();
 
-        $seats = Ghe::where('id_phong', $suat->id_phong)
-            ->orderBy('so_hang')
-            ->orderBy('so_ghe')
-            ->get(['id', 'so_ghe', 'so_hang', 'id_loai']);
-
+        // Lấy ghế đã đặt (trừ đơn hàng hiện tại)
         $bookedQuery = DB::table('chi_tiet_dat_ve as c')
             ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
             ->where('d.id_suat_chieu', $suatChieuId)
-            ->where('d.trang_thai', '!=', 2);
+            ->where('d.trang_thai', '!=', 2); // Không tính vé hủy
 
-        if ($excludeBookingId) {
-            $bookedQuery->where('d.id', '!=', $excludeBookingId);
+        if ($request->filled('exclude_booking_id')) {
+            $bookedQuery->where('d.id', '!=', $request->exclude_booking_id);
         }
 
         $bookedSeatIds = $bookedQuery->pluck('c.id_ghe')->toArray();
@@ -352,21 +385,29 @@ class QuanLyDatVeController extends Controller
                 'row' => $g->so_hang,
                 'type' => $g->id_loai,
                 'booked' => in_array($g->id, $bookedSeatIds),
+            'room' => ['id' => $suat->id_phong],
+            'seats' => $seats->map(fn($g) => [
+                'id' => $g->id,
+                'label' => $g->so_ghe,
+                'booked' => in_array($g->id, $bookedSeatIds)
             ]),
         ]);
     }
 
-    // ================= Helpers =================
+    // --- HELPERS ---
     private function authorizeAction($actionName)
     {
         $role = optional(Auth::user()->vaiTro)->ten;
         if (!in_array($role, ['admin', 'staff'])) {
+    // --- HELPERS ---
+    private function authorizeAction($actionName)
+    {
+        if (optional(Auth::user()->vaiTro)->ten !== 'admin') {
             abort(403, "Bạn không có quyền $actionName.");
         }
     }
 
-    private function applyFilters($query, Request $request)
-    {
+    private function applyFilters($query, $request)    {
         if ($request->filled('status')) {
             if ($request->status == 'expired') {
                 $query->where('trang_thai', '!=', 2)

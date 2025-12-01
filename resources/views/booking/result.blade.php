@@ -77,5 +77,15 @@
   </div>
 </div>
 
+@if($booking->trang_thai === 'PAID')
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+new QRCode(document.getElementById("qrcode"), {
+  text: "{{ route('booking.result', ['booking_id' => $booking->id]) }}",
+  width: 256,
+  height: 256
+});
+</script>
+@endif
 @endsection
 

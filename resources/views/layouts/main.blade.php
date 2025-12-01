@@ -105,6 +105,7 @@
     </style>
   </head>
   <body class="min-h-screen bg-[#0d0f14] text-white">
+<<<<<<< HEAD
     <!-- Success/Error Messages -->
     @if(session('success'))
         <div class="fixed top-4 right-4 z-50 bg-green-500/20 border-2 border-green-500 rounded-xl p-4 shadow-2xl animate-fade-in max-w-md">
