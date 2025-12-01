@@ -214,7 +214,6 @@
                         </div>
                     </div>
                 @endif
-
                 <!-- QR Code for Confirmed Tickets -->
                 @php
                     // Always generate QR code data for confirmed tickets
@@ -313,7 +312,6 @@
 
 <!-- QR Code Library -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
 <script>
 function printTicket() {
     window.print();

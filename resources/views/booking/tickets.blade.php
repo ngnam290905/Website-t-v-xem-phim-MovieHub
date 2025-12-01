@@ -51,6 +51,7 @@
             </div>
         @endif
 
+
         <!-- Statistics Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div class="bg-gradient-to-br from-[#1a1d24] to-[#151822] border border-[#2a2d3a] rounded-xl p-5 hover:border-[#0077c8] transition-all">

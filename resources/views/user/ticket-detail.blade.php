@@ -196,13 +196,23 @@
                         </div>
                     </div>
 
-                    <!-- Right Column: Ticket Info -->
+                    <!-- Right Column: QR Code -->
                     <div class="flex flex-col items-center justify-center">
-                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
+                        <div class="bg-white p-6 rounded-2xl shadow-lg mb-4">
+                            <div id="qrcode" class="flex items-center justify-center"></div>
+                        </div>
+                        
+                        <div class="text-center mb-4">
+                            <p class="text-[#a6a6b0] text-sm mb-2">Quét mã QR để xác thực vé</p>
+                            <p class="text-white font-medium">{{ url('/api/ticket/' . $booking->id) }}</p>
+                        </div>
+
+                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center">
                             <p class="text-[#a6a6b0] text-sm mb-1">Ngày đặt vé</p>
                             <p class="text-white font-medium">{{ optional($booking->created_at)->format('d/m/Y H:i') }}</p>
                         </div>
 
+<<<<<<< HEAD
                         <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
                             <p class="text-[#a6a6b0] text-sm mb-1">Mã vé</p>
                             <p class="text-white font-medium font-mono">{{ $booking->ticket_code ?? 'N/A' }}</p>
@@ -243,7 +253,6 @@
                                 </p>
                             </div>
                         @endif
-
                         <!-- Action Buttons -->
                         <div class="mt-6 space-y-3 w-full">
                             <button onclick="window.print()" 
@@ -269,7 +278,11 @@
                                 <svg class="w-5 h-5 inline mr-1 text-[#F53003]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
+<<<<<<< HEAD
                                 Vui lòng xuất trình mã vé này khi đến rạp
+=======
+                                Vui lòng xuất trình mã QR này khi đến rạp
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
                             </p>
                         </div>
                     </div>
@@ -297,6 +310,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <script>
+<<<<<<< HEAD
 // Generate QR Code fallback for user ticket detail
 function generateQRCodeFallbackUser(qrData) {
     const fallbackElement = document.getElementById('qrcode-fallback-user');
@@ -334,6 +348,22 @@ function generateQRCodeFallbackUser(qrData) {
         document.head.appendChild(script);
     }
 }
+=======
+// Generate QR Code
+document.addEventListener('DOMContentLoaded', function() {
+    const qrcodeContainer = document.getElementById('qrcode');
+    const qrData = '{{ url("/api/ticket/" . $booking->id) }}';
+    
+    new QRCode(qrcodeContainer, {
+        text: qrData,
+        width: 200,
+        height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+    });
+});
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
 
 // Download ticket function
 function downloadTicket() {

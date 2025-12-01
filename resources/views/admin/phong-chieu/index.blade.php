@@ -12,6 +12,7 @@
         <h1 class="text-2xl font-bold text-white">Quản lý phòng chiếu</h1>
         <p class="text-[#a6a6b0] mt-1">Quản lý danh sách phòng chiếu và sơ đồ ghế</p>
       </div>
+<<<<<<< HEAD
       <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
         <a href="{{ route('admin.phong-chieu.peak-hours') }}" 
            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center">

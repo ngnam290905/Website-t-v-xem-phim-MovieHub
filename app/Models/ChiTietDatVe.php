@@ -10,6 +10,7 @@ class ChiTietDatVe extends Model
     protected $table = 'chi_tiet_dat_ve';
     public $timestamps = false;
     
+<<<<<<< HEAD
     /**
      * Giải thích các cột:
      * - gia: Giá gốc của ghế tại thời điểm đặt (giá niêm yết)
@@ -27,7 +28,10 @@ class ChiTietDatVe extends Model
 
     protected $casts = [
         'gia' => 'decimal:2',
+<<<<<<< HEAD
         'gia_ve' => 'decimal:2',
+=======
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
     ];
 
     // Relationship with DatVe
