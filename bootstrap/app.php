@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\FinalRoleMiddleware::class,
+            'block.admin.staff' => \App\Http\Middleware\BlockAdminStaffOnClient::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

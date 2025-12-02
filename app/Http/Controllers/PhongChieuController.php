@@ -23,7 +23,6 @@ class PhongChieuController extends Controller
         if ($request->filled('search')) {
             $query->where('ten_phong', 'like', '%' . $request->search . '%');
         }
-
         // Filter by type (only if column exists)
         if ($request->filled('type')) {
             if (Schema::hasColumn('phong_chieu', 'type')) {
@@ -152,6 +151,118 @@ class PhongChieuController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Có lỗi xảy ra khi tạo phòng chiếu: ' . $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * Append rows/columns of seats to the room without removing existing seats
+     */
+    public function appendSeats(Request $request, PhongChieu $phongChieu)
+    {
+        $request->validate([
+            'add_rows' => 'required|integer|min:0|max:20',
+            'add_cols' => 'required|integer|min:0|max:30',
+            'seat_type' => 'required|string|in:normal,vip,couple'
+        ]);
+
+        $addRows = (int) $request->add_rows;
+        $addCols = (int) $request->add_cols;
+
+        if ($addRows === 0 && $addCols === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không có hàng/cột nào được thêm.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Current dimensions (fallback to counts if null)
+            $currentRows = (int) ($phongChieu->rows ?? max(1, (int) $phongChieu->seats()->max('so_hang')));
+            $currentCols = (int) ($phongChieu->cols ?? max(1, (int) $phongChieu->seats()->selectRaw('MAX(LENGTH(so_ghe)) as len')->value('len')));
+
+            $newRows = $currentRows + $addRows;
+            $newCols = $currentCols + $addCols;
+
+            // Map seat_type string to id_loai
+            $typeIdMap = [ 'normal' => 1, 'vip' => 2, 'couple' => 3 ];
+            $typeId = $typeIdMap[$request->seat_type] ?? 1;
+            $seatType = LoaiGhe::find($typeId) ?: LoaiGhe::first();
+            $typeId = $seatType ? $seatType->id : null;
+
+            $toInsert = [];
+
+            // 1) New rows: rows (currentRows+1 .. newRows) with all columns up to newCols
+            if ($addRows > 0) {
+                for ($r = $currentRows + 1; $r <= $newRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            // 2) New columns: columns (currentCols+1 .. newCols) for existing rows (1 .. currentRows)
+            if ($addCols > 0) {
+                for ($r = 1; $r <= $currentRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = $currentCols + 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($toInsert)) {
+                // Avoid duplicate seat codes just in case
+                $existingCodes = Ghe::where('id_phong', $phongChieu->id)
+                    ->whereIn('so_ghe', array_map(fn($s) => $s['so_ghe'], $toInsert))
+                    ->pluck('so_ghe')
+                    ->all();
+                if (!empty($existingCodes)) {
+                    $toInsert = array_values(array_filter($toInsert, fn($s) => !in_array($s['so_ghe'], $existingCodes, true)));
+                }
+            }
+
+            if (!empty($toInsert)) {
+                Ghe::insert($toInsert);
+            }
+
+            // Update room dimensions
+            $phongChieu->update([
+                'rows' => $newRows,
+                'cols' => $newCols,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm hàng/cột ghế thành công!',
+                'added_rows' => $addRows,
+                'added_cols' => $addCols,
+                'total_inserted' => count($toInsert),
+                'new_rows' => $newRows,
+                'new_cols' => $newCols,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

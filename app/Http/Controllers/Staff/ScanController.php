@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DatVe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ScanController extends Controller
 {
@@ -60,6 +61,27 @@ class ScanController extends Controller
             return response()->json([
                 'valid' => false,
                 'message' => 'Vé này đã được quét trước đó'
+            ]);
+        }
+
+        $showtimeStart = optional($ticket->suatChieu)->thoi_gian_bat_dau ? Carbon::parse($ticket->suatChieu->thoi_gian_bat_dau) : null;
+        if (!$showtimeStart) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Vé không có suất chiếu hợp lệ'
+            ]);
+        }
+        $now = Carbon::now();
+        if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Vé đã hết hạn'
+            ]);
+        }
+        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu'
             ]);
         }
 
@@ -121,6 +143,27 @@ class ScanController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Vé này đã được quét trước đó'
+            ]);
+        }
+
+        $showtimeStart = optional($ticket->suatChieu)->thoi_gian_bat_dau ? Carbon::parse($ticket->suatChieu->thoi_gian_bat_dau) : null;
+        if (!$showtimeStart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vé không có suất chiếu hợp lệ'
+            ]);
+        }
+        $now = Carbon::now();
+        if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vé đã hết hạn'
+            ]);
+        }
+        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu'
             ]);
         }
 

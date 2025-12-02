@@ -520,8 +520,10 @@ class MovieController extends Controller
             $selectedDate = Carbon::today();
         }
 
-        $days = collect(range(0, 6))->map(function ($i) use ($selectedDate) {
-            return $selectedDate->copy()->startOfDay()->addDays($i);
+        // Always render tabs as a fixed window starting from today
+        $baseDate = Carbon::today();
+        $days = collect(range(0, 6))->map(function ($i) use ($baseDate) {
+            return $baseDate->copy()->addDays($i);
         });
 
         $suatChieu = SuatChieu::with(['phongChieu'])
@@ -625,6 +627,17 @@ class MovieController extends Controller
     public function destroy(Phim $movie)
     {
         try {
+            // Không cho phép xóa nếu còn suất chiếu trong tương lai
+            $hasFutureShowtimes = SuatChieu::where('id_phim', $movie->id)
+                ->where('thoi_gian_bat_dau', '>', now())
+                ->where('trang_thai', 1)
+                ->exists();
+
+            if ($hasFutureShowtimes) {
+                return redirect()->route('admin.movies.index')
+                    ->with('error', 'Không thể xóa phim vì vẫn còn suất chiếu trong tương lai. Vui lòng hủy hoặc cập nhật các suất chiếu trước.');
+            }
+
             // Delete all related showtimes and their bookings
             $showtimes = SuatChieu::where('id_phim', $movie->id)->get();
             

@@ -124,10 +124,6 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex space-x-2">
-                  <a href="{{ route('admin.ghe.show', $seat) }}" class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors duration-200" title="Xem chi tiết">
-                    <i class="fas fa-eye mr-1"></i>
-                    Xem
-                  </a>
                   <a href="{{ route('admin.ghe.edit', $seat) }}" class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" title="Chỉnh sửa">
                     <i class="fas fa-edit mr-1"></i>
                     Sửa
