@@ -1842,6 +1842,7 @@
                     // Optional: alert user
                 }
             };
+            
 
             // Payment
             payButton.addEventListener('click', async () => {

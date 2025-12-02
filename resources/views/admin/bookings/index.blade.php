@@ -369,13 +369,23 @@
                                     class="px-4 py-3 align-middle text-center sticky right-0 bg-[#1b1e28] group-hover:bg-[#232732] transition-colors border-l border-[#262833] z-10 relative">
                                     <div class="flex items-center justify-center gap-2">
                                         <a href="{{ route('admin.bookings.show', $booking->id) }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition"
-                                            title="Xem chi tiết">
+                                           class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition"
+                                           title="Xem chi tiết">
                                             <i class="fas fa-eye"></i>
                                         </a>
+
+                                        @auth
+                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $isEditable)
+                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
+                                                   class="w-8 h-8 flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
+                                                   title="Sửa vé">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            @endif
+                                        @endauth
+
                                         @if ($booking->trang_thai == 0)
-                                            <form action="{{ route('admin.bookings.update', $booking->id) }}"
-                                                method="POST" class="inline">
+                                            <form action="{{ route('admin.bookings.update', $booking->id) }}" method="POST" class="inline">
                                                 @csrf @method('PUT')
                                                 <input type="hidden" name="trang_thai" value="1">
                                                 <button type="submit"
@@ -384,83 +394,7 @@
                                                     <i class="fas fa-check"></i>
                                                 </button>
                                             </form>
-                                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}"
-                                                method="POST" onsubmit="return confirm('Hủy vé này?');" class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition"
-                                                    title="Hủy vé">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </form>
                                         @endif
-                                        @if ($booking->trang_thai == 3)
-                                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}"
-                                                method="POST" onsubmit="return confirm('Chấp nhận hủy?');"
-                                                class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white transition animate-pulse"
-                                                    title="Duyệt hủy">
-                                                    <i class="fas fa-check-double"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-                                        @auth
-                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $isEditable)
-                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
-                                                    title="Sửa vé">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-
-                                            {{-- 2. Nút HỦY NHANH --}}
-                                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}"
-                                                method="POST"
-                                                onsubmit="return confirm('Bạn chắc chắn muốn HỦY vé này không?');">
-                                                @csrf
-                                                <button type="submit" title="Hủy vé"
-                                                    class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group">
-                                                    <i class="fas fa-times text-red-500 group-hover:text-red-400"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        {{-- 3. Nút CHẤP NHẬN HỦY --}}
-                                        @if ($booking->trang_thai == 3)
-                                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}"
-                                                method="POST"
-                                                onsubmit="return confirm('Xác nhận chấp nhận hủy vé này? Ghế sẽ được mở bán lại.');">
-                                                @csrf
-                                                <button type="submit" title="Chấp nhận hủy"
-                                                    class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group">
-                                                    <i class="fas fa-check text-red-500 group-hover:text-red-400"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        {{-- 4. Nút XEM --}}
-                                        <a href="{{ route('admin.bookings.show', $booking->id) }}"
-                                            class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group"
-                                            title="Xem vé">
-                                            <i class="fas fa-eye text-blue-500 group-hover:text-blue-400"></i>
-                                        </a>
-
-                                        {{-- 5. Nút SỬA --}}
-                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $isEditable)
-                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                    class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group"
-                                                    title="Chỉnh sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-yellow-400"></i>
-                                                </a>
-                                            @else
-                                                <span class="p-2 rounded-lg cursor-not-allowed opacity-50"
-                                                    title="Không thể sửa vé đã hủy hoặc hết hạn">
-                                                    <i class="fas fa-edit text-gray-500"></i>
-                                                </span>
-
-                                            @endif
-                                        @endauth
                                     </div>
                                 </td>
                             </tr>
@@ -495,38 +429,23 @@
                     if (distance > 0) {
                         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-                        timer.innerHTML = `Hủy sau: ${minutes}:${seconds < 10 ? '0'+seconds : seconds}`;
+                        timer.innerHTML = `Hủy sau: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
                     } else {
-                        // LOGIC KHI HẾT GIỜ
+                        // Hết giờ giữ vé
                         if (isGuest) {
-                            // Nếu là khách vãng lai -> Xóa luôn dòng (Hiệu ứng mờ dần)
                             const row = document.getElementById('row-' + bookingId);
                             if (row) {
-                                row.style.transition = "opacity 0.5s ease";
-                                row.style.opacity = "0";
+                                row.style.transition = 'opacity 0.5s ease';
+                                row.style.opacity = '0';
                                 setTimeout(() => row.remove(), 500);
                             }
                         } else {
-                            // Nếu là thành viên -> Reload trang để cập nhật trạng thái "Đã hủy"
-                            timer.innerHTML = "Đang xử lý...";
-                            timer.className = "text-[10px] text-gray-500 mt-1 italic";
+                            timer.innerHTML = 'Đang xử lý...';
+                            timer.className = 'text-[10px] text-gray-500 mt-1 italic';
                             if (!timer.dataset.reloading) {
-                                timer.dataset.reloading = "true";
+                                timer.dataset.reloading = 'true';
                                 setTimeout(() => location.reload(), 2000);
                             }
-
-                        timer.innerHTML = `Hủy sau: ${minutes}p ${seconds}s`;
-                    } else {
-                        timer.innerHTML = "Đang xử lý hủy...";
-                        timer.classList.remove('text-red-400');
-                        timer.classList.add('text-gray-500');
-
-                        // Reload trang sau 2 giây để Controller xử lý hủy
-                        if (!timer.dataset.reloading) {
-                            timer.dataset.reloading = "true";
-                            setTimeout(() => location.reload(), 2000);
-
                         }
                     }
                 });
