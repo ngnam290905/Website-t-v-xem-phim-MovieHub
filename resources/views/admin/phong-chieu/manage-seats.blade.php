@@ -193,41 +193,109 @@ async function applyBulkAction(){
             Sơ đồ ghế
         </h3>
         <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-6 overflow-x-auto">
-            <!-- Screen -->
-            <div class="text-center mb-6">
-                <div class="bg-[#262833] text-white px-6 py-3 rounded-lg text-sm font-medium inline-block">
-                    MÀN HÌNH
+            <!-- Screen with enhanced design -->
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div class="screen-container" style="position: relative; display: inline-block;">
+                    <div style="background: linear-gradient(to bottom, #1f2937, #111827, #000000); color: white; padding: 1.5rem 3rem; border-radius: 0.5rem; font-size: 1.125rem; font-weight: bold; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 2px solid #374151; position: relative; overflow: hidden;">
+                        <div style="position: absolute; inset: 0; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;"></div>
+                        <div style="position: relative; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <i class="fas fa-film" style="color: #fbbf24;"></i>
+                            <span>MÀN HÌNH</span>
+                            <i class="fas fa-film" style="color: #fbbf24;"></i>
+                        </div>
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(to right, #fbbf24, #f59e0b, #fbbf24);"></div>
+                    </div>
+                    <div class="screen-stand" style="margin-top: 0.5rem; margin-left: auto; margin-right: auto; width: 8rem; height: 0.75rem; background-color: #374151; border-radius: 2px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);"></div>
                 </div>
             </div>
             
-            <!-- Seat Grid -->
-            <div class="flex flex-col items-center space-y-2" id="seatMap">
+            <!-- Seat Grid with exits and aisles -->
+            <div class="flex flex-col items-center space-y-2 relative" id="seatMap">
+                @php
+                    $exitRows = []; // Rows where we'll add exit symbols
+                    $exitInterval = max(3, floor($phongChieu->rows / 4)); // Exit every 3-4 rows
+                    for ($i = $exitInterval; $i < $phongChieu->rows; $i += $exitInterval) {
+                        $exitRows[] = $i;
+                    }
+                    
+                    $aisleCols = []; // Columns where we'll add aisle spacing
+                    $middleCol = ceil($phongChieu->cols / 2);
+                    $aisleCols[] = $middleCol;
+                    if ($phongChieu->cols > 12) {
+                        $aisleCols[] = ceil($phongChieu->cols / 3);
+                        $aisleCols[] = ceil($phongChieu->cols * 2 / 3);
+                    }
+                @endphp
+                
                 @for($row = 1; $row <= $phongChieu->rows; $row++)
-                    <div class="flex space-x-2 items-center">
+                    <div class="flex space-x-1 items-center relative w-full max-w-4xl">
+                        <!-- Left Exit Icon -->
+                        <div style="width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;">
+                            @if(in_array($row, $exitRows))
+                                <div class="exit-icon" style="color: #ef4444; cursor: help; animation: exitPulse 2s ease-in-out infinite;" title="Lối ra">
+                                    <i class="fas fa-door-open" style="font-size: 1.25rem;"></i>
+                                </div>
+                            @endif
+                        </div>
+                        
+                        <!-- Row Label -->
                         <span class="text-sm text-[#a6a6b0] w-6 text-center font-medium">{{ chr(64 + $row) }}</span>
+                        
+                        <!-- Seats -->
                         @for($col = 1; $col <= $phongChieu->cols; $col++)
                             @php
                                 $seatCode = chr(64 + $row) . $col;
                                 $seat = $phongChieu->seats->firstWhere('so_ghe', $seatCode);
                                 $seatClass = 'empty';
                                 $seatType = 'Ghế thường';
+                                $seatTypeName = 'normal'; // normal, vip, couple
+                                $seatColorClass = 'bg-gray-600 hover:bg-gray-700';
+                                
                                 if ($seat) {
                                     $seatClass = $seat->status;
-                                    if ($seat->seatType && strpos($seat->seatType->ten_loai, 'VIP') !== false) {
-                                        $seatClass .= ' vip';
-                                    }
                                     $seatType = $seat->seatType->ten_loai ?? 'Ghế thường';
+                                    
+                                    // Determine seat type for color coding
+                                    if ($seat->seatType) {
+                                        $typeName = strtolower($seat->seatType->ten_loai);
+                                        if (strpos($typeName, 'vip') !== false) {
+                                            $seatTypeName = 'vip';
+                                        } elseif (strpos($typeName, 'đôi') !== false || strpos($typeName, 'doi') !== false || strpos($typeName, 'couple') !== false) {
+                                            $seatTypeName = 'couple';
+                                        } else {
+                                            $seatTypeName = 'normal';
+                                        }
+                                    }
+                                    
+                                    // Set color based on status and type
+                                    if ($seatClass === 'available') {
+                                        if ($seatTypeName === 'vip') {
+                                            $seatColorClass = 'bg-yellow-500 hover:bg-yellow-600 text-white'; // VIP - Yellow
+                                        } elseif ($seatTypeName === 'couple') {
+                                            $seatColorClass = 'bg-blue-500 hover:bg-blue-600 text-white'; // Couple - Blue
+                                        } else {
+                                            $seatColorClass = 'bg-orange-500 hover:bg-orange-600 text-white'; // Normal - Orange
+                                        }
+                                    } elseif ($seatClass === 'booked') {
+                                        $seatColorClass = 'bg-red-600 hover:bg-red-700 text-white';
+                                    } elseif ($seatClass === 'locked') {
+                                        $seatColorClass = 'bg-gray-800 hover:bg-gray-900 text-gray-400';
+                                    }
                                 }
+                                
+                                // Check if this is an aisle column
+                                $isAisle = in_array($col, $aisleCols);
                             @endphp
+                            
+                            @if($isAisle && $col > 1)
+                                <!-- Aisle Space -->
+                                <div style="width: 1rem; height: 2rem; display: flex; align-items: center; justify-content: center;">
+                                    <div style="width: 100%; height: 2px; background-color: rgba(217, 119, 6, 0.3); border: 1px dashed rgba(217, 119, 6, 0.5);"></div>
+                                </div>
+                            @endif
+                            
                             <button type="button" 
-                                    class="seat-btn w-8 h-8 rounded text-xs font-medium transition-all duration-200 
-                                           @if($seatClass === 'empty') bg-gray-600 hover:bg-gray-700 text-gray-300
-                                           @elseif($seatClass === 'available') bg-green-600 hover:bg-green-700 text-white
-                                           @elseif($seatClass === 'available vip') bg-yellow-600 hover:bg-yellow-700 text-white
-                                           @elseif($seatClass === 'booked') bg-red-600 hover:bg-red-700 text-white
-                                           @elseif($seatClass === 'locked') bg-gray-800 hover:bg-gray-900 text-gray-400
-                                           @else bg-gray-600 hover:bg-gray-700 text-gray-300
-                                           @endif"
+                                    class="seat-btn w-8 h-8 rounded text-xs font-medium transition-all duration-200 {{ $seatClass === 'empty' ? 'bg-gray-600 hover:bg-gray-700 text-gray-300' : $seatColorClass }}"
                                     data-seat-id="{{ $seat->id ?? '' }}"
                                     data-seat-code="{{ $seatCode }}"
                                     data-seat-type="{{ $seatType }}"
@@ -238,8 +306,73 @@ async function applyBulkAction(){
                                 {{ $col }}
                             </button>
                         @endfor
+                        
+                        <!-- Right Exit Icon -->
+                        <div style="width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;">
+                            @if(in_array($row, $exitRows))
+                                <div class="exit-icon" style="color: #ef4444; cursor: help; animation: exitPulse 2s ease-in-out infinite;" title="Lối ra">
+                                    <i class="fas fa-door-open" style="font-size: 1.25rem;"></i>
+                                </div>
+                            @endif
+                        </div>
                     </div>
+                    
+                    <!-- Exit row indicator (horizontal line) -->
+                    @if(in_array($row, $exitRows) && $row < $phongChieu->rows)
+                        <div style="width: 100%; max-width: 56rem; display: flex; align-items: center; gap: 0.25rem; margin: 0.5rem 0;">
+                            <div style="flex: 1; height: 2px; background-color: rgba(239, 68, 68, 0.3); border: 1px dashed rgba(239, 68, 68, 0.5);"></div>
+                            <div style="padding: 0 0.75rem; font-size: 0.75rem; color: #f87171; font-weight: 500; display: flex; align-items: center; gap: 0.25rem;">
+                                <i class="fas fa-arrow-down"></i>
+                                <span>Lối ra</span>
+                            </div>
+                            <div style="flex: 1; height: 2px; background-color: rgba(239, 68, 68, 0.3); border: 1px dashed rgba(239, 68, 68, 0.5);"></div>
+                        </div>
+                    @endif
                 @endfor
+                
+                <!-- Bottom Exit -->
+                <div style="width: 100%; max-width: 56rem; display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #262833;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #f87171;">
+                        <i class="fas fa-sign-out-alt" style="font-size: 1.125rem;"></i>
+                        <span style="font-size: 0.875rem; font-weight: 500;">Lối ra chính</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #f87171;">
+                        <i class="fas fa-sign-out-alt" style="font-size: 1.125rem;"></i>
+                        <span style="font-size: 0.875rem; font-weight: 500;">Lối ra chính</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Legend -->
+            <div class="mt-6 flex flex-wrap gap-4 justify-center text-sm">
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 bg-orange-500 rounded"></div>
+                    <span class="text-[#a6a6b0]">Ghế thường</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 bg-yellow-500 rounded"></div>
+                    <span class="text-[#a6a6b0]">Ghế VIP</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 bg-blue-500 rounded"></div>
+                    <span class="text-[#a6a6b0]">Ghế đôi</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 bg-red-600 rounded"></div>
+                    <span class="text-[#a6a6b0]">Ghế đã đặt</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 bg-gray-800 rounded"></div>
+                    <span class="text-[#a6a6b0]">Ghế bị khóa</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-door-open text-red-500"></i>
+                    <span class="text-[#a6a6b0]">Lối ra vào</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-0.5 bg-yellow-600/30 border-dashed border-yellow-600/50"></div>
+                    <span class="text-[#a6a6b0]">Lối đi</span>
+                </div>
             </div>
         </div>
     </div>
@@ -1468,6 +1601,72 @@ body {
     }
 }
 
+/* Screen Styling */
+.screen-container {
+    perspective: 1000px;
+}
+
+.screen-container > div:first-child {
+    transform-style: preserve-3d;
+    box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        inset 0 0 30px rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+
+.screen-container:hover > div:first-child {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 15px 50px rgba(0, 0, 0, 0.6),
+        inset 0 0 40px rgba(255, 255, 255, 0.15);
+}
+
+.screen-stand {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Exit Icon Styling */
+.exit-icon {
+    animation: exitPulse 2s ease-in-out infinite;
+    cursor: help;
+}
+
+.exit-icon:hover {
+    transform: scale(1.2);
+    transition: transform 0.2s ease;
+}
+
+@keyframes exitPulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+/* Aisle Styling */
+.aisle-indicator {
+    animation: aisleGlow 3s ease-in-out infinite;
+}
+
+@keyframes aisleGlow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+}
+
+/* Exit Row Indicator */
+.exit-row-indicator {
+    position: relative;
+}
+
+.exit-row-indicator::before,
+.exit-row-indicator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 20px;
+    height: 2px;
+    background: red;
+    transform: translateY(-50%);
+}
+
 /* Loading overlay */
 .loading-overlay {
     position: fixed;
@@ -1543,8 +1742,45 @@ function openEditSeatModal() {
     document.getElementById('editSeatModal').classList.remove('hidden');
 }
 
+async function editSeat(seatId) {
+    currentSeatId = seatId;
+    try {
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch(`/admin/phong-chieu/{{ $phongChieu->id }}/seats/${seatId}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Không thể tải dữ liệu ghế');
+        }
+        
+        const seat = await response.json();
+        
+        // Extract row label from seat code (e.g., "A1" -> "A")
+        const rowLabel = seat.so_ghe.charAt(0);
+        const seatNumber = parseInt(seat.so_ghe.substring(1));
+        
+        // Populate edit form
+        document.getElementById('edit_seat_id').value = seat.id;
+        document.getElementById('edit_row_label').value = rowLabel;
+        document.getElementById('edit_so_ghe').value = seatNumber;
+        document.getElementById('edit_id_loai').value = seat.id_loai;
+        document.getElementById('edit_status').value = seat.trang_thai === 1 ? 'available' : 'locked';
+        
+        // Open modal
+        document.getElementById('editSeatModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading seat:', error);
+        showNotification('Không thể tải dữ liệu ghế', 'error');
+    }
+}
+
 function closeEditSeatModal() {
     document.getElementById('editSeatModal').classList.add('hidden');
+    document.getElementById('editSeatForm').reset();
 }
 
 function openGenerateSeatsModal() {
@@ -1563,11 +1799,35 @@ function addSeatAtPosition(rowLabel, colNumber) {
 }
 
 // Quick Edit Modal functions
-function quickEditSeat(seatId) {
+async function quickEditSeat(seatId) {
     currentSeatId = seatId;
-    // Here you would typically fetch seat data and populate the quick edit form
-    // For now, just open the modal
-    document.getElementById('quickEditModal').classList.remove('hidden');
+    try {
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch(`/admin/phong-chieu/{{ $phongChieu->id }}/seats/${seatId}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Không thể tải dữ liệu ghế');
+        }
+        
+        const seat = await response.json();
+        
+        // Populate quick edit form
+        document.getElementById('quick_edit_seat_id').value = seat.id;
+        document.getElementById('quick_seat_code').value = seat.so_ghe;
+        document.getElementById('quick_seat_type').value = seat.id_loai;
+        document.getElementById('quick_status').value = seat.trang_thai === 1 ? 'available' : 'locked';
+        
+        // Open modal
+        document.getElementById('quickEditModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading seat:', error);
+        showNotification('Không thể tải dữ liệu ghế', 'error');
+    }
 }
 
 function closeQuickEditModal() {
@@ -1606,33 +1866,70 @@ function getSelectedSeats() {
 }
 
 // Status toggle function
-function toggleSeatStatus(seatId, newStatus) {
+async function toggleSeatStatus(seatId, newStatus) {
     const statusText = newStatus === 'locked' ? 'khóa' : 'mở khóa';
     if (confirm(`Bạn có chắc chắn muốn ${statusText} ghế này?`)) {
         showLoading();
         
-        // Here you would typically make an AJAX request to toggle seat status
-        setTimeout(() => {
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch(`/admin/seats/${seatId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Có lỗi xảy ra');
+            }
+            
             hideLoading();
-            showNotification(`Ghế đã được ${statusText} thành công!`);
-            location.reload(); // Reload to show updated status
-        }, 1000);
+            showNotification(`Ghế đã được ${statusText} thành công!`, 'success');
+            location.reload();
+        } catch (error) {
+            hideLoading();
+            console.error('Error toggling seat status:', error);
+            showNotification(error.message || 'Có lỗi xảy ra khi cập nhật trạng thái', 'error');
+        }
     }
 }
 
 // Confirm delete function (with safety checks)
-function confirmDeleteSeat(seatId) {
+async function confirmDeleteSeat(seatId) {
     if (confirm('⚠️ CẢNH BÁO: Xóa ghế sẽ ảnh hưởng đến dữ liệu đặt vé!\n\nBạn có chắc chắn muốn xóa ghế này?\n\nKhuyến nghị: Sử dụng "Khóa ghế" thay vì xóa.')) {
         if (confirm('⚠️ CẢNH BÁO LẦN CUỐI!\n\nThao tác này không thể hoàn tác!\n\nBạn có chắc chắn muốn xóa ghế này?')) {
             showLoading();
             
-            // Here you would typically make an AJAX request to delete the seat
-            // with safety checks for future showtimes and sold tickets
-            setTimeout(() => {
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const response = await fetch(`/admin/phong-chieu/{{ $phongChieu->id }}/seats/${seatId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Có lỗi xảy ra khi xóa ghế');
+                }
+                
                 hideLoading();
                 showNotification('Ghế đã được xóa thành công!', 'success');
-                location.reload(); // Reload to show updated list
-            }, 1000);
+                location.reload();
+            } catch (error) {
+                hideLoading();
+                console.error('Error deleting seat:', error);
+                showNotification(error.message || 'Có lỗi xảy ra khi xóa ghế', 'error');
+            }
         }
     }
 }
@@ -1680,51 +1977,210 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add seat form
     const addSeatForm = document.getElementById('addSeatForm');
     if (addSeatForm) {
-        addSeatForm.addEventListener('submit', function(e) {
+        addSeatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             showLoading();
             
-            // Here you would typically make an AJAX request to add the seat
-            setTimeout(() => {
+            try {
+                const formData = new FormData(addSeatForm);
+                const data = {
+                    row_label: formData.get('row_label'),
+                    so_ghe: parseInt(formData.get('so_ghe')),
+                    id_loai: parseInt(formData.get('id_loai')),
+                    status: formData.get('status'),
+                    price: formData.get('price') ? parseFloat(formData.get('price')) : null
+                };
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const response = await fetch(`{{ route('admin.phong-chieu.seats.store', $phongChieu) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Có lỗi xảy ra khi thêm ghế');
+                }
+                
                 hideLoading();
-                showNotification('Ghế đã được thêm thành công!');
+                showNotification('Ghế đã được thêm thành công!', 'success');
                 closeAddSeatModal();
-                location.reload(); // Reload to show new seat
-            }, 1000);
+                location.reload();
+            } catch (error) {
+                hideLoading();
+                console.error('Error adding seat:', error);
+                showNotification(error.message || 'Có lỗi xảy ra khi thêm ghế', 'error');
+            }
         });
     }
     
     // Edit seat form
     const editSeatForm = document.getElementById('editSeatForm');
     if (editSeatForm) {
-        editSeatForm.addEventListener('submit', function(e) {
+        editSeatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             showLoading();
             
-            // Here you would typically make an AJAX request to update the seat
-            setTimeout(() => {
+            try {
+                const seatId = document.getElementById('edit_seat_id').value;
+                const formData = new FormData(editSeatForm);
+                const data = {
+                    row_label: formData.get('row_label'),
+                    so_ghe: parseInt(formData.get('so_ghe')),
+                    id_loai: parseInt(formData.get('id_loai')),
+                    status: formData.get('status'),
+                    price: formData.get('price') ? parseFloat(formData.get('price')) : null
+                };
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const response = await fetch(`/admin/phong-chieu/{{ $phongChieu->id }}/seats/${seatId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Có lỗi xảy ra khi cập nhật ghế');
+                }
+                
                 hideLoading();
-                showNotification('Ghế đã được cập nhật thành công!');
+                showNotification('Ghế đã được cập nhật thành công!', 'success');
                 closeEditSeatModal();
-                location.reload(); // Reload to show updated seat
-            }, 1000);
+                location.reload();
+            } catch (error) {
+                hideLoading();
+                console.error('Error updating seat:', error);
+                showNotification(error.message || 'Có lỗi xảy ra khi cập nhật ghế', 'error');
+            }
         });
     }
     
     // Quick edit form
     const quickEditForm = document.getElementById('quickEditForm');
     if (quickEditForm) {
-        quickEditForm.addEventListener('submit', function(e) {
+        quickEditForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             showLoading();
             
-            // Here you would typically make an AJAX request to update the seat
-            setTimeout(() => {
+            try {
+                const seatId = document.getElementById('quick_edit_seat_id').value;
+                const formData = new FormData(quickEditForm);
+                const data = {
+                    id_loai: parseInt(formData.get('seat_type')),
+                    status: formData.get('status'),
+                    price: formData.get('price') ? parseFloat(formData.get('price')) : null,
+                    note: formData.get('note')
+                };
+                
+                // Update seat type
+                if (data.id_loai) {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const typeResponse = await fetch(`/admin/seats/${seatId}/type`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ id_loai: data.id_loai })
+                    });
+                    
+                    if (!typeResponse.ok) {
+                        const typeResult = await typeResponse.json();
+                        throw new Error(typeResult.message || 'Có lỗi khi cập nhật loại ghế');
+                    }
+                }
+                
+                // Update seat status
+                if (data.status) {
+                    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const statusResponse = await fetch(`/admin/seats/${seatId}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ status: data.status })
+                    });
+                    
+                    if (!statusResponse.ok) {
+                        const statusResult = await statusResponse.json();
+                        throw new Error(statusResult.message || 'Có lỗi khi cập nhật trạng thái');
+                    }
+                }
+                
                 hideLoading();
-                showNotification('Ghế đã được cập nhật thành công!');
+                showNotification('Ghế đã được cập nhật thành công!', 'success');
                 closeQuickEditModal();
-                location.reload(); // Reload to show updated seat
-            }, 1000);
+                location.reload();
+            } catch (error) {
+                hideLoading();
+                console.error('Error updating seat:', error);
+                showNotification(error.message || 'Có lỗi xảy ra khi cập nhật ghế', 'error');
+            }
+        });
+    }
+    
+    // Generate seats form
+    const generateSeatsForm = document.getElementById('generateSeatsForm');
+    if (generateSeatsForm) {
+        generateSeatsForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!confirm('⚠️ CẢNH BÁO: Thao tác này sẽ xóa TẤT CẢ ghế hiện tại và tạo lại từ đầu!\n\nDữ liệu ghế cũ sẽ bị mất vĩnh viễn.\n\nBạn có chắc chắn muốn tiếp tục?')) {
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const formData = new FormData(generateSeatsForm);
+                const data = {
+                    rows: {{ $phongChieu->rows }},
+                    cols: {{ $phongChieu->cols }},
+                    default_seat_type: formData.get('default_seat_type') ? parseInt(formData.get('default_seat_type')) : null,
+                    default_price: formData.get('default_price') ? parseFloat(formData.get('default_price')) : null
+                };
+                
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                const response = await fetch(`{{ route('admin.phong-chieu.generate-seats', $phongChieu) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Có lỗi xảy ra khi tạo lại ghế');
+                }
+                
+                hideLoading();
+                showNotification('Đã tạo lại ghế thành công!', 'success');
+                closeGenerateSeatsModal();
+                location.reload();
+            } catch (error) {
+                hideLoading();
+                console.error('Error generating seats:', error);
+                showNotification(error.message || 'Có lỗi xảy ra khi tạo lại ghế', 'error');
+            }
         });
     }
     

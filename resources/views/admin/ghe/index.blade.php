@@ -25,28 +25,6 @@
       </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
-        <div class="text-sm text-[#a6a6b0]">Tổng số ghế</div>
-        <div class="text-2xl font-bold text-white mt-1">{{ $totalSeats ?? 0 }}</div>
-      </div>
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
-        <div class="text-sm text-[#a6a6b0]">Đang hoạt động</div>
-        <div class="text-2xl font-bold text-green-400 mt-1">{{ $activeSeats ?? 0 }}</div>
-      </div>
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
-        <div class="text-sm text-[#a6a6b0]">Tạm dừng</div>
-        <div class="text-2xl font-bold text-yellow-400 mt-1">{{ $pausedSeats ?? 0 }}</div>
-      </div>
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
-        <div class="text-sm text-[#a6a6b0]">Ghế có trong đặt vé hôm nay</div>
-        <div class="text-2xl font-bold text-blue-400 mt-1">{{ $bookedToday ?? 0 }}</div>
-      </div>
-    </div>
-    <br>
-
-    
     
 
     <!-- Bộ lọc ngay dưới tiêu đề và nút hành động -->
@@ -184,7 +162,7 @@
       </div>
 
       <div class="px-6 py-4 border-t border-[#262833]">
-        {{ $ghe->links() }}
+        {{ $ghe->links('pagination.custom') }}
       </div>
     </div>
   </div>

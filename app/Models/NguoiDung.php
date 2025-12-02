@@ -32,11 +32,17 @@ class NguoiDung extends Authenticatable
         'ngay_dang_ky_thanh_vien',
     ];
 
+    protected $casts = [
+        'trang_thai' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     // Ẩn mật khẩu khi trả về JSON
     protected $hidden = ['mat_khau'];
 
     /**
-     * Dùng cho Laravel Auth để biết cột nào là mật khẩu
+     * Laravel Auth - Xác định trường mật khẩu
      */
     public function getAuthPassword()
     {
@@ -64,5 +70,22 @@ class NguoiDung extends Authenticatable
     public function datVe()
     {
         return $this->hasMany(DatVe::class, 'id_nguoi_dung');
+    }
+    
+    public function getTongChiTieuAttribute()
+    {
+        return $this->thanhToan()->sum('so_tien');
+    }
+
+    public function thanhToan()
+    {
+        return $this->hasManyThrough(
+            ThanhToan::class,
+            DatVe::class,
+            'id_nguoi_dung',
+            'id_dat_ve',
+            'id',
+            'id'
+        );
     }
 }

@@ -132,6 +132,7 @@
 				<th class="px-4 py-2">Ngày bắt đầu</th>
 				<th class="px-4 py-2">Ngày kết thúc</th>
 				<th class="px-4 py-2">Giá trị giảm</th>
+				<th class="px-4 py-2">Giá trị giảm tối đa</th>
 				<th class="px-4 py-2">Điều kiện áp dụng</th>
 				<th class="px-4 py-2">Trạng thái</th>
 				<th class="px-4 py-2">Hành động</th>
@@ -155,6 +156,7 @@
 					<div class="text-xs text-gray-400">{{ $end->format('H:i') }}</div>
 				</td>
 				<td class="px-4 py-2">{{ $km->gia_tri_giam }}</td>
+				<td class="px-4 py-2">{{ $km->gia_tri_giam_toi_da ?? '-' }}</td>
 				<td class="px-4 py-2">{{ $km->dieu_kien }}</td>
 				<td class="px-4 py-2">{{ $km->trang_thai ? 'Kích hoạt' : 'Ẩn' }}</td>
 				<td class="px-4 py-2">
@@ -178,13 +180,13 @@
 				</td>
 			</tr>
 		@empty
-			<tr><td colspan="8" class="text-center py-4">Chưa có mã khuyến mãi nào.</td></tr>
+			<tr><td colspan="9" class="text-center py-4">Chưa có mã khuyến mãi nào.</td></tr>
 		@endforelse
 		</tbody>
 	</table>
 </div>
 
 <div class="mt-4">
-	{{ $khuyenmai->links() }}
+	{{ $khuyenmai->links('pagination.custom') }}
 </div>
 @endsection

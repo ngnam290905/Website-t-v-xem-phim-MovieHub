@@ -86,6 +86,7 @@ class AdminKhuyenMaiController extends Controller
                     }
                 },
             ],
+            'gia_tri_giam_toi_da' => 'nullable|numeric|min:0',
             'loai_giam' => 'required|in:phantram,codinh',
             'dieu_kien' => 'nullable|string',
             'trang_thai' => 'required|boolean',
@@ -120,6 +121,7 @@ class AdminKhuyenMaiController extends Controller
                     }
                 },
             ],
+            'gia_tri_giam_toi_da' => 'nullable|numeric|min:0',
             'loai_giam' => 'required|in:phantram,codinh',
             'dieu_kien' => 'nullable|string',
             'trang_thai' => 'required|boolean',

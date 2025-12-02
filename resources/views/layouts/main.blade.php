@@ -6,6 +6,18 @@
     <title>@yield('title', 'MovieHub - Đặt vé xem phim')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @yield('meta')
+    <script>
+      // Defensive shim to prevent ReferenceError from external/minified scripts
+      (function(){
+        if (typeof window === 'undefined') return;
+        if (typeof window.timer === 'undefined') {
+          window.timer = null;
+        }
+        if (typeof window.updateTime !== 'function') {
+          window.updateTime = function(){ /* no-op shim to avoid ReferenceError */ };
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     
@@ -105,6 +117,53 @@
     </style>
   </head>
   <body class="min-h-screen bg-[#0d0f14] text-white">
+    <!-- Success/Error Messages -->
+    @if(session('success'))
+        <div class="fixed top-4 right-4 z-50 bg-green-500/20 border-2 border-green-500 rounded-xl p-4 shadow-2xl animate-fade-in max-w-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-check-circle text-white text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-green-400 mb-1">Thành công!</h3>
+                    <p class="text-green-300 text-sm">{{ session('success') }}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-green-400 hover:text-green-300 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <script>
+            setTimeout(() => {
+                const msg = document.querySelector('.bg-green-500\\/20');
+                if (msg) msg.remove();
+            }, 5000);
+        </script>
+    @endif
+
+    @if(session('error'))
+        <div class="fixed top-4 right-4 z-50 bg-red-500/20 border-2 border-red-500 rounded-xl p-4 shadow-2xl animate-fade-in max-w-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-white text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-red-400 mb-1">Lỗi!</h3>
+                    <p class="text-red-300 text-sm">{{ session('error') }}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-red-400 hover:text-red-300 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <script>
+            setTimeout(() => {
+                const msg = document.querySelector('.bg-red-500\\/20');
+                if (msg) msg.remove();
+            }, 5000);
+        </script>
+    @endif
+
     <!-- Header -->
     <header class="bg-[#151822] border-b border-[#262833] sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">

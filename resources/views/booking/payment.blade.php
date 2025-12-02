@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanh toán</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0f1218; color:#e6e7eb; margin:0; }
+    .container { max-width: 960px; margin: 24px auto; padding: 16px; }
+    .card { background:#161a23; border:1px solid #2a2f3a; border-radius:16px; padding:20px; }
+    .title { font-size: 20px; font-weight: 700; margin: 0 0 16px; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    .row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:12px; background:#1a1d24; border:1px solid #2a2f3a; }
+    .muted { color:#a0a6b1; font-size:14px; }
+    .total { font-weight:700; font-size:18px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; border:none; cursor:pointer; color:#fff; background: linear-gradient(90deg, #FF784E, #FFB25E); font-weight:700; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .section-title { font-weight:700; font-size:16px; margin: 0 0 8px; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .pill { background:#1a1d24; border:1px solid #2a2f3a; border-radius:999px; padding:6px 10px; font-size:12px; color:#a0a6b1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      @if(session('error'))
+        <div style="margin-bottom:12px; padding:10px 12px; border-radius:12px; background:#3b1f20; border:1px solid #7f1d1d; color:#fecaca;">
+          {{ session('error') }}
+        </div>
+      @endif
+      @if(session('success'))
+        <div style="margin-bottom:12px; padding:10px 12px; border-radius:12px; background:#1f3b2a; border:1px solid #166534; color:#bbf7d0;">
+          {{ session('success') }}
+        </div>
+      @endif
+      <div class="header">
+        <h1 class="title">Thanh toán</h1>
+        @if($showtime && $movie)
+          <div class="pill">{{ $movie->ten_phim ?? 'Phim' }} • {{ optional($showtime->thoi_gian_bat_dau)->format('H:i d/m/Y') }}</div>
+        @endif
+      </div>
+
+      <div class="grid">
+        <div>
+          <h2 class="section-title">Ghế đã chọn</h2>
+          @forelse($seatDetails as $s)
+            <div class="row">
+              <div>
+                <div>{{ $s['code'] }}</div>
+                <div class="muted">{{ $s['type'] }}</div>
+              </div>
+              <div>{{ number_format($s['price'], 0, ',', '.') }}đ</div>
+            </div>
+          @empty
+            <div class="muted">Chưa có ghế nào.</div>
+          @endforelse
+        </div>
+
+        @if(isset($comboDetails) && count($comboDetails) > 0)
+        <div>
+          <h2 class="section-title">Combo đã chọn</h2>
+          @foreach($comboDetails as $c)
+            <div class="row">
+              <div>
+                <div>{{ $c['name'] }} x{{ $c['qty'] }}</div>
+                <div class="muted">{{ number_format($c['price'], 0, ',', '.') }}đ / combo</div>
+              </div>
+              <div>{{ number_format($c['total'], 0, ',', '.') }}đ</div>
+            </div>
+          @endforeach
+        </div>
+        @endif
+
+        @if(isset($khuyenmais) && $khuyenmais->count() > 0)
+        <div>
+          <h2 class="section-title">Khuyến mãi</h2>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label class="row" style="cursor:pointer;">
+              <div>
+                <div>Không áp dụng</div>
+                <div class="muted">Thanh toán không dùng khuyến mãi</div>
+              </div>
+              <input type="radio" name="promo_pick" value="" checked style="accent-color:#FF784E;"/>
+            </label>
+            @foreach($khuyenmais as $km)
+              <label class="row" style="cursor:pointer;">
+                <div>
+                  <div>{{ $km->ten_khuyen_mai ?? ('KM #' . $km->id) }}</div>
+                  <div class="muted">
+                    @php($type = strtolower($km->loai_giam))
+                    @if($type === 'phantram')
+                      Giảm {{ (float)$km->gia_tri_giam }}%
+                    @else
+                      Giảm {{ number_format(((float)$km->gia_tri_giam >= 1000) ? (float)$km->gia_tri_giam : ((float)$km->gia_tri_giam*1000), 0, ',', '.') }}đ
+                    @endif
+                  </div>
+                </div>
+                <input type="radio" name="promo_pick" value="{{ $km->id }}"
+                       data-type="{{ strtolower($km->loai_giam) }}"
+                       data-val="{{ (float)$km->gia_tri_giam }}"
+                       style="accent-color:#FF784E;"/>
+              </label>
+            @endforeach
+          </div>
+        </div>
+        @endif
+
+        <div class="row" style="margin-top:8px;">
+          <div class="total">Tổng tiền ghế</div>
+          <div class="total" id="seatTotal" data-seat-total="{{ (int)($totalSeatPrice ?? 0) }}">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
+        </div>
+
+        @if(isset($comboTotal))
+        <div class="row">
+          <div class="total">Tổng tiền combo</div>
+          <div class="total" id="comboTotal" data-combo-total="{{ (int)($comboTotal ?? 0) }}">{{ number_format($comboTotal ?? 0, 0, ',', '.') }}đ</div>
+        </div>
+        @endif
+
+        <div class="row" id="discountRow" style="display:none;">
+          <div class="muted">Khuyến mãi</div>
+          <div id="discountAmount">-0đ</div>
+        </div>
+
+        <div class="row" id="finalRow" style="margin-top:8px;">
+          <div class="total">Tổng thanh toán</div>
+          <div class="total" id="finalTotal">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:12px; gap:8px;">
+          <a href="{{ url()->previous() }}" class="btn" style="background:#2a2f3a; color:#e6e7eb;">Quay lại</a>
+          <form method="POST" action="{{ url('/checkout/' . $holdId . '/payment') }}" id="payForm">
+            @csrf
+            <input type="hidden" name="promo_id" id="promo_id" value="" />
+            <button type="submit" class="btn">Thanh toán VNPAY</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const seatTotalEl = document.getElementById('seatTotal');
+      const comboTotalEl = document.getElementById('comboTotal');
+      const seatBase = parseInt(seatTotalEl?.getAttribute('data-seat-total') || '0');
+      const comboBase = parseInt(comboTotalEl?.getAttribute('data-combo-total') || '0');
+      const baseTotal = seatBase + comboBase;
+      const discountRow = document.getElementById('discountRow');
+      const discountAmountEl = document.getElementById('discountAmount');
+      const finalTotalEl = document.getElementById('finalTotal');
+      const promoIdInput = document.getElementById('promo_id');
+      const radios = document.querySelectorAll('input[name="promo_pick"]');
+
+      function fmt(n){
+        return (n||0).toLocaleString('vi-VN');
+      }
+
+      function recalc(){
+        let discount = 0;
+        let selected = document.querySelector('input[name="promo_pick"]:checked');
+        if (selected && selected.value) {
+          const type = selected.getAttribute('data-type');
+          const val = parseFloat(selected.getAttribute('data-val') || '0');
+          if (type === 'phantram') {
+            discount = Math.round(baseTotal * (val/100));
+          } else {
+            discount = (val >= 1000) ? val : (val * 1000);
+          }
+          if (discount < 0) discount = 0;
+          if (discount > baseTotal) discount = baseTotal;
+          discountRow.style.display = '';
+          discountAmountEl.textContent = '-' + fmt(discount) + 'đ';
+          promoIdInput.value = selected.value;
+        } else {
+          discountRow.style.display = 'none';
+          discountAmountEl.textContent = '-0đ';
+          promoIdInput.value = '';
+        }
+        const final = Math.max(0, baseTotal - discount);
+        finalTotalEl.textContent = fmt(final) + 'đ';
+      }
+
+      radios.forEach(r => r.addEventListener('change', recalc));
+      recalc();
+    })();
+  </script>
+</body>
+</html>

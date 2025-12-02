@@ -2,401 +2,488 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ChiTietDatVe;
-use App\Models\Combo;
 use App\Models\DatVe;
+use App\Models\Combo;
 use App\Models\Ghe;
 use App\Models\SuatChieu;
 use App\Models\KhuyenMai;
 use App\Models\HangThanhVien;
 use App\Models\DiemThanhVien;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use App\Models\ChiTietDatVe;
+use App\Models\ChiTietCombo; // Thêm dòng này nếu thiếu
+use App\Mail\TicketMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use App\Models\ShowtimeSeat;
+
 
 class QuanLyDatVeController extends Controller
 {
+    private const BASE_TICKET_PRICE = 100000;
+
     public function index(Request $request)
     {
-        $query = DatVe::with(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'])
-            ->orderBy('created_at', 'desc');
+        // Auto cancel expired offline bookings (using expires_at or created_at + 5 minutes)
+        $expiredQuery = DatVe::with('thanhToan')
+            ->where('trang_thai', 0);
 
-        // 🔹 Lọc theo trạng thái
-        if ($request->filled('status')) {
-            $query->where('trang_thai', $request->status);
+        // Check if phuong_thuc_thanh_toan column exists before filtering
+        if (Schema::hasColumn('dat_ve', 'phuong_thuc_thanh_toan')) {
+            $expiredQuery->where('phuong_thuc_thanh_toan', 2); // offline payment
         }
 
-
-        // 🔹 Lọc theo tên phim
-        if ($request->filled('phim')) {
-            $query->whereHas('suatChieu.phim', function ($q) use ($request) {
-                $q->where('ten_phim', 'like', '%' . $request->phim . '%');
-            });
-        }
-
-        // 🔹 Lọc theo người dùng
-        if ($request->filled('nguoi_dung')) {
-            $query->whereHas('nguoiDung', function ($q) use ($request) {
-                $q->where('ho_ten', 'like', '%' . $request->nguoi_dung . '%');
-            });
-        }
-
-        $bookings = $query->paginate(10)->appends($request->query());
-
-        // Quick stats for bookings
-        $totalBookings = (int) DatVe::count();
-        $pendingCount = (int) DatVe::where('trang_thai', 0)->count();
-        $confirmedCount = (int) DatVe::where('trang_thai', 1)->count();
-        $canceledCount = (int) DatVe::where('trang_thai', 2)->count();
-        $requestCancelCount = (int) DatVe::where('trang_thai', 3)->count();
-        $todayConfirmed = DatVe::where('trang_thai', 1)
-            ->whereDate('created_at', now()->toDateString())
+        $expired = $expiredQuery->where(function ($query) {
+            if (Schema::hasColumn('dat_ve', 'expires_at')) {
+                $query->where('expires_at', '<=', now())
+                    ->orWhere(function ($q) {
+                        $q->whereNull('expires_at')
+                            ->where('created_at', '<=', now()->subMinutes(5));
+                    });
+            } else {
+                $query->where('created_at', '<=', now()->subMinutes(5));
+            }
+        })
             ->get();
-        $revenueToday = (float) $todayConfirmed->sum(function($b){
-            return (float) ($b->tong_tien ?? $b->tong_tien_hien_thi ?? 0);
-        });
 
-        return view('admin.bookings.index', compact(
-            'bookings',
-            'totalBookings', 'pendingCount', 'confirmedCount', 'canceledCount', 'requestCancelCount', 'revenueToday'
-        ));
-    }
+        foreach ($expired as $bk) {
+            try {
+                DB::transaction(function () use ($bk) {
+                    $bk->update(['trang_thai' => 2]);
+                    $this->releaseSeats($bk);
+                });
+            } catch (\Throwable $e) {
+                Log::error('Auto-cancel error: ' . $e->getMessage());
+                try {
+                    $bk->update(['trang_thai' => 2]);
+                } catch (\Throwable $e2) {
 
-    public function show($id)
-    {
-        $booking = DatVe::with([
-            'nguoiDung.diemThanhVien',
+                    Log::error('Failed to update booking status: ' . $e2->getMessage());
+
+                    Log::error('Failed to update booking status: '.$e2->getMessage());
+
+
+                }
+            }
+        }
+
+
+        $query = DatVe::with([
             'nguoiDung',
             'suatChieu.phim',
             'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe',
             'chiTietDatVe.ghe',
             'chiTietCombo.combo',
             'thanhToan',
             'khuyenMai'
+        ])
+            ->orderBy('created_at', 'desc');
+
+        $this->applyFilters($query, $request);
+        $bookings = $query->paginate(10)->appends($request->query());
+
+        $stats = [
+            'totalBookings' => DatVe::count(),
+            'pendingCount' => DatVe::where('trang_thai', 0)->count(),
+            'confirmedCount' => DatVe::where('trang_thai', 1)->count(),
+            'canceledCount' => DatVe::where('trang_thai', 2)->count(),
+            'requestCancelCount' => DatVe::where('trang_thai', 3)->count(),
+            'expiredCount' => DatVe::where('trang_thai', '!=', 2)
+                ->whereHas('suatChieu', fn($q) => $q->where('thoi_gian_bat_dau', '<', now()))
+                ->count(),
+            'revenueToday' => DatVe::where('trang_thai', 1)
+                ->whereDate('created_at', now()->toDateString())
+                ->get()
+                ->sum(fn($b) => (float) ($b->tong_tien ?? $b->tong_tien_hien_thi ?? 0)),
+        ];
+
+        return view('admin.bookings.index', array_merge(['bookings' => $bookings], $stats));
+    }
+
+    
+    public function show($id)
+    {
+        $booking = DatVe::with([
+            'nguoiDung.diemThanhVien',
+            'nguoiDung.hangThanhVien',
+            'nguoiDung',
+            'suatChieu.phim',
+            'suatChieu.phongChieu',
+            'chiTietDatVe.ghe.loaiGhe',
+            'chiTietDatVe.ghe',
+            'chiTietCombo.combo',
+            'thanhToan',
+            'khuyenMai',
         ])->findOrFail($id);
 
         return view('admin.bookings.show', compact('booking'));
     }
 
-    // API: showtimes available for this booking (same movie, upcoming/active)
+    // --- 2. LOGIC HỦY VÉ ---
+    public function cancel($id)
+    {
+        $this->authorizeAction('hủy vé');
+        $booking = DatVe::with(['chiTietDatVe.ghe'])->findOrFail($id);
+
+        if (!in_array($booking->trang_thai, [0, 3])) {
+            return back()->with('error', 'Chỉ có thể hủy vé đang chờ hoặc có yêu cầu hủy.');
+        }
+
+        try {
+            DB::transaction(function () use ($booking) {
+                $booking->update(['trang_thai' => 2]);
+                $this->releaseSeats($booking);
+            });
+            // Trừ điểm (thực tế là tính lại tổng chi tiêu)
+            $this->updateMemberStats($booking->id_nguoi_dung);
+
+            return back()->with('success', 'Đã hủy vé và giải phóng ghế.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Lỗi khi hủy: ' . $e->getMessage());
+
+
+            return back()->with('success', 'Đã hủy vé và giải phóng ghế thành công.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Lỗi khi hủy vé: ' . $e->getMessage());
+
+        }
+    }
+
+    // --- 3. LOGIC XÁC NHẬN (ĐÃ CHUẨN) ---
+    public function confirm($id)
+    {
+        $this->authorizeAction('xác nhận vé');
+        $booking = DatVe::with('thanhToan')->findOrFail($id);
+        if ($booking->trang_thai == 2) return back()->with('error', 'Vé này đã hủy.');
+        if ($booking->trang_thai != 0) return back()->with('error', 'Chỉ xác nhận vé đang chờ.');
+
+        try {
+            DB::transaction(function () use ($booking) {
+                $booking->update(['trang_thai' => 1]);
+                // Vé -> 1
+                $booking->update(['trang_thai' => 1]);
+
+                // Thanh toán -> 1 (Thành công)
+                if ($booking->thanhToan) {
+                    $booking->thanhToan()->update(['trang_thai' => 1, 'thoi_gian' => now()]);
+                }
+            });
+            $this->updateMemberStats($booking->id_nguoi_dung);
+
+            // Send email notification
+            $this->sendTicketEmail($booking);
+
+            return redirect()->route('admin.bookings.index')->with('success', 'Đã xác nhận vé và gửi email.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Lỗi: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Form chỉnh sửa vé
+     */
+    public function edit($id)
+    {
+        $this->authorizeAction('chỉnh sửa vé');
+        $booking = DatVe::with(['chiTietDatVe', 'chiTietCombo', 'suatChieu', 'khuyenMai'])->findOrFail($id);
+        return view('admin.bookings.edit', [
+            'booking' => $booking,
+            'combos' => Combo::where('trang_thai', 1)->get(),
+            'selectedComboIds' => $booking->chiTietCombo->pluck('id_combo')->toArray(),
+            'selectedComboQuantities' => $booking->chiTietCombo->pluck('so_luong', 'id_combo')->toArray(),
+            'selectedGheIds' => $booking->chiTietDatVe->pluck('id_ghe')->toArray(),
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $this->authorizeAction('cập nhật vé');
+        $booking = DatVe::with('thanhToan')->findOrFail($id);
+
+        $request->validate([
+            'ghe_ids' => 'nullable|string',
+            'suat_chieu_id' => 'nullable|integer|exists:suat_chieu,id',
+            'trang_thai' => 'nullable|in:0,1,2,3',
+            'combo_ids' => 'nullable|array',
+            'combo_quantities' => 'nullable|array'
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $booking) {
+                // Cập nhật Suất chiếu
+                if ($request->filled('suat_chieu_id')) {
+                    $booking->id_suat_chieu = (int) $request->input('suat_chieu_id');
+                }
+
+                // Cập nhật Ghế
+                $tongGhe = 0;
+                if ($request->has('ghe_ids')) {
+                    $this->releaseSeats($booking);
+                    $booking->chiTietDatVe()->delete();
+
+                    $seatIds = array_filter(array_unique(explode(',', $request->input('ghe_ids'))), 'is_numeric');
+                    foreach ($seatIds as $gheId) {
+                        $ghe = Ghe::with('loaiGhe')->find($gheId);
+                        // Nếu ghế bận (và không phải của chính mình) thì bỏ qua
+                        if (!$ghe || ($ghe->trang_thai != 1)) continue;
+                        $gia = ($ghe->loaiGhe->he_so_gia ?? 1) * self::BASE_TICKET_PRICE;
+                        $booking->chiTietDatVe()->create(['id_ghe' => $gheId, 'gia' => $gia]);
+                        $ghe->update(['trang_thai' => 0]);
+                        $tongGhe += $gia;
+                    }
+                } else {
+                    $tongGhe = (float) $booking->chiTietDatVe()->sum('gia');
+                }
+
+                // Cập nhật Combo
+                $tongCombo = 0;
+                if ($request->has('combo_ids')) {
+                    $booking->chiTietCombo()->delete();
+                    $comboIds = $request->input('combo_ids', []);
+                    $quantities = $request->input('combo_quantities', []);
+                    $validCombos = Combo::whereIn('id', $comboIds)->where('trang_thai', 1)->get();
+                    foreach ($validCombos as $cb) {
+                        $qty = max(1, (int)($quantities[$cb->id] ?? 1));
+                        $booking->chiTietCombo()->create([
+                            'id_combo' => $cb->id,
+                            'so_luong' => $qty,
+                            'gia_ap_dung' => $cb->gia
+                        ]);
+                        $tongCombo += ($cb->gia * $qty);
+                    }
+                } else {
+                    $tongCombo = (float)$booking->chiTietCombo()->sum(DB::raw('gia_ap_dung * COALESCE(so_luong,1)'));
+                }
+
+                // Ghi chú
+                if ($request->has('ghi_chu_noi_bo') && Schema::hasColumn('dat_ve', 'ghi_chu_noi_bo')) {
+                    $booking->ghi_chu_noi_bo = $request->input('ghi_chu_noi_bo');
+                }
+
+                // Khuyến mãi
+                $discount = 0;
+                if ($request->filled('ma_km')) {
+                    $code = trim($request->input('ma_km'));
+                    $promo = KhuyenMai::where('ma_km', $code)->where('trang_thai', 1)
+                        ->whereDate('ngay_bat_dau', '<=', now())
+                        ->whereDate('ngay_ket_thuc', '>=', now())
+                        ->first();
+                    if (!$promo) throw new \Exception('Mã khuyến mãi không hợp lệ.');
+                    $discount = $promo->loai_giam === 'phantram'
+                        ? round(($tongGhe + $tongCombo) * ((float)$promo->gia_tri_giam / 100))
+                        : (float)$promo->gia_tri_giam;
+                    $booking->id_khuyen_mai = $promo->id;
+                } elseif ($request->has('ma_km')) {
+                    $booking->id_khuyen_mai = null;
+                } elseif ($booking->id_khuyen_mai && $booking->khuyenMai) {
+                    $promo = $booking->khuyenMai;
+                    $discount = ($promo->loai_giam === 'phantram')
+                        ? round(($tongGhe + $tongCombo) * ((float)$promo->gia_tri_giam / 100))
+                        : (float)$promo->gia_tri_giam;
+                }
+
+
+                // Hạng thành viên - ĐÃ XÓA LOGIC GIẢM GIÁ Ở ĐÂY
+                // Logic tính tổng tiền mới: Chỉ trừ Khuyến mãi (nếu có)
+                $booking->tong_tien = max(0, ($tongGhe + $tongCombo) - $discount);
+
+                // Trạng thái
+
+                // Hạng thành viên
+                $memberDiscount = 0;
+                if ($booking->id_nguoi_dung) {
+                    $tier = optional(HangThanhVien::where('id_nguoi_dung', $booking->id_nguoi_dung)->first())->ten_hang;
+                    if ($tier) {
+                        $normalized = mb_strtolower($tier);
+                        $discounts = ['đồng' => 10000, 'bạc' => 15000, 'vàng' => 20000, 'kim cương' => 25000];
+                        // Sửa lỗi key map tiếng việt có dấu
+                        $discounts = array_change_key_case($discounts, CASE_LOWER);
+                        $memberDiscount = $discounts[$normalized] ?? 0;
+                    }
+                }
+                // Cập nhật Trạng thái
+
+                if ($request->has('trang_thai') && $booking->trang_thai != $request->trang_thai) {
+                    $newStatus = (int)$request->trang_thai;
+                    if ($newStatus == 2) $this->releaseSeats($booking);
+                    $booking->trang_thai = $newStatus;
+                    // [FIX QUAN TRỌNG] Nếu sửa trạng thái thành 1 -> Update luôn thanh toán
+                    if ($newStatus == 1 && $booking->thanhToan) {
+                        $booking->thanhToan()->update(['trang_thai' => 1, 'thoi_gian' => now()]);
+                    }
+                }
+
+                $booking->save();
+            });
+
+            if ($booking->id_nguoi_dung) $this->updateMemberStats($booking->id_nguoi_dung);
+            return redirect()->route('admin.bookings.index')->with('success', 'Cập nhật thành công.');
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+    // --- 5. CÁC HÀM API (ĐÃ ĐIỀN LOGIC) ---
     public function availableShowtimes($id)
     {
         $booking = DatVe::with('suatChieu.phim')->findOrFail($id);
         $movieId = optional($booking->suatChieu)->id_phim;
-        if (!$movieId) {
-            return response()->json([]);
-        }
+        if (!$movieId) return response()->json([]);
 
         $showtimes = SuatChieu::with('phongChieu')
-            ->where('id_phim', $movieId)
-            ->where('trang_thai', 1)
-            ->where('thoi_gian_bat_dau', '>=', now()->subMinutes(1))
-            ->orderBy('thoi_gian_bat_dau')
-            ->get()
-            ->map(function ($s) use ($booking) {
-                return [
-                    'id' => $s->id,
-                    'label' => ($s->thoi_gian_bat_dau ? $s->thoi_gian_bat_dau->format('d/m/Y H:i') : '') . ' • ' . optional($s->phongChieu)->ten_phong,
-                    'current' => $s->id === $booking->id_suat_chieu,
-                ];
-            });
+            ->where('id_phim', $movieId)->where('trang_thai', 1)
+            ->where(function ($q) {
+                $q->where('thoi_gian_bat_dau', '>', now()); // Chỉ lấy suất tương lai
+            })
+            ->orderBy('thoi_gian_bat_dau')->get()
+            ->map(fn($s) => [
+                'id' => $s->id,
+                'label' => ($s->thoi_gian_bat_dau ? \Carbon\Carbon::parse($s->thoi_gian_bat_dau)->format('H:i d/m') : '') . ' - ' . optional($s->phongChieu)->ten_phong,
+                'current' => $s->id === $booking->id_suat_chieu,
+            ]);
 
         return response()->json($showtimes);
     }
 
-    // API: seat map for a showtime (mark booked seats)
     public function seatsByShowtime($suatChieuId, Request $request)
     {
         $suat = SuatChieu::with('phongChieu')->findOrFail($suatChieuId);
-        $roomId = $suat->id_phong;
-        $excludeBookingId = $request->query('exclude_booking_id');
+        $seats = Ghe::where('id_phong', $suat->id_phong)->orderBy('so_hang')->orderBy('so_ghe')->get();
 
-        // Seats in room
-        $seats = Ghe::where('id_phong', $roomId)
-            ->orderBy('so_hang')
-            ->orderBy('so_ghe')
-            ->get(['id','so_ghe','so_hang','id_loai']);
-
-        // Seats booked for this showtime (active bookings only)
+        // Lấy ghế đã đặt (trừ đơn hàng hiện tại)
         $bookedQuery = DB::table('chi_tiet_dat_ve as c')
             ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
             ->where('d.id_suat_chieu', $suatChieuId)
-            ->where('d.trang_thai', '!=', 2) // exclude cancelled
-            ;
-        if ($excludeBookingId) {
-            $bookedQuery->where('d.id', '!=', $excludeBookingId);
+            ->where('d.trang_thai', '!=', 2); // Không tính vé hủy
+
+        if ($request->filled('exclude_booking_id')) {
+            $bookedQuery->where('d.id', '!=', $request->exclude_booking_id);
         }
+
         $bookedSeatIds = $bookedQuery->pluck('c.id_ghe')->toArray();
 
         return response()->json([
             'room' => [
-                'id' => $roomId,
-                'ten_phong' => optional($suat->phongChieu)->ten_phong,
+                'id' => $suat->id_phong,
+                'ten_phong' => $suat->phongChieu->ten_phong ?? 'N/A',
             ],
-            'seats' => $seats->map(function($g) use ($bookedSeatIds){
-                return [
-                    'id' => $g->id,
-                    'label' => $g->so_ghe,
-                    'row' => $g->so_hang,
-                    'type' => $g->id_loai,
-                    'booked' => in_array($g->id, $bookedSeatIds),
-                ];
-            }),
+            'seats' => $seats->map(fn($g) => [
+                'id' => $g->id,
+                'label' => $g->so_ghe,
+                'row' => $g->so_hang,
+                'type' => $g->id_loai,
+                'booked' => in_array($g->id, $bookedSeatIds),
+            ]),
         ]);
     }
 
-    // ✅ 3. Hủy vé (chỉ Admin)
-    public function cancel($id)
+    // --- HELPERS ---
+    private function authorizeAction($actionName)
     {
-        $userRole = optional(Auth::user()->vaiTro)->ten;
-
-        if (!in_array($userRole, ['admin', 'staff'])) {
-            abort(403, 'Bạn không có quyền hủy vé.');
+        $role = optional(Auth::user()->vaiTro)->ten;
+        if (!in_array($role, ['admin', 'staff'])) {
+            abort(403, "Bạn không có quyền $actionName.");
         }
+    }
 
-        $booking = DatVe::findOrFail($id);
-
-        if ($booking->trang_thai == 0 && $booking->suatChieu->thoi_gian_bat_dau > now()) {
-            $booking->trang_thai = 2; // 2 = Hủy
-            $booking->save();
-
-            foreach ($booking->chiTietDatVe as $detail) {
-                $detail->ghe->trang_thai = 1; // Giải phóng ghế
-                $detail->ghe->save();
+    private function applyFilters($query, $request)    {
+        if ($request->filled('status')) {
+            if ($request->status == 'expired') {
+                $query->where('trang_thai', '!=', 2)
+                    ->whereHas('suatChieu', fn($q) => $q->where('thoi_gian_bat_dau', '<', now()));
+            } else {
+                $query->where('trang_thai', $request->status);
             }
         }
-
-        // Cập nhật hạng thành viên sau khi hủy (nếu cần)
-        if ($booking->id_nguoi_dung) {
-            $this->recalcMembershipTier((int)$booking->id_nguoi_dung);
-            $this->recalcMemberPoints((int)$booking->id_nguoi_dung);
+        if ($request->filled('phim')) {
+            $query->whereHas('suatChieu.phim', fn($q) => $q->where('ten_phim', 'like', '%' . $request->phim . '%'));
+        }
+        if ($request->filled('nguoi_dung')) {
+            $query->whereHas('nguoiDung', fn($q) => $q->where('ho_ten', 'like', '%' . $request->nguoi_dung . '%'));
+        }
+        if ($request->filled('booking_date')) {
+            $query->whereDate('created_at', $request->booking_date);
         }
 
-        return redirect()->route('admin.bookings.index')->with('success', 'Vé đã được hủy thành công.');
+        // Filter theo Ngày chiếu (Showtime Date)
+        if ($request->filled('show_date')) {
+            $query->whereHas('suatChieu', function ($q) use ($request) {
+                $q->whereDate('thoi_gian_bat_dau', $request->show_date);
+            });
+        }
     }
 
-    // ✅ 4. Sửa vé (chỉ Admin)
-    public function edit($id)
+    private function releaseSeats(DatVe $booking): void
     {
-        $userRole = optional(Auth::user()->vaiTro)->ten;
-
-        if (!in_array($userRole, ['admin', 'staff'])) {
-            abort(403, 'Bạn không có quyền chỉnh sửa vé.');
-        }
-
-        $booking = DatVe::with(['chiTietDatVe', 'chiTietCombo', 'suatChieu'])->findOrFail($id);
-        $gheTrong = Ghe::where('id_phong', $booking->suatChieu->id_phong)->where('trang_thai', 1)->get();
-        $combos = Combo::where('trang_thai', 1)->get();
-
-        return view('admin.bookings.edit', compact('booking', 'gheTrong', 'combos'));
-    }
-
-    // ✅ 5. Cập nhật vé (chỉ Admin)
-    public function update(Request $request, $id)
-    {
-        $userRole = optional(Auth::user()->vaiTro)->ten;
-
-        if (!in_array($userRole, ['admin', 'staff'])) {
-            abort(403, 'Bạn không có quyền cập nhật vé.');
-        }
-
-        $request->validate([
-            'ghe_ids' => 'nullable',
-            'suat_chieu_id' => 'nullable|integer',
-            'ghi_chu_noi_bo' => 'nullable|string',
-            'trang_thai' => 'nullable|in:0,1,2,3',
-            'ma_km' => 'nullable|string',
-            'combo_ids' => 'nullable|array',
-            'combo_ids.*' => 'integer'
-        ]);
-
-        $booking = DatVe::findOrFail($id);
-
-        // Change showtime if provided
-        if ($request->filled('suat_chieu_id')) {
-            $booking->id_suat_chieu = (int) $request->input('suat_chieu_id');
-        }
-
-        $result = DB::transaction(function () use ($request, $booking) {
-            // Nếu có truyền danh sách ghế mới, thay thế ghế; nếu không, giữ nguyên ghế cũ
-            $replaceSeats = $request->filled('ghe_ids');
-            if ($replaceSeats) {
+        try {
+            // 1. Nhả ghế trong bảng showtime_seats
+            if (Schema::hasTable('suat_chieu_ghe')) {
                 foreach ($booking->chiTietDatVe as $detail) {
-                    if ($detail->ghe) {
-                        $detail->ghe->trang_thai = 1;
-                        $detail->ghe->save();
+                    if ($detail->id_ghe) {
+                        ShowtimeSeat::where('id_suat_chieu', $booking->id_suat_chieu)
+                            ->where('id_ghe', $detail->id_ghe)
+                            ->update([
+                                'status' => 'available',
+                                'hold_expires_at' => null
+                            ]);
                     }
                 }
-                $booking->chiTietDatVe()->delete();
             }
 
-        // Chuẩn hóa danh sách ghế từ request (có thể là chuỗi '1,2,3' hoặc mảng)
-        $rawGhe = $request->input('ghe_ids');
-        $seatIds = [];
-        if (is_array($rawGhe)) {
-            foreach ($rawGhe as $item) {
-                foreach (explode(',', (string)$item) as $part) {
-                    $part = trim($part);
-                    if ($part !== '' && is_numeric($part)) { $seatIds[] = (int)$part; }
+            // 2. Nhả ghế trong bảng ghe (tương thích ngược)
+            foreach ($booking->chiTietDatVe as $detail) {
+                if ($detail->ghe) {
+                    $detail->ghe->update(['trang_thai' => 1]);
                 }
             }
-        } else {
-            foreach (explode(',', (string)$rawGhe) as $part) {
-                $part = trim($part);
-                if ($part !== '' && is_numeric($part)) { $seatIds[] = (int)$part; }
-            }
+        } catch (\Throwable $e) {
+            Log::error('Error releasing seats: ' . $e->getMessage());
         }
-        $seatIds = array_values(array_unique($seatIds));
-
-            // Tính tổng ghế: nếu thay thế ghế và có danh sách mới thì thêm mới; nếu không, lấy tổng ghế hiện có
-            $tong = 0;
-            if ($replaceSeats && count($seatIds) > 0) {
-                foreach ($seatIds as $gheId) {
-                    $ghe = Ghe::with('loaiGhe')->find($gheId);
-                    if (!$ghe) continue;
-                    $gia = ($ghe->loaiGhe->he_so_gia ?? 1) * 100000;
-                    ChiTietDatVe::create([
-                        'id_dat_ve' => $booking->id,
-                        'id_ghe' => $gheId,
-                        'gia' => $gia,
-                    ]);
-                    $tong += $gia;
-                    $ghe->trang_thai = 0;
-                    $ghe->save();
-                }
-            } else {
-                // Giữ nguyên và tính tổng từ chi tiết hiện có
-                $tong = (float) $booking->chiTietDatVe()->sum('gia');
-            }
-
-            // Combo: nếu có truyền danh sách mới thì thay thế; nếu không, giữ nguyên
-            $comboTotal = 0;
-            $comboIds = $request->input('combo_ids');
-            $replaceCombos = is_array($comboIds) && count($comboIds) > 0;
-            if ($replaceCombos) {
-                if (method_exists($booking, 'chiTietCombo')) {
-                    $booking->chiTietCombo()->delete();
-                }
-                $now = now();
-                $validCombos = Combo::whereIn('id', $comboIds)
-                    ->where('trang_thai', 1)
-                    ->where(function($q) use ($now){
-                        $q->whereNull('ngay_bat_dau')->orWhere('ngay_bat_dau', '<=', $now);
-                    })
-                    ->where(function($q) use ($now){
-                        $q->whereNull('ngay_ket_thuc')->orWhere('ngay_ket_thuc', '>=', $now);
-                    })
-                    ->get();
-
-                foreach ($validCombos as $cb) {
-                    $price = (float) ($cb->gia ?? 0);
-                    $booking->chiTietCombo()->create([
-                        'id_combo' => $cb->id,
-                        'so_luong' => 1,
-                        'gia_ap_dung' => $price,
-                    ]);
-                    $comboTotal += $price;
-                }
-            } else {
-                $comboTotal = (float) $booking->chiTietCombo()->sum(DB::raw('gia_ap_dung * COALESCE(so_luong,1)'));
-            }
-
-        // Lưu ghi chú nội bộ nếu có (cần cột trong DB)
-        if ($request->filled('ghi_chu_noi_bo') && Schema::hasColumn('dat_ve', 'ghi_chu_noi_bo')) {
-            $booking->ghi_chu_noi_bo = $request->input('ghi_chu_noi_bo');
-        }
-
-        // Áp dụng mã khuyến mãi nếu có
-        $discount = 0;
-        if ($request->filled('ma_km')) {
-            $code = trim($request->input('ma_km'));
-            $promo = KhuyenMai::where('ma_km', $code)
-                ->where('trang_thai', 1)
-                ->whereDate('ngay_bat_dau', '<=', now())
-                ->whereDate('ngay_ket_thuc', '>=', now())
-                ->first();
-            if (!$promo) {
-                return back()->withInput()->with('error', 'Mã khuyến mãi không hợp lệ hoặc đã hết hạn.');
-            }
-            if ($promo->loai_giam === 'phantram') {
-                $discount = round(($tong + $comboTotal) * ((float)$promo->gia_tri_giam / 100));
-            } else { // codinh
-                $discount = (float)$promo->gia_tri_giam;
-            }
-            $booking->id_khuyen_mai = $promo->id;
-        } else {
-            // Nếu xóa mã, bỏ liên kết
-            $booking->id_khuyen_mai = null;
-        }
-
-            // Giảm theo hạng thành viên (Đồng/Bạc/Vàng/Kim cương)
-            $memberDiscount = 0;
-            if ($booking->id_nguoi_dung) {
-                $tier = optional(\App\Models\HangThanhVien::where('id_nguoi_dung', $booking->id_nguoi_dung)->first())->ten_hang;
-                if ($tier) {
-                    $normalized = mb_strtolower($tier);
-                    if ($normalized === 'đồng' || $normalized === 'dong') { $memberDiscount = 10000; }
-                    elseif ($normalized === 'bạc' || $normalized === 'bac') { $memberDiscount = 15000; }
-                    elseif ($normalized === 'vàng' || $normalized === 'vang') { $memberDiscount = 20000; }
-                    elseif ($normalized === 'kim cương' || $normalized === 'kim cuong') { $memberDiscount = 25000; }
-                }
-            }
-
-            // Cập nhật tổng tiền nếu model có cột này (ghế + combo - KM - giảm theo hạng)
-            if (isset($booking->tong_tien)) {
-                $booking->tong_tien = max(0, ($tong + $comboTotal) - $discount - $memberDiscount);
-            }
-            // Cập nhật trạng thái nếu truyền vào
-            if ($request->filled('trang_thai')) {
-                $booking->trang_thai = (int) $request->input('trang_thai');
-            }
-            $booking->save();
-
-            return ['tong' => $tong, 'comboTotal' => $comboTotal, 'discount' => $discount, 'memberDiscount' => $memberDiscount];
-        });
-
-        return redirect()->route('admin.bookings.index')->with('success', 'Vé đã được điều chỉnh thành công.');
     }
-    public function confirm($id)
+
+    private function updateMemberStats(?int $userId): void
     {
-        $userRole = optional(Auth::user()->vaiTro)->ten;
+        if (!$userId) return;
+        $this->recalcMembershipTier($userId);
+        $this->recalcMemberPoints($userId);
+    }
 
-        if (!in_array($userRole, ['admin', 'staff'])) {
-            abort(403, 'Bạn không có quyền xác nhận vé.');
+    private function recomputeBookingTotal(DatVe $booking): void
+    {
+        $booking->loadMissing(['chiTietDatVe', 'chiTietCombo', 'khuyenMai', 'nguoiDung.hangThanhVien']);
+        $seatTotal = (float)$booking->chiTietDatVe->sum('gia');
+        $comboTotal = (float)$booking->chiTietCombo->sum(fn($c) => ($c->gia_ap_dung ?? 0) * max(1, $c->so_luong ?? 1));
+        $subtotal = $seatTotal + $comboTotal;
+
+        $discount = 0;
+        if ($booking->khuyenMai) {
+            $discount = $booking->khuyenMai->loai_giam === 'phantram'
+                ? round($subtotal * ($booking->khuyenMai->gia_tri_giam / 100))
+                : (float)$booking->khuyenMai->gia_tri_giam;
         }
 
-        $booking = DatVe::findOrFail($id);
+        // ĐÃ XÓA LOGIC GIẢM GIÁ HẠNG THÀNH VIÊN
+        $final = max(0, $subtotal - $discount);
 
-        if ($booking->trang_thai == 0) {
-            $booking->trang_thai = 1; // 1 = Đã xác nhận
-            $booking->save();
-
-            // Sau khi xác nhận, cập nhật hạng thành viên dựa trên tổng chi tiêu tích lũy
-            if ($booking->id_nguoi_dung) {
-                $this->recalcMembershipTier((int)$booking->id_nguoi_dung);
-                $this->recalcMemberPoints((int)$booking->id_nguoi_dung);
-            }
-
-            // Tính lại tổng tiền để hiển thị chính xác ở danh sách
-            // $this->recomputeBookingTotal($booking);
-
-            return redirect()->route('admin.bookings.index')
-                ->with('success', 'Vé đã được xác nhận thành công.');
+        if (Schema::hasColumn('dat_ve', 'tong_tien')) {
+            $booking->tong_tien = $final;
         }
-
-        return redirect()->route('admin.bookings.index')
-            ->with('error', 'Chỉ có thể xác nhận vé đang chờ.');
+        if (Schema::hasColumn('dat_ve', 'tong_tien_hien_thi')) {
+            $booking->tong_tien_hien_thi = $final;
+        }
+        $booking->saveQuietly();
     }
 
     private function recalcMemberPoints(int $userId): void
     {
-        // Tổng chi tiêu đã xác nhận
-        $seatTotal = DB::table('chi_tiet_dat_ve as d')
-            ->join('dat_ve as v', 'v.id', '=', 'd.id_dat_ve')
+        $seatTotal = DB::table('chi_tiet_dat_ve as c')
+            ->join('dat_ve as v', 'v.id', '=', 'c.id_dat_ve')
             ->where('v.id_nguoi_dung', $userId)
             ->where('v.trang_thai', 1)
-            ->sum('d.gia');
+            ->sum('c.gia');
 
         $comboTotal = DB::table('chi_tiet_dat_ve_combo as c')
             ->join('dat_ve as v', 'v.id', '=', 'c.id_dat_ve')
@@ -404,25 +491,17 @@ class QuanLyDatVeController extends Controller
             ->where('v.trang_thai', 1)
             ->sum(DB::raw('c.gia_ap_dung * COALESCE(c.so_luong,1)'));
 
-        $total = (float)$seatTotal + (float)$comboTotal;
-
-        // Quy đổi: 1,000 VND = 1 điểm (lấy phần nguyên)
-        $points = (int) floor($total / 1000);
-
-        DiemThanhVien::updateOrCreate(
-            ['id_nguoi_dung' => $userId],
-            ['tong_diem' => $points]
-        );
+        $points = (int) floor(($seatTotal + $comboTotal) / 1000);
+        DiemThanhVien::updateOrCreate(['id_nguoi_dung' => $userId], ['tong_diem' => $points]);
     }
 
     private function recalcMembershipTier(int $userId): void
     {
-        // Tổng chi tiêu đã xác nhận: ghế + combo
-        $seatTotal = DB::table('chi_tiet_dat_ve as d')
-            ->join('dat_ve as v', 'v.id', '=', 'd.id_dat_ve')
+        $seatTotal = DB::table('chi_tiet_dat_ve as c')
+            ->join('dat_ve as v', 'v.id', '=', 'c.id_dat_ve')
             ->where('v.id_nguoi_dung', $userId)
             ->where('v.trang_thai', 1)
-            ->sum('d.gia');
+            ->sum('c.gia');
 
         $comboTotal = DB::table('chi_tiet_dat_ve_combo as c')
             ->join('dat_ve as v', 'v.id', '=', 'c.id_dat_ve')
@@ -430,28 +509,104 @@ class QuanLyDatVeController extends Controller
             ->where('v.trang_thai', 1)
             ->sum(DB::raw('c.gia_ap_dung * COALESCE(c.so_luong,1)'));
 
-        $total = (float)$seatTotal + (float)$comboTotal;
-
-        // Ngưỡng hạng (≥1,500,000 Kim cương; ≥1,000,000 Vàng; ≥500,000 Bạc; ≥150,000 Đồng)
-        $tier = null;
-        if ($total >= 1500000) {
-            $tier = 'Kim cương';
-        } elseif ($total >= 1000000) {
-            $tier = 'Vàng';
-        } elseif ($total >= 500000) {
-            $tier = 'Bạc';
-        } elseif ($total >= 150000) {
-            $tier = 'Đồng';
-        }
+        $total = $seatTotal + $comboTotal;
+        $tier = match (true) {
+            $total >= 1_500_000 => 'Kim cương',
+            $total >= 1_000_000 => 'Vàng',
+            $total >= 500_000 => 'Bạc',
+            $total >= 150_000 => 'Đồng',
+            default => null,
+        };
 
         if ($tier) {
-            HangThanhVien::updateOrCreate(
-                ['id_nguoi_dung' => $userId],
-                ['ten_hang' => $tier]
-            );
+            HangThanhVien::updateOrCreate(['id_nguoi_dung' => $userId], ['ten_hang' => $tier]);
         } else {
-            // Nếu chưa đạt ngưỡng nào, có thể xóa hoặc đặt null
             HangThanhVien::where('id_nguoi_dung', $userId)->delete();
+        }
+    }
+
+    /**
+     * Send ticket email to customer
+     */
+    public function sendTicket($id)
+    {
+        $this->authorizeAction('gửi email vé');
+        $booking = DatVe::findOrFail($id);
+
+        try {
+            $this->sendTicketEmail($booking);
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Email đã được gửi thành công!'
+                ]);
+            }
+
+            return back()->with('success', 'Email đã được gửi thành công!');
+        } catch (\Throwable $e) {
+            Log::error('Send ticket email error: ' . $e->getMessage());
+
+            // Extract user-friendly error message
+            $errorMessage = $e->getMessage();
+            $userMessage = 'Lỗi khi gửi email.';
+
+            if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials')) {
+                $userMessage = 'Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email trong file .env. Xem hướng dẫn: GMAIL_SETUP_GUIDE.md';
+            } elseif (str_contains($errorMessage, 'Connection') || str_contains($errorMessage, 'timeout')) {
+                $userMessage = 'Không thể kết nối đến máy chủ email. Vui lòng kiểm tra kết nối mạng.';
+            } elseif (str_contains($errorMessage, 'no email address')) {
+                $userMessage = 'Không tìm thấy địa chỉ email của khách hàng.';
+            } else {
+                $userMessage = 'Lỗi khi gửi email: ' . (strlen($errorMessage) > 200 ? substr($errorMessage, 0, 200) . '...' : $errorMessage);
+            }
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $userMessage
+                ], 500);
+            }
+
+            return back()->with('error', $userMessage);
+        }
+    }
+
+    /**
+     * Helper method to send ticket email
+     */
+    private function sendTicketEmail(DatVe $booking): void
+    {
+        $email = $booking->email ?? ($booking->nguoiDung->email ?? null);
+
+        if (!$email) {
+            Log::warning("Cannot send ticket email: no email address for booking ID {$booking->id}");
+            throw new \Exception('Không tìm thấy địa chỉ email của khách hàng.');
+        }
+
+        try {
+            Mail::to($email)->send(new TicketMail($booking));
+            Log::info("Ticket email sent successfully to {$email} for booking ID {$booking->id}");
+        } catch (\Throwable $e) {
+            $errorMessage = $e->getMessage();
+            if (str_contains($errorMessage, '535') || str_contains($errorMessage, 'BadCredentials') || str_contains($errorMessage, 'Username and Password not accepted')) {
+                $helpMessage = "\n\n" .
+                    "⚠️ LỖI XÁC THỰC GMAIL:\n" .
+                    "Gmail không chấp nhận mật khẩu thông thường. Bạn cần:\n" .
+                    "1. Bật 2-Step Verification: https://myaccount.google.com/security\n" .
+                    "2. Tạo App Password: https://myaccount.google.com/apppasswords\n" .
+                    "3. Sử dụng App Password (16 ký tự) trong file .env\n" .
+                    "4. Chạy: php artisan config:clear\n\n" .
+                    "Hoặc tạm thời dùng log driver trong .env:\n" .
+                    "MAIL_MAILER=log\n\n" .
+                    "Xem hướng dẫn chi tiết: GMAIL_SETUP_GUIDE.md";
+
+                Log::error("Gmail authentication failed for booking ID {$booking->id}: {$errorMessage}");
+                throw new \Exception('Lỗi xác thực Gmail. Vui lòng kiểm tra cấu hình email.' . $helpMessage);
+            }
+
+            Log::error("Failed to send ticket email to {$email} for booking ID {$booking->id}: {$errorMessage}");
+            throw $e;
         }
     }
 }

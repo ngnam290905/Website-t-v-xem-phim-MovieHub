@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin - MovieHub')</title>
+    <script>
+      // Defensive shim for external/minified scripts that may expect globals
+      (function(){
+        if (typeof window === 'undefined') return;
+        if (typeof window.timer === 'undefined') {
+          window.timer = null;
+        }
+        if (typeof window.updateTime !== 'function') {
+          window.updateTime = function(){ /* no-op */ };
+        }
+      })();
+    </script>
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
       @vite(['resources/css/app.css','resources/js/app.js'])
     @else
@@ -117,15 +129,170 @@
     @stack('styles')
                             </head>
                             <body class="min-h-screen bg-[#0d0f14] text-white">
-    <!-- Main Content -->
-    <div class="flex flex-col h-screen overflow-hidden">
+    <div class="flex h-screen">
+      <!-- Mobile menu button -->
+      <button id="mobile-menu-button" class="lg:hidden fixed top-4 left-4 z-50 p-3 bg-[#151822] border border-[#262833] rounded-lg text-white hover:bg-[#222533] transition-colors duration-200 shadow-lg">
+        <i class="fas fa-bars text-lg"></i>
+      </button>
+
+      <!-- Sidebar cố định -->
+      <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40 lg:z-auto">
+        <!-- Header -->
+        <div class="p-6 border-b border-[#262833]">
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3">
+            <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+            <div>
+              <span class="text-xl font-bold text-white">MovieHub</span>
+              <p class="text-xs text-[#a6a6b0]">{{ request()->routeIs('staff.*') ? 'Staff Panel' : 'Admin Panel' }}</p>
+            </div>
+          </a>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-4 space-y-2">
+          <!-- Dashboard -->
+          <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+            <i class="fas fa-tachometer-alt w-5"></i>
+            <span>Bảng điều khiển</span>
+          </a>
+          
+          @if(request()->routeIs('admin.*'))
+            <!-- Admin only menu items -->
+            <div class="space-y-1">
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Quản lý</div>
+              <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-video w-5"></i>
+                <span>Phòng chiếu</span>
+              </a>
+              <a href="{{ route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.manage-seats') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-chair w-5"></i>
+                <span>Quản lý ghế</span>
+              </a>
+              <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.suat-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-calendar-alt w-5"></i>
+                <span>Suất chiếu</span>
+              </a>
+              <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-film w-5"></i>
+                <span>Phim</span>
+              </a>
+              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-ticket-alt w-5"></i>
+                <span>Đặt vé</span>
+              </a>
+              <a href="{{ route('admin.scan.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.scan.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-qrcode w-5"></i>
+                <span>Quản lý Scan</span>
+              </a>
+              <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-users w-5"></i>
+                <span>Người dùng</span>
+              </a>
+              <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.reports.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-chart-bar w-5"></i>
+                <span>Báo cáo</span>
+              </a>
+              <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyenmai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-gift w-5"></i>
+                <span>Khuyến mãi</span>
+              </a>
+              <a href="{{ route('admin.combos.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.combos.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-box-open w-5"></i>
+                <span>Combo</span>
+              </a>
+            </div>
+          @else
+            <!-- Staff only menu items -->
+            <div class="space-y-1">
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">{{ auth()->user()->vaiTro->ten === 'admin' ? 'Quản lý' : 'Xem thông tin' }}</div>
+            
+            <!-- Movies -->
+            <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-film w-5"></i>
+              <span>Phim</span>
+            </a>
+            
+            <!-- Showtimes -->
+            color ojos white !important;
+            
+            <!-- Rooms -->
+            <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-video w-5"></i>
+              <span>Phòng chiếu</span>
+            </a>
+            
+            <!-- Seats -->
+            <a href="{{ route('admin.ghe.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.ghe.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-chair w-5"></i>
+              <span>Ghế</span>
+            </a>
+            
+            <!-- Tickets -->
+            <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-ticket-alt w-5"></i>
+              <span>Vé</span>
+            </a>
+            
+            <!-- Scan Management -->
+            <a href="{{ route('admin.scan.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.scan.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-qrcode w-5"></i>
+              <span>Quản lý Scan</span>
+            </a>
+            
+            <!-- Users -->
+            <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.users.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-users w-5"></i>
+              <span>Tài khoản</span>
+            </a>
+            
+            <!-- Combos -->
+            <a href="{{ route('admin.combos.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.combos.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-tags w-5"></i>
+              <span>Combo</span>
+            </a>
+            
+            <!-- Promotions -->
+            <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.khuyenmai.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <i class="fas fa-percent w-5"></i>
+              <span>Khuyến mãi</span>
+            </a>
+          </div>
+            </div>
+          @endif
+            </nav>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-[#262833] space-y-2">
+          <div class="space-y-1">
+            <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Hệ thống</div>
+            <a href="{{ route('home') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition-colors duration-200">
+              <i class="fas fa-home w-5"></i>
+              <span>Về trang chủ</span>
+            </a>
+            <form action="{{ route('logout') }}" method="POST" class="w-full">
+              @csrf
+              <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition-colors duration-200">
+                <i class="fas fa-sign-out-alt w-5"></i>
+                <span>Đăng xuất</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Mobile overlay -->
+      <div id="mobile-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
+
+            <!-- Main content -->
+      <div class="flex-1 flex flex-col overflow-hidden">
         <!-- Top bar -->
         <header class="bg-[#1a1d24] border-b border-[#262833] px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-white">@yield('page-title', 'Admin')</h1>
-                    <p class="text-sm text-[#a6a6b0]">@yield('page-description', 'Quản lý hệ thống')</p>
-                </div>
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-white">@yield('page-title', 'Admin')</h1>
+              <p class="text-sm text-[#a6a6b0]">@yield('page-description', 'Quản lý hệ thống')</p>
+            </div>
             <div class="flex items-center gap-4">
               <div class="text-sm text-[#a6a6b0]">
                 {{ date('d/m/Y H:i') }}
@@ -144,9 +311,37 @@
     </div>
 
     <script>
-      // Initialize any admin scripts here
+      // Mobile menu toggle
       document.addEventListener('DOMContentLoaded', function() {
-        // Add any initialization code here
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobile-overlay');
+
+        function toggleMobileMenu() {
+          sidebar.classList.toggle('-translate-x-full');
+          mobileOverlay.classList.toggle('hidden');
+        }
+
+        function closeMobileMenu() {
+          sidebar.classList.add('-translate-x-full');
+          mobileOverlay.classList.add('hidden');
+        }
+
+        mobileMenuButton.addEventListener('click', toggleMobileMenu);
+        mobileOverlay.addEventListener('click', closeMobileMenu);
+
+        // Close mobile menu when clicking on a link
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+          link.addEventListener('click', closeMobileMenu);
+        });
+
+        // Close mobile menu on escape key
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            closeMobileMenu();
+          }
+        });
       });
     </script>
     

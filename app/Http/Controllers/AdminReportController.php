@@ -444,4 +444,206 @@ class AdminReportController extends Controller
         // Implementation for inventory data export
         return [];
     }
+
+    /**
+     * Báo cáo thống kê phim hot (được mua vé nhiều nhất)
+     */
+    public function hotMoviesReport(Request $request)
+    {
+        $period = $request->get('period', 'month');
+        $limit = $request->get('limit', 10);
+
+        $query = Phim::join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
+            ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
+            ->join('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->where('dat_ve.trang_thai', 1);
+
+        switch ($period) {
+            case 'today':
+                $query->whereDate('dat_ve.created_at', Carbon::today());
+                break;
+            case 'week':
+                $query->whereBetween('dat_ve.created_at', [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek()
+                ]);
+                break;
+            case 'month':
+                $query->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                      ->whereYear('dat_ve.created_at', Carbon::now()->year);
+                break;
+            case 'year':
+                $query->whereYear('dat_ve.created_at', Carbon::now()->year);
+                break;
+            case 'all':
+                // Không lọc thời gian
+                break;
+        }
+
+        $hotMovies = $query->select(
+            'phim.id',
+            'phim.ten_phim',
+            'phim.poster',
+            'phim.the_loai',
+            'phim.quoc_gia',
+            'phim.ngay_khoi_chieu',
+            DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
+            DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets_sold'),
+            DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+            DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price'),
+            DB::raw('COUNT(DISTINCT dat_ve.id_nguoi_dung) as unique_customers'),
+            DB::raw('COUNT(DISTINCT suat_chieu.id) as total_showtimes')
+        )
+        ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster', 'phim.the_loai', 'phim.quoc_gia', 'phim.ngay_khoi_chieu')
+        ->orderBy('total_tickets_sold', 'desc')
+        ->limit($limit)
+        ->get();
+
+        // Tính toán phần trăm so với tổng
+        $totalTickets = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->when($period !== 'all', function($q) use ($period) {
+                switch ($period) {
+                    case 'today':
+                        return $q->whereDate('dat_ve.created_at', Carbon::today());
+                    case 'week':
+                        return $q->whereBetween('dat_ve.created_at', [
+                            Carbon::now()->startOfWeek(),
+                            Carbon::now()->endOfWeek()
+                        ]);
+                    case 'month':
+                        return $q->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                              ->whereYear('dat_ve.created_at', Carbon::now()->year);
+                    case 'year':
+                        return $q->whereYear('dat_ve.created_at', Carbon::now()->year);
+                }
+            })
+            ->count();
+
+        $hotMovies->transform(function($movie) use ($totalTickets) {
+            $movie->market_share = $totalTickets > 0 ? round(($movie->total_tickets_sold / $totalTickets) * 100, 2) : 0;
+            return $movie;
+        });
+
+        return response()->json([
+            'hot_movies' => $hotMovies,
+            'total_tickets_period' => $totalTickets,
+            'period' => $period,
+            'generated_at' => Carbon::now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Báo cáo thống kê khung giờ đặt vé nhiều nhất
+     */
+    public function peakBookingHoursReport(Request $request)
+    {
+        $period = $request->get('period', 'month');
+        $groupBy = $request->get('group_by', 'hour'); // hour, day_hour
+
+        $query = DatVe::join('suat_chieu', 'dat_ve.id_suat_chieu', '=', 'suat_chieu.id')
+            ->join('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->where('dat_ve.trang_thai', 1);
+
+        switch ($period) {
+            case 'today':
+                $query->whereDate('dat_ve.created_at', Carbon::today());
+                break;
+            case 'week':
+                $query->whereBetween('dat_ve.created_at', [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek()
+                ]);
+                break;
+            case 'month':
+                $query->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                      ->whereYear('dat_ve.created_at', Carbon::now()->year);
+                break;
+            case 'year':
+                $query->whereYear('dat_ve.created_at', Carbon::now()->year);
+                break;
+            case 'all':
+                break;
+        }
+
+        if ($groupBy === 'day_hour') {
+            // Phân tích theo ngày trong tuần và giờ
+            $peakHours = $query->select(
+                DB::raw('DAYOFWEEK(dat_ve.created_at) as day_of_week'),
+                DB::raw('HOUR(dat_ve.created_at) as booking_hour'),
+                DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
+                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
+                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+                DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price')
+            )
+            ->groupBy('day_of_week', 'booking_hour')
+            ->orderBy('total_bookings', 'desc')
+            ->get()
+            ->map(function($item) {
+                $daysMap = [
+                    1 => 'Chủ Nhật',
+                    2 => 'Thứ Hai',
+                    3 => 'Thứ Ba',
+                    4 => 'Thứ Tư',
+                    5 => 'Thứ Năm',
+                    6 => 'Thứ Sáu',
+                    7 => 'Thứ Bảy'
+                ];
+                $item->day_name = $daysMap[$item->day_of_week] ?? 'N/A';
+                $item->time_slot = sprintf('%02d:00 - %02d:59', $item->booking_hour, $item->booking_hour);
+                return $item;
+            });
+        } else {
+            // Phân tích chỉ theo giờ trong ngày
+            $peakHours = $query->select(
+                DB::raw('HOUR(dat_ve.created_at) as booking_hour'),
+                DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
+                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
+                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+                DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price')
+            )
+            ->groupBy('booking_hour')
+            ->orderBy('total_bookings', 'desc')
+            ->get()
+            ->map(function($item) {
+                $item->time_slot = sprintf('%02d:00 - %02d:59', $item->booking_hour, $item->booking_hour);
+                
+                // Phân loại khung giờ
+                if ($item->booking_hour >= 6 && $item->booking_hour < 12) {
+                    $item->time_period = 'Sáng';
+                } elseif ($item->booking_hour >= 12 && $item->booking_hour < 18) {
+                    $item->time_period = 'Chiều';
+                } elseif ($item->booking_hour >= 18 && $item->booking_hour < 22) {
+                    $item->time_period = 'Tối';
+                } else {
+                    $item->time_period = 'Đêm/Khuya';
+                }
+                
+                return $item;
+            });
+        }
+
+        // Tìm khung giờ cao điểm nhất
+        $peakHour = $peakHours->first();
+
+        // Thống kê theo khung giờ rộng (sáng, chiều, tối, đêm)
+        $periodStats = $peakHours->groupBy('time_period')->map(function($group, $period) {
+            return [
+                'period' => $period,
+                'total_bookings' => $group->sum('total_bookings'),
+                'total_tickets' => $group->sum('total_tickets'),
+                'total_revenue' => $group->sum('total_revenue'),
+                'avg_ticket_price' => $group->avg('avg_ticket_price')
+            ];
+        })->sortByDesc('total_bookings')->values();
+
+        return response()->json([
+            'peak_hours' => $peakHours,
+            'peak_hour_details' => $peakHour,
+            'period_statistics' => $periodStats,
+            'period' => $period,
+            'group_by' => $groupBy,
+            'generated_at' => Carbon::now()->toISOString()
+        ]);
+    }
 }

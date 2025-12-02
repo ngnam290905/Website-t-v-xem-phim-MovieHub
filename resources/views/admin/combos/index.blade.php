@@ -34,6 +34,9 @@
   @if(session('success'))
     <div class="text-green-400 text-sm bg-green-900/30 px-3 py-2 rounded mb-3">{{ session('success') }}</div>
   @endif
+  @if(session('error'))
+    <div class="text-red-400 text-sm bg-red-900/30 px-3 py-2 rounded mb-3">{{ session('error') }}</div>
+  @endif
 
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm text-left border border-[#262833] rounded-xl">
@@ -104,6 +107,6 @@
     </table>
   </div>
 
-  <div class="mt-4">{{ $combos->links('pagination::tailwind') }}</div>
+  <div class="mt-4">{{ $combos->links('pagination.custom') }}</div>
 </div>
 @endsection

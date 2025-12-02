@@ -167,7 +167,7 @@
         <div class="text-sm text-[#a6a6b0]">
           Trang {{ $movies->currentPage() }}/{{ $movies->lastPage() }} • {{ $movies->total() }} phim
         </div>
-        <div class="flex items-center gap-2">{{ $movies->appends(request()->except('page'))->links() }}</div>
+        <div class="flex items-center gap-2">{{ $movies->appends(request()->except('page'))->links('pagination.custom') }}</div>
       </div>
     @endif
   </div>
