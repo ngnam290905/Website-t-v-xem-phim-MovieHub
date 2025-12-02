@@ -11,7 +11,7 @@
       <ol class="flex items-center gap-2 text-sm text-[#a6a6b0]">
         <li><a href="{{ route('home') }}" class="hover:text-[#F53003] transition-colors">Trang chủ</a></li>
         <li><i class="fas fa-chevron-right text-xs"></i></li>
-        <li><a href="{{ route('public.movies') }}" class="hover:text-[#F53003] transition-colors">Phim</a></li>
+        <li><a href="{{ route('movies.index') }}" class="hover:text-[#F53003] transition-colors">Phim</a></li>
         <li><i class="fas fa-chevron-right text-xs"></i></li>
         <li class="text-white">{{ $movie->ten_phim }}</li>
       </ol>

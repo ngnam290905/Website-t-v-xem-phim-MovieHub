@@ -58,16 +58,6 @@
 
     {{-- 3. Card chính (Lọc + Bảng) --}}
 
-        <div class="text-green-400 text-sm bg-green-900/30 px-3 py-2 rounded mb-4">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if (session('error'))
-        <div class="text-red-400 text-sm bg-red-900/30 px-3 py-2 rounded mb-4">
-            {{ session('error') }}
-        </div>
-    @endif
-
     <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <h2 class="text-xl font-semibold text-white flex items-center gap-2">
@@ -153,108 +143,6 @@
                 </div>
             </form>
         </div>
-
-        @if ($bookings->isEmpty())
-
-            <div class="text-center text-gray-400 py-16 border border-dashed border-[#262833] rounded-xl bg-[#1a1d26]/50">
-                <i class="fas fa-search text-4xl mb-3 text-gray-600"></i>
-
-            <div class="text-center text-gray-400 py-10 border border-dashed border-[#262833] rounded-xl">
-                <p>Chưa có dữ liệu đặt vé. Kiểm tra database hoặc chạy seeder.</p>
-    {{-- 2. Thống kê nhanh --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
-        {{-- Thẻ "Tất cả" --}}
-        <a href="{{ route('admin.bookings.index') }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-blue-500 transition 
-                   {{ !request('status') ? 'border-blue-500 ring-1 ring-blue-500' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Tổng đơn</div>
-            <div class="text-2xl font-bold text-white mt-1">{{ $totalBookings ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 0]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-yellow-400 transition 
-                   {{ request('status') == '0' ? 'border-yellow-400 ring-1 ring-yellow-400' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Chờ xác nhận</div>
-            <div class="text-2xl font-bold text-yellow-400 mt-1">{{ $pendingCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 1]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-green-400 transition 
-                   {{ request('status') == '1' ? 'border-green-400 ring-1 ring-green-400' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Đã xác nhận</div>
-            <div class="text-2xl font-bold text-green-400 mt-1">{{ $confirmedCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 3]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-orange-300 transition 
-                   {{ request('status') == '3' ? 'border-orange-300 ring-1 ring-orange-300' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Yêu cầu hủy</div>
-            <div class="text-2xl font-bold text-orange-300 mt-1">{{ $requestCancelCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 2]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-red-400 transition 
-                   {{ request('status') == '2' ? 'border-red-400 ring-1 ring-red-400' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Đã hủy</div>
-            <div class="text-2xl font-bold text-red-400 mt-1">{{ $canceledCount ?? 0 }}</div>
-        </a>
-
-        <a href="{{ route('admin.bookings.index', ['status' => 'expired']) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-4 hover:border-gray-500 transition 
-                   {{ request('status') == 'expired' ? 'border-gray-500 ring-1 ring-gray-500' : '' }}">
-            <div class="text-sm text-[#a6a6b0]">Đã hết hạn</div>
-            <div class="text-2xl font-bold text-gray-500 mt-1">{{ $expiredCount ?? 0 }}</div>
-        </a>
-
-        <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
-            <div class="text-sm text-[#a6a6b0]">Doanh thu hôm nay</div>
-            <div class="text-2xl font-bold text-blue-400 mt-1">{{ number_format($revenueToday ?? 0) }} VNĐ</div>
-        </div>
-    </div>
-
-    {{-- 3. Card chính (Lọc + Bảng) --}}
-    <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold">🎟️ Danh sách Đặt Vé</h2>
-        </div>
-
-        {{-- Bộ lọc --}}
-        <form method="GET" action="{{ route('admin.bookings.index') }}"
-            class="w-full flex flex-wrap items-end gap-3 mb-6">
-            {{-- Lọc theo trạng thái --}}
-            <div>
-                <label class="block text-xs text-[#a6a6b0] mb-1">Trạng thái</label>
-                <select name="status"
-                    class="w-48 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300">
-                    <option value="">-- Tất cả trạng thái --</option>
-                    <option value="0" {{ request('status') == '0' ? 'selected' : '' }}>Chờ xác nhận</option>
-                    <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Đã xác nhận</option>
-                    <option value="3" {{ request('status') == '3' ? 'selected' : '' }}>Yêu cầu hủy</option>
-                    <option value="2" {{ request('status') == '2' ? 'selected' : '' }}>Đã hủy</option>
-                    <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Đã hết hạn</option>
-                </select>
-            </div>
-            {{-- Lọc theo phim --}}
-            <div>
-                <label class="block text-xs text-[#a6a6b0] mb-1">Phim</label>
-                <input type="text" name="phim" value="{{ request('phim') }}" placeholder="Tên phim..."
-                    class="w-56 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300 placeholder-gray-500">
-            </div>
-            {{-- Lọc theo người dùng --}}
-            <div>
-                <label class="block text-xs text-[#a6a6b0] mb-1">Người dùng</label>
-                <input type="text" name="nguoi_dung" value="{{ request('nguoi_dung') }}"
-                    placeholder="Tên, email, hoặc SĐT..."
-                    class="w-56 bg-[#1b1e28] border border-[#262833] rounded-lg text-sm px-3 py-2 text-gray-300 placeholder-gray-500">
-            </div>
-            <button type="submit"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition flex items-center gap-2">
-                <i class="fas fa-search"></i> Tìm kiếm
-            </button>
-            @if (request()->hasAny(['status', 'phim', 'nguoi_dung']))
-                <a href="{{ route('admin.bookings.index') }}"
-                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-white transition">
-                    Xóa bộ lọc
-                </a>
-            @endif
-        </form>
-
         {{-- Bảng dữ liệu --}}
         @if ($bookings->isEmpty())
             <div class="text-center text-gray-400 py-10 border border-dashed border-[#262833] rounded-xl">
@@ -273,16 +161,7 @@
                             <th class="px-4 py-3">Chi tiết đặt chỗ</th>
                             <th class="px-4 py-3">Thanh toán</th>
                             <th class="px-4 py-3 text-center">Trạng thái</th>
-                            <th class="px-4 py-3 text-center sticky right-0 bg-[#1b1e28]">Hành động</th>
-
-                            <th class="px-4 py-3">Mã ĐV</th>
-                            <th class="px-4 py-3">Khách hàng</th>
-                            <th class="px-4 py-3">Phim / Suất chiếu</th>
-                            <th class="px-4 py-3">Ghế & Combo</th>
-                            <th class="px-4 py-3">Thanh toán</th>
-                            <th class="px-4 py-3">Trạng thái Vé</th>
-                            <th class="px-4 py-3">Thời gian đặt</th>
-                            <th class="px-4 py-3 text-center">Hành động</th>
+                            <th class="px-4 py-3 text-center sticky right-0 bg-[#1b1e28] z-20">Hành động</th>
 
                         </tr>
                     </thead>
@@ -325,135 +204,11 @@
                                     @else
                                         <span class="text-gray-500 italic">Khách vãng lai</span>
                                     @endif
-
-                                // Kiểm tra vé hết hạn suất chiếu
-                                $isExpired = $booking->suatChieu?->thoi_gian_bat_dau < now();
-                                // Vé có thể chỉnh sửa
-                                $isEditable = $booking->trang_thai != 2 && !$isExpired;
-                            @endphp
-                            <tr class="hover:bg-[#1b1e28]/70 transition">
-                                <td class="px-4 py-3 font-medium">#{{ $booking->id }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-gray-200">{{ $booking->nguoiDung->ho_ten ?? 'N/A' }}
-                                    </div>
-                                    <div class="text-xs text-gray-400">{{ $booking->nguoiDung->email ?? '' }}</div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="text-gray-200">{{ $booking->suatChieu?->phim?->ten_phim ?? 'N/A' }}
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        {{ $booking->suatChieu?->thoi_gian_bat_dau?->format('d/m/Y H:i') ?? 'N/A' }}
-                                        • {{ $booking->suatChieu?->phongChieu?->ten_phong ?? 'N/A' }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    @php
-                                        $seatLabels = $booking->chiTietDatVe
-                                            ->map(fn($d) => optional($d->ghe)->so_ghe)
-                                            ->filter()
-                                            ->implode(', ');
-                                        $comboLabels = $booking->chiTietCombo
-                                            ->map(function ($c) {
-                                                $name = $c->combo->ten ?? '—';
-                                                $qty = $c->so_luong > 1 ? ' × ' . $c->so_luong : ' × 1';
-                                                return $name . $qty;
-                                            })
-                                            ->filter()
-                                            ->implode(', ');
-                                    @endphp
-                                    <div class="font-medium text-gray-300">Ghế: {{ $seatLabels ?: 'N/A' }}</div>
-                                    <div class="text-xs text-gray-400">Combo: {{ $comboLabels ?: 'Không' }}</div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-green-400">
-                                        {{ number_format($booking->thanhToan?->so_tien ?? 0) }} VNĐ
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        {{ $booking->thanhToan?->phuong_thuc ?? 'Chưa TT' }}
-                                        @if (optional($booking->thanhToan)->trang_thai === 1)
-                                            <span class="text-green-500">(Thành công)</span>
-                                        @else
-                                            <span class="text-yellow-500">(Chưa XN)</span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    @switch($booking->trang_thai)
-                                        @case(0)
-                                            <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs">Chờ thanh toán</span>
-                                            @break
-                                        @case(1)
-                                            @php
-                                                $pt = $booking->phuong_thuc_thanh_toan;
-                                                if (!$pt) {
-                                                    $map = optional($booking->thanhToan)->phuong_thuc;
-                                                    $pt = $map === 'online' ? 1 : ($map === 'offline' ? 2 : null);
-                                                }
-                                                $pt = $pt ? (int)$pt : 2;
-                                            @endphp
-                                            @if($pt === 1)
-                                                <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã thanh toán</span>
-                                            @else
-                                                <span class="px-2 py-1 text-blue-400 bg-blue-900/30 rounded-full text-xs">Đã xác nhận</span>
-                                            @endif
-                                            @break
-                                        @case(3)
-                                            <span class="px-2 py-1 text-orange-300 bg-orange-900/30 rounded-full text-xs">Yêu cầu hủy</span>
-                                            @break
-                                        @case(2)
-                                            <span class="px-2 py-1 text-red-400 bg-red-900/30 rounded-full text-xs">Đã hủy</span>
-                                            @break
-                                        @default
-                                            <span class="px-2 py-1 text-gray-400 bg-gray-800 rounded-full text-xs">Không xác định</span>
-                                            {{-- LOGIC: Đếm ngược 5 phút cho vé Tiền mặt --}}
-                                            @php
-                                                $isCash =
-                                                    optional($booking->thanhToan)->phuong_thuc == 'Tiền mặt' ||
-                                                    empty($booking->thanhToan);
-                                                $expireTime = $booking->created_at->addMinutes(1    );
-                                                $isOver = now()->greaterThan($expireTime);
-                                            @endphp
-
-                                            <div class="flex flex-col gap-1">
-                                                <span class="px-2 py-1 text-yellow-400 bg-yellow-900/30 rounded-full text-xs w-fit">
-                                                    Chờ xác nhận
-                                                </span>
-                                                @if ($isCash && !$isOver)
-                                                    <span class="text-xs font-bold text-red-400 countdown-timer"
-                                                        data-expire="{{ $expireTime->format('Y-m-d H:i:s') }}">
-                                                        Đang tính giờ...
-                                                    </span>
-                                                @elseif($isCash && $isOver)
-                                                    <span class="text-xs text-gray-500 italic">Đang hủy...</span>
-                                                @endif
-                                            </div>
-                                        @break
-
-                                        @case(1)
-                                            @if ($isExpired)
-                                                <span class="px-2 py-1 text-gray-400 bg-gray-800/50 rounded-full text-xs">Đã hết
-                                                    hạn</span>
-                                            @else
-                                                <span class="px-2 py-1 text-green-400 bg-green-900/30 rounded-full text-xs">Đã xác
-                                                    nhận</span>
-                                            @endif
-                                        @break
-
-                                        @case(3)
-                                            <span class="px-2 py-1 text-orange-300 bg-orange-900/30 rounded-full text-xs">Yêu cầu
-                                                hủy</span>
-                                        @break
-
-                                        @case(2)
-                                            <span class="px-2 py-1 text-red-400 bg-red-900/30 rounded-full text-xs">Đã hủy</span>
-                                        @break
-                                    @endswitch
-
                                 </td>
 
-                                {{-- Cột 3: Phim --}}
+                                {{-- Cột 3: Phim & Suất chiếu --}}
                                 <td class="px-4 py-3 align-top">
-                                    <div class="font-medium text-blue-300 mb-1 max-w-[200px] truncate"
+                                    <div class="font-medium text-blue-300 mb-1 max-w-[220px] truncate"
                                         title="{{ $booking->suatChieu?->phim?->ten_phim }}">
                                         {{ $booking->suatChieu?->phim?->ten_phim ?? 'Phim đã xóa' }}
                                     </div>
@@ -466,44 +221,26 @@
                                         {{ $booking->suatChieu?->phongChieu?->ten_phong ?? 'Phòng ?' }}
                                     </div>
                                 </td>
-                                    <div class="flex items-center justify-center gap-2">
-                                        {{-- 1. Nút XÁC NHẬN --}}
-                                        @if ($booking->trang_thai == 0)
-                                            <form action="{{ route('admin.bookings.update', $booking->id) }}"
-                                                method="POST">
-                                                @csrf @method('PUT')
-                                                <input type="hidden" name="trang_thai" value="1">
-                                                <button type="submit" title="Xác nhận vé"
-                                                    class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group">
-                                                    <i class="fas fa-check text-green-500 group-hover:text-green-400"></i>
-                                                </button>
-                                            </form>
 
-
-                                {{-- Cột 4: Chi tiết --}}
-                                <td class="px-4 py-3 align-top max-w-[250px]">
+                                {{-- Cột 4: Chi tiết đặt chỗ --}}
+                                <td class="px-4 py-3 align-top max-w-[260px]">
                                     <div class="mb-2">
-                                        @if ($booking->chiTietDatVe->count() > 0)
+                                        @if ($booking->chiTietDatVe && $booking->chiTietDatVe->count() > 0)
                                             <div class="flex flex-wrap gap-1">
                                                 @foreach ($booking->chiTietDatVe as $detail)
                                                     @php
                                                         $loaiGhe = $detail->ghe->loaiGhe->ten_loai ?? '';
                                                         $isVip = stripos($loaiGhe, 'vip') !== false;
-                                                        $isCouple =
-                                                            stripos($loaiGhe, 'đôi') !== false ||
-                                                            stripos($loaiGhe, 'couple') !== false;
+                                                        $isCouple = stripos($loaiGhe, 'đôi') !== false || stripos($loaiGhe, 'couple') !== false;
                                                         $badgeColor = 'bg-gray-700 text-gray-300';
                                                         if ($isVip) {
-                                                            $badgeColor =
-                                                                'bg-yellow-900/40 text-yellow-400 border border-yellow-700/50';
+                                                            $badgeColor = 'bg-yellow-900/40 text-yellow-400 border border-yellow-700/50';
                                                         }
                                                         if ($isCouple) {
-                                                            $badgeColor =
-                                                                'bg-pink-900/40 text-pink-400 border border-pink-700/50';
+                                                            $badgeColor = 'bg-pink-900/40 text-pink-400 border border-pink-700/50';
                                                         }
                                                     @endphp
-                                                    <span class="text-[11px] px-1.5 py-0.5 rounded {{ $badgeColor }}"
-                                                        title="{{ $loaiGhe }}">
+                                                    <span class="text-[11px] px-1.5 py-0.5 rounded {{ $badgeColor }}" title="{{ $loaiGhe }}">
                                                         {{ $detail->ghe->so_ghe ?? '?' }}
                                                     </span>
                                                 @endforeach
@@ -512,12 +249,12 @@
                                             <span class="text-xs text-gray-500 italic">Không có ghế</span>
                                         @endif
                                     </div>
-                                    @if ($booking->chiTietCombo->count() > 0)
+
+                                    @if ($booking->chiTietCombo && $booking->chiTietCombo->count() > 0)
                                         <div class="border-t border-gray-700/50 pt-1 mt-1">
                                             @foreach ($booking->chiTietCombo as $detail)
-                                                <div class="text-xs text-gray-400">
-                                                    + {{ $detail->combo->ten ?? 'Combo cũ' }}
-                                                    <span class="text-white">x{{ $detail->so_luong }}</span>
+                                                <div class="text-xs text-gray-400 truncate" title="{{ $detail->combo->ten ?? 'Combo' }} x{{ $detail->so_luong }}">
+                                                    + {{ $detail->combo->ten ?? 'Combo' }} <span class="text-white">x{{ $detail->so_luong }}</span>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -526,9 +263,29 @@
 
                                 {{-- Cột 5: Thanh toán --}}
                                 <td class="px-4 py-3 align-top">
+                                    @php
+                                        // Tính tổng tiền để hiển thị: ưu tiên thanhToan->so_tien, sau đó tong_tien, cuối cùng là tính toán
+                                        $comboItems = $booking->chiTietCombo ?? collect();
+                                        $promo = $booking->khuyenMai ?? null;
+                                        $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong); });
+                                        $seatTotal = (float) ($booking->chiTietDatVe ? $booking->chiTietDatVe->sum('gia') : 0);
+                                        $subtotal = $seatTotal + $comboTotal;
+                                        $promoDiscount = 0;
+                                        if ($promo) {
+                                            $type = strtolower($promo->loai_giam);
+                                            $val  = (float)($promo->gia_tri_giam);
+                                            if ($type === 'phantram') { $promoDiscount = round($subtotal * ($val/100)); }
+                                            else { $promoDiscount = ($val >= 1000) ? $val : $val * 1000; }
+                                        }
+                                        $calculated = max(0, $subtotal - $promoDiscount);
+                                        $paidTotal = optional($booking->thanhToan)->so_tien;
+                                        $storedTotal = $booking->tong_tien ?? null;
+                                        $displayTotal = is_numeric($paidTotal) && $paidTotal > 0
+                                            ? (float)$paidTotal
+                                            : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)$calculated);
+                                    @endphp
                                     <div class="font-bold text-green-400 whitespace-nowrap">
-                                        {{ number_format($booking->tong_tien > 0 ? $booking->tong_tien : $booking->thanhToan->so_tien ?? 0) }}
-                                        đ
+                                        {{ number_format($displayTotal, 0) }} đ
                                     </div>
                                     <div class="text-xs text-gray-400 mt-1">
                                         {{ $booking->thanhToan->phuong_thuc ?? 'Chưa chọn TT' }}
@@ -609,7 +366,7 @@
 
                                 {{-- Cột 7: Hành động --}}
                                 <td
-                                    class="px-4 py-3 align-middle text-center sticky right-0 bg-[#1b1e28] group-hover:bg-[#232732] transition-colors border-l border-[#262833]">
+                                    class="px-4 py-3 align-middle text-center sticky right-0 bg-[#1b1e28] group-hover:bg-[#232732] transition-colors border-l border-[#262833] z-10 relative">
                                     <div class="flex items-center justify-center gap-2">
                                         <a href="{{ route('admin.bookings.show', $booking->id) }}"
                                             class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition"
@@ -690,7 +447,6 @@
                                         </a>
 
                                         {{-- 5. Nút SỬA --}}
-                                        @auth
                                             @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $isEditable)
                                                 <a href="{{ route('admin.bookings.edit', $booking->id) }}"
                                                     class="p-2 rounded-lg hover:bg-gray-700/50 transition-colors duration-200 group"
@@ -715,14 +471,8 @@
 
             <div class="mt-6 px-2">
                 {{ $bookings->links('pagination::tailwind') }}
-
-
-            <div class="mt-6">
-                {{ $bookings->links('pagination.custom') }}
-
-            </div>
-        @endif
-    </div>
+            @endif
+        </div>
 
 
 

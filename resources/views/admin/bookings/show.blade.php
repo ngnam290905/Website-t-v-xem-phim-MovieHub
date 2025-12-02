@@ -24,8 +24,12 @@
             if ($discount > $base) $discount = $base;
         }
         
-        // Tổng tiền cuối cùng (ưu tiên lấy từ DB)
-        $total = $booking->tong_tien ?? max(0, $seatTotal + $comboTotal);
+        // Tổng tiền cuối cùng (ưu tiên số tiền đã thanh toán -> tổng lưu trong booking -> tính toán)
+        $base = $seatTotal + $comboTotal;
+        $calculated = max(0, $base - $discount);
+        $paid = optional($booking->thanhToan)->so_tien;
+        $stored = $booking->tong_tien;
+        $total = is_numeric($paid) && $paid > 0 ? (float)$paid : (is_numeric($stored) && $stored > 0 ? (float)$stored : (float)$calculated);
     @endphp
 
     <div class="space-y-6">

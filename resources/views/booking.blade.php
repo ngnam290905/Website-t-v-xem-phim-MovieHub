@@ -42,7 +42,7 @@
         <div class="max-w-7xl mx-auto px-4 py-6">
             <div class="grid lg:grid-cols-3 gap-6">
                 <!-- Left Column - Movie Info and Seat Selection -->
-                <div class="lg:col-span-2 space-y-6">
+                <div id="main-left" class="lg:col-span-2 space-y-6">
                     <!-- Movie Info -->
                     <div class="bg-gray-900 rounded-lg p-6">
                         <div class="flex gap-6">
@@ -61,8 +61,85 @@
                             </div>
                         </div>
 
-        <!-- Right Column - Payment Summary -->
-        <div class="space-y-6">
+                    <!-- Date & Showtime Selection (Primary) -->
+                    <div class="bg-gray-900 rounded-lg p-6 mt-6">
+                        <h3 class="text-lg font-semibold mb-4">Chọn ngày</h3>
+                        <div id="datePicker" class="flex gap-3 overflow-x-auto pb-2"></div>
+
+                        <h3 class="text-lg font-semibold mt-6 mb-4">Chọn suất chiếu</h3>
+                        <div id="showtimesContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="col-span-full text-center py-8">
+                                <p class="text-gray-400">Vui lòng chọn ngày để xem suất chiếu</p>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                    (function(){
+                      try {
+                        const dp = document.getElementById('datePicker');
+                        const stc = document.getElementById('showtimesContainer');
+                        const mid = {!! json_encode($movie->id ?? null) !!};
+                        if (!dp || !stc || !mid) return;
+                        stc.style.display = 'none';
+                        const dayVi = d => (
+                          d==='Monday'?'Thứ 2': d==='Tuesday'?'Thứ 3': d==='Wednesday'?'Thứ 4': d==='Thursday'?'Thứ 5': d==='Friday'?'Thứ 6': d==='Saturday'?'Thứ 7':'Chủ nhật'
+                        );
+                        let sel = new Date().toISOString().slice(0,10);
+                        function btnHtml(date){
+                          return '<div class="text-center">\
+                            <div class="text-[11px] opacity-75">'+dayVi(date.day_name)+'</div>\
+                            <div class="font-semibold mt-1">'+(date.is_today?'Hôm nay':(date.is_tomorrow?'Ngày mai':date.formatted))+'</div>\
+                          </div>';
+                        }
+                        function mkFallback(){
+                          const arr=[]; const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                          for(let i=0;i<7;i++){const d=new Date(); d.setDate(d.getDate()+i); const y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), dd=('0'+d.getDate()).slice(-2);
+                            arr.push({date:`${y}-${m}-${dd}`, formatted:`${dd}/${m}/${y}`, day_name:names[d.getDay()], is_today:i===0, is_tomorrow:i===1});}
+                          return arr;
+                        }
+                        function renderDates(list){
+                          dp.innerHTML='';
+                          list.forEach(date=>{
+                            const b=document.createElement('button');
+                            b.type='button';
+                            const active=date.date===sel;
+                            b.className=`flex-shrink-0 px-4 py-2 rounded-lg border text-sm transition ${active?'bg-red-600 border-red-600 text-white':'bg-gray-800 border-gray-700 text-gray-300 hover:border-red-600'}`;
+                            b.innerHTML=btnHtml(date);
+                            b.onclick=()=>{ sel=date.date; renderDates(list); stc.style.display=''; loadShowtimes(sel); };
+                            dp.appendChild(b);
+                          });
+                        }
+                        async function loadDates(){
+                          // First render fallback immediately for UX
+                          renderDates(mkFallback());
+                          try {
+                            const r=await fetch(`/api/booking/movie/${mid}/dates`);
+                            const j=await r.json().catch(()=>({success:false}));
+                            if (j && j.success && Array.isArray(j.data) && j.data.length) {
+                              renderDates(j.data);
+                            }
+                          } catch(e){ /* keep fallback */ }
+                        }
+                        async function loadShowtimes(dateStr){
+                          try {
+                            stc.innerHTML = '<div class="col-span-full text-center py-8"><p class="text-gray-400">Đang tải suất chiếu...</p></div>';
+                            const r=await fetch(`/api/booking/movie/${mid}/showtimes?date=${encodeURIComponent(dateStr)}`);
+                            const j=await r.json().catch(()=>({success:false,data:[]}));
+                            if(!j.success || !Array.isArray(j.data) || j.data.length===0){
+                              stc.innerHTML = '<div class="col-span-full text-center py-8"><p class="text-gray-400">Không có suất chiếu</p></div>';
+                              return;
+                            }
+                            stc.innerHTML='';
+                            j.data.forEach(st=>{ const btn=document.createElement('button'); btn.type='button'; btn.className='border border-gray-700 rounded-lg p-3 text-center hover:border-red-600 hover:bg-red-600/20 transition'; btn.innerHTML=`<div class="font-semibold">${st.time}</div><div class="text-xs text-gray-400">${st.room_name||''}</div>`; btn.onclick=()=>{ window.location.href=`/shows/${st.id}/seats`; }; stc.appendChild(btn); });
+                          } catch(e){ stc.innerHTML = '<div class="col-span-full text-center py-8"><p class="text-gray-400">Không thể tải suất chiếu</p></div>'; }
+                        }
+                        loadDates();
+                      } catch(_){}
+                    })();
+                    </script>
+
+                <!-- Right Column - Payment Summary -->
+        <div id="legacy-summary" class="space-y-6" style="display:none;">
           <!-- Summary -->
           <div class="bg-gray-900 rounded-lg p-6 sticky top-6">
             <h3 class="text-lg font-semibold mb-4">Thông tin đặt vé</h3>
@@ -161,34 +238,22 @@
 
                     </div>
 
-                    <!-- Showtime Selection -->
+                    @if(false)
+                    <!-- Date & Showtime Selection -->
                     <div class="bg-gray-900 rounded-lg p-6">
-                        <h3 class="text-lg font-semibold mb-4">Chọn suất chiếu</h3>
-                        @if (isset($showtimes) && count($showtimes) > 0)
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                @foreach ($showtimes as $index => $st)
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="showtime" value="{{ $st['id'] }}"
-                                            class="sr-only peer" {{ $index === 0 ? 'checked' : '' }}>
-                                        <div
-                                            class="border border-gray-700 rounded-lg p-3 text-center peer-checked:border-red-600 peer-checked:bg-red-600/20 hover:border-gray-600 transition">
-                                            <p class="font-semibold">{{ $st['time'] }}</p>
-                                            <p class="text-sm text-gray-400">{{ $st['date'] }}</p>
-                                            <p class="text-xs text-gray-500">{{ $st['room'] ?? '' }}</p>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            </div>
-                        @else
-                            <div class="text-center py-8">
-                                <p class="text-gray-400 mb-2">Không có suất chiếu nào cho phim này</p>
-                                <p class="text-sm text-gray-500">Vui lòng chọn phim khác hoặc quay lại sau</p>
-                                <a href="{{ route('home') }}" class="inline-block mt-4 text-red-500 hover:text-red-400">←
-                                    Quay lại trang chủ</a>
-                            </div>
-                        @endif
-                    </div>
+                        <h3 class="text-lg font-semibold mb-4">Chọn ngày</h3>
+                        <div id="datePicker" class="flex gap-3 overflow-x-auto pb-2"></div>
 
+                        <h3 class="text-lg font-semibold mt-6 mb-4">Chọn suất chiếu</h3>
+                        <div id="showtimesContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="col-span-full text-center py-8">
+                                <p class="text-gray-400">Vui lòng chọn ngày để xem suất chiếu</p>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    @if(false)
                     <!-- Screen -->
                     <div class="text-center py-4">
                         <div
@@ -199,7 +264,7 @@
                             </div>
                         </div>
                     </div>
-
+                    
                     <!-- Seat Map -->
                     <div class="bg-gray-900 rounded-lg p-6">
                         @php
@@ -311,9 +376,10 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
+                    @endif
+                
                 <!-- Right Column - Payment Summary -->
+                @if(false)
                 <div class="space-y-6">
                     <!-- Summary -->
                     <div class="bg-gray-900 rounded-lg p-6 sticky top-6">
@@ -469,6 +535,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -501,6 +568,167 @@
             const totalPrice = document.getElementById('total-price');
             const comboRadios = document.querySelectorAll('input[name="combo"]');
             const promoSelect = document.getElementById('promotion');
+
+            // New: Dynamic dates & showtimes (runs only if elements exist)
+            const datePicker = document.getElementById('datePicker');
+            const showtimesContainer = document.getElementById('showtimesContainer');
+            const legacySummary = document.getElementById('legacy-summary');
+            const mainLeft = document.getElementById('main-left');
+            function updateLayout() {
+                try {
+                    if (!mainLeft || !legacySummary) return;
+                    const hidden = legacySummary.style.display === 'none' || getComputedStyle(legacySummary).display === 'none';
+                    if (hidden) {
+                        mainLeft.classList.add('lg:col-span-3');
+                        mainLeft.classList.remove('lg:col-span-2');
+                    } else {
+                        mainLeft.classList.remove('lg:col-span-3');
+                        mainLeft.classList.add('lg:col-span-2');
+                    }
+                } catch (e) {}
+            }
+            const movieId = {!! json_encode($movie->id ?? null) !!};
+            let selectedDate = (new Date()).toISOString().slice(0,10);
+
+            if (datePicker && showtimesContainer && movieId) {
+                // Initial: show only date picker
+                showtimesContainer.style.display = 'none';
+                loadAvailableDates();
+                updateLayout();
+            }
+
+            async function loadAvailableDates() {
+                try {
+                    const res = await fetch(`/api/booking/movie/${movieId}/dates`);
+                    const result = await res.json();
+
+                    // Use API dates if available, else fallback to next 7 days
+                    let dates = Array.isArray(result?.data) && result.success && result.data.length > 0
+                        ? result.data
+                        : (() => {
+                              const arr = [];
+                              const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                              for (let i = 0; i < 7; i++) {
+                                  const d = new Date();
+                                  d.setDate(d.getDate() + i);
+                                  const yyyy = d.getFullYear();
+                                  const mm = String(d.getMonth()+1).padStart(2,'0');
+                                  const dd = String(d.getDate()).padStart(2,'0');
+                                  arr.push({
+                                      date: `${yyyy}-${mm}-${dd}`,
+                                      formatted: `${dd}/${mm}/${yyyy}`,
+                                      day_name: dayNames[d.getDay()],
+                                      is_today: i === 0,
+                                      is_tomorrow: i === 1,
+                                  });
+                              }
+                              return arr;
+                          })();
+
+                    datePicker.innerHTML = '';
+                    dates.forEach(date => {
+                        const btn = document.createElement('button');
+                        const isActive = date.date === selectedDate;
+                        btn.className = `flex-shrink-0 px-4 py-2 rounded-lg border text-sm transition ${isActive ? 'bg-red-600 border-red-600 text-white' : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-red-600'}`;
+                        btn.innerHTML = `
+                            <div class="text-center">
+                              <div class="text-[11px] opacity-75">${date.day_name === 'Monday' ? 'Thứ 2' :
+                                date.day_name === 'Tuesday' ? 'Thứ 3' :
+                                date.day_name === 'Wednesday' ? 'Thứ 4' :
+                                date.day_name === 'Thursday' ? 'Thứ 5' :
+                                date.day_name === 'Friday' ? 'Thứ 6' :
+                                date.day_name === 'Saturday' ? 'Thứ 7' : 'Chủ nhật'}</div>
+                              <div class="font-semibold mt-1">${date.is_today ? 'Hôm nay' : (date.is_tomorrow ? 'Ngày mai' : date.formatted)}</div>
+                            </div>`;
+                        btn.onclick = () => {
+                            selectedDate = date.date;
+                            loadAvailableDates();
+                            // Reveal and load showtimes after a date is chosen
+                            showtimesContainer.style.display = '';
+                            loadShowtimes(selectedDate);
+                            updateLayout();
+                        };
+                        datePicker.appendChild(btn);
+                    });
+                } catch (e) {
+                    console.error('Load dates error', e);
+                    // Fallback on error
+                    try {
+                        const fake = [];
+                        const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                        for (let i = 0; i < 7; i++) {
+                            const d = new Date();
+                            d.setDate(d.getDate() + i);
+                            const yyyy = d.getFullYear();
+                            const mm = String(d.getMonth()+1).padStart(2,'0');
+                            const dd = String(d.getDate()).padStart(2,'0');
+                            fake.push({
+                                date: `${yyyy}-${mm}-${dd}`,
+                                formatted: `${dd}/${mm}/${yyyy}`,
+                                day_name: dayNames[d.getDay()],
+                                is_today: i === 0,
+                                is_tomorrow: i === 1,
+                            });
+                        }
+                        datePicker.innerHTML = '';
+                        fake.forEach(date => {
+                            const btn = document.createElement('button');
+                            const isActive = date.date === selectedDate;
+                            btn.className = `flex-shrink-0 px-4 py-2 rounded-lg border text-sm transition ${isActive ? 'bg-red-600 border-red-600 text-white' : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-red-600'}`;
+                            btn.innerHTML = `
+                                <div class="text-center">
+                                  <div class="text-[11px] opacity-75">${date.day_name === 'Monday' ? 'Thứ 2' :
+                                    date.day_name === 'Tuesday' ? 'Thứ 3' :
+                                    date.day_name === 'Wednesday' ? 'Thứ 4' :
+                                    date.day_name === 'Thursday' ? 'Thứ 5' :
+                                    date.day_name === 'Friday' ? 'Thứ 6' :
+                                    date.day_name === 'Saturday' ? 'Thứ 7' : 'Chủ nhật'}</div>
+                                  <div class="font-semibold mt-1">${date.is_today ? 'Hôm nay' : (date.is_tomorrow ? 'Ngày mai' : date.formatted)}</div>
+                                </div>`;
+                            btn.onclick = () => {
+                                selectedDate = date.date;
+                                loadAvailableDates();
+                                showtimesContainer.style.display = '';
+                                loadShowtimes(selectedDate);
+                            };
+                            datePicker.appendChild(btn);
+                        });
+                    } catch (_) {}
+                }
+            }
+
+            async function loadShowtimes(dateStr) {
+                try {
+                    showtimesContainer.innerHTML = `<div class="col-span-full text-center py-8"><p class="text-gray-400">Đang tải suất chiếu...</p></div>`;
+                    const res = await fetch(`/api/booking/movie/${movieId}/showtimes?date=${encodeURIComponent(dateStr)}`);
+                    const result = await res.json();
+                    if (!result.success) {
+                        showtimesContainer.innerHTML = `<div class=\"col-span-full text-center py-8\"><p class=\"text-gray-400\">Không có suất chiếu</p></div>`;
+                        return;
+                    }
+                    if (!Array.isArray(result.data) || result.data.length === 0) {
+                        showtimesContainer.innerHTML = `<div class=\"col-span-full text-center py-8\"><p class=\"text-gray-400\">Không có suất chiếu</p></div>`;
+                        return;
+                    }
+                    showtimesContainer.innerHTML = '';
+                    result.data.forEach(st => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'border border-gray-700 rounded-lg p-3 text-center hover:border-red-600 hover:bg-red-600/20 transition';
+                        btn.innerHTML = `
+                          <div class="font-semibold">${st.time}</div>
+                          <div class="text-xs text-gray-400">${st.room_name || ''}</div>
+                        `;
+                        btn.onclick = () => {
+                            window.location.href = `/shows/${st.id}/seats`;
+                        };
+                        showtimesContainer.appendChild(btn);
+                    });
+                } catch (e) {
+                    console.error('Load showtimes error', e);
+                    showtimesContainer.innerHTML = `<div class=\"col-span-full text-center py-8\"><p class=\"text-gray-400\">Không thể tải suất chiếu</p></div>`;
+                }
+            }
 
             // Global safety: prevent accidental GET navigation to select-seats API
             document.addEventListener('click', function(e) {

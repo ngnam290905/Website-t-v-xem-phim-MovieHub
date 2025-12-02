@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin - MovieHub')</title>
+    <script>
+      // Defensive shim for external/minified scripts that may expect globals
+      (function(){
+        if (typeof window === 'undefined') return;
+        if (typeof window.timer === 'undefined') {
+          window.timer = null;
+        }
+        if (typeof window.updateTime !== 'function') {
+          window.updateTime = function(){ /* no-op */ };
+        }
+      })();
+    </script>
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
       @vite(['resources/css/app.css','resources/js/app.js'])
     @else

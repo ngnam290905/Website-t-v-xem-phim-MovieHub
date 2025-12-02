@@ -38,7 +38,7 @@
   </div>
 
   <div class="mt-6 flex gap-2">
-    @if(auth()->user() && optional(auth()->user()->vaiTro)->ten === 'admin')
+    @if(auth()->user() && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
       <a href="{{ route('admin.combos.edit', $combo) }}" class="px-3 py-2 bg-yellow-500/80 hover:bg-yellow-500 rounded text-black text-sm">Sửa</a>
       <form action="{{ route('admin.combos.destroy', $combo) }}" method="POST" onsubmit="return confirm('Xóa combo này?')">
         @csrf

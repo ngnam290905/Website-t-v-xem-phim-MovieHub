@@ -59,6 +59,15 @@ class ComboController extends Controller
 
     public function destroy(Combo $combo)
     {
+        // Prevent deleting combos that have been used in bookings
+        $hasRelatedBookings = $combo->bookingCombos()->exists()
+            || DB::table('chi_tiet_dat_ve_combo')->where('id_combo', $combo->id)->exists();
+
+        if ($hasRelatedBookings) {
+            return redirect()->route('admin.combos.index')
+                ->with('error', 'Không thể xóa combo vì đã có giao dịch liên quan.');
+        }
+
         $combo->delete();
         return redirect()->route('admin.combos.index')->with('success', 'Đã xóa combo.');
     }

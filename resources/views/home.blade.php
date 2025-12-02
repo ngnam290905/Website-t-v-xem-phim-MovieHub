@@ -33,7 +33,7 @@
         </div>
         <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0d0f14] to-transparent"></div>
     </section>
-
+    
 <!-- Ticket Check Section (#ve) -->
 <section id="ticket-check" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70">
   <div class="w-[min(720px,92vw)] rounded-2xl border border-[#262833] bg-[#10131a] shadow-2xl overflow-hidden">

@@ -123,10 +123,18 @@
                                     <span class="px-2 py-1 rounded-full text-xs font-medium text-gray-300 bg-gray-800">—</span>
                                 @endif
                             </div>
-                            @php $computedTotal = max(0, $subtotal - $promoDiscount); @endphp
+                            @php 
+                                // Prefer authoritative totals if available
+                                $paidTotal = optional($booking->thanhToan)->so_tien; 
+                                $storedTotal = $booking->tong_tien ?? null; 
+                                $computedTotal = max(0, $subtotal - $promoDiscount);
+                                $displayTotal = is_numeric($paidTotal) && $paidTotal > 0 
+                                    ? (float)$paidTotal 
+                                    : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)$computedTotal);
+                            @endphp
                             <div class="flex justify-between items-center">
                                 <span class="text-lg font-bold text-[#F53003]">
-                                    Tổng tiền: {{ number_format($computedTotal, 0) }}đ
+                                    Tổng tiền: {{ number_format($displayTotal, 0) }}đ
                                 </span>
                                 <div class="flex gap-2">
                                     <a href="{{ route('user.bookings.show', $booking->id) }}" 

@@ -60,12 +60,12 @@ class QuanLyDatVeController extends Controller
                 try {
                     $bk->update(['trang_thai' => 2]);
                 } catch (\Throwable $e2) {
-<<<<<<< HEAD
+
                     Log::error('Failed to update booking status: ' . $e2->getMessage());
-=======
+
                     Log::error('Failed to update booking status: '.$e2->getMessage());
 
->>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
+
                 }
             }
         }
@@ -108,25 +108,16 @@ class QuanLyDatVeController extends Controller
     public function show($id)
     {
         $booking = DatVe::with([
-<<<<<<< HEAD
             'nguoiDung.diemThanhVien',
             'nguoiDung.hangThanhVien',
+            'nguoiDung',
             'suatChieu.phim',
             'suatChieu.phongChieu',
             'chiTietDatVe.ghe.loaiGhe',
-=======
-            'suatChieu.phim', 'suatChieu.phongChieu',
-            'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
-            'nguoiDung.diemThanhVien',
-            'nguoiDung',
-            'suatChieu.phim', 'suatChieu.phongChieu',
-            'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'thanhToan', 'khuyenMai'
-            'suatChieu.phongChieu',
             'chiTietDatVe.ghe',
->>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
             'chiTietCombo.combo',
             'thanhToan',
-            'khuyenMai'
+            'khuyenMai',
         ])->findOrFail($id);
 
         return view('admin.bookings.show', compact('booking'));
@@ -149,16 +140,16 @@ class QuanLyDatVeController extends Controller
             });
             // Trừ điểm (thực tế là tính lại tổng chi tiêu)
             $this->updateMemberStats($booking->id_nguoi_dung);
-<<<<<<< HEAD
+
             return back()->with('success', 'Đã hủy vé và giải phóng ghế.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Lỗi khi hủy: ' . $e->getMessage());
-=======
+
 
             return back()->with('success', 'Đã hủy vé và giải phóng ghế thành công.');
         } catch (\Exception $e) {
             return back()->with('error', 'Lỗi khi hủy vé: ' . $e->getMessage());
->>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
+
         }
     }
 
@@ -295,13 +286,13 @@ class QuanLyDatVeController extends Controller
                         : (float)$promo->gia_tri_giam;
                 }
 
-<<<<<<< HEAD
+
                 // Hạng thành viên - ĐÃ XÓA LOGIC GIẢM GIÁ Ở ĐÂY
                 // Logic tính tổng tiền mới: Chỉ trừ Khuyến mãi (nếu có)
                 $booking->tong_tien = max(0, ($tongGhe + $tongCombo) - $discount);
 
                 // Trạng thái
-=======
+
                 // Hạng thành viên
                 $memberDiscount = 0;
                 if ($booking->id_nguoi_dung) {
@@ -315,7 +306,7 @@ class QuanLyDatVeController extends Controller
                     }
                 }
                 // Cập nhật Trạng thái
->>>>>>> e202ad74247bc75c27c0e907cae3a238ab3ea295
+
                 if ($request->has('trang_thai') && $booking->trang_thai != $request->trang_thai) {
                     $newStatus = (int)$request->trang_thai;
                     if ($newStatus == 2) $this->releaseSeats($booking);
@@ -385,11 +376,6 @@ class QuanLyDatVeController extends Controller
                 'row' => $g->so_hang,
                 'type' => $g->id_loai,
                 'booked' => in_array($g->id, $bookedSeatIds),
-            'room' => ['id' => $suat->id_phong],
-            'seats' => $seats->map(fn($g) => [
-                'id' => $g->id,
-                'label' => $g->so_ghe,
-                'booked' => in_array($g->id, $bookedSeatIds)
             ]),
         ]);
     }
@@ -399,10 +385,6 @@ class QuanLyDatVeController extends Controller
     {
         $role = optional(Auth::user()->vaiTro)->ten;
         if (!in_array($role, ['admin', 'staff'])) {
-    // --- HELPERS ---
-    private function authorizeAction($actionName)
-    {
-        if (optional(Auth::user()->vaiTro)->ten !== 'admin') {
             abort(403, "Bạn không có quyền $actionName.");
         }
     }

@@ -21,9 +21,22 @@ class PaymentController extends Controller
     public function createVnpayUrl($bookingId, $amount)
     {
         try {
-            $vnp_Url = env('VNP_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
-            $vnp_HashSecret = env('VNP_HASH_SECRET', '');
-            $vnp_TmnCode = env('VNP_TMN_CODE', '');
+            // Prefer new VNPAY_* keys, fallback to legacy VNP_*
+            $vnp_TmnCode = trim((string) env('VNPAY_TMN_CODE', ''));
+            $vnp_HashSecret = trim((string) env('VNPAY_HASH_SECRET', ''));
+            $vnp_Url = rtrim(trim((string) env('VNPAY_URL', '')), '/');
+
+            if ($vnp_TmnCode === '') {
+                $vnp_TmnCode = trim((string) env('VNP_TMN_CODE', ''));
+            }
+            if ($vnp_HashSecret === '') {
+                $vnp_HashSecret = trim((string) env('VNP_HASH_SECRET', ''));
+            }
+            if ($vnp_Url === '') {
+                $vnp_Url = rtrim('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html', '/');
+                $legacyUrl = trim((string) env('VNP_URL', ''));
+                if ($legacyUrl !== '') $vnp_Url = rtrim($legacyUrl, '/');
+            }
 
             // Validate required config
             if (empty($vnp_TmnCode)) {
@@ -60,7 +73,10 @@ class PaymentController extends Controller
             $vnp_CreateDate = date('YmdHis');
             
             // Get return URL (must be absolute URL)
-            $vnp_ReturnUrl = route('payment.vnpay_return');
+            $vnp_ReturnUrl = trim((string) env('VNPAY_RETURN_URL', ''));
+            if ($vnp_ReturnUrl === '') {
+                $vnp_ReturnUrl = route('payment.vnpay_return');
+            }
             if (!filter_var($vnp_ReturnUrl, FILTER_VALIDATE_URL)) {
                 // If route returns relative URL, make it absolute
                 $vnp_ReturnUrl = url($vnp_ReturnUrl);
@@ -245,7 +261,11 @@ class PaymentController extends Controller
      */
     public function vnpayReturn(Request $request)
     {
-        $vnp_HashSecret = trim(env('VNP_HASH_SECRET'));
+        // Ưu tiên dùng VNPAY_HASH_SECRET, fallback sang VNP_HASH_SECRET cho tương thích cũ
+        $vnp_HashSecret = trim((string) env('VNPAY_HASH_SECRET', ''));
+        if ($vnp_HashSecret === '') {
+            $vnp_HashSecret = trim((string) env('VNP_HASH_SECRET', ''));
+        }
         $inputData = array();
         
         foreach ($request->all() as $key => $value) {

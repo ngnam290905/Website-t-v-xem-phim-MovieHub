@@ -6,6 +6,18 @@
     <title>@yield('title', 'MovieHub - Đặt vé xem phim')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @yield('meta')
+    <script>
+      // Defensive shim to prevent ReferenceError from external/minified scripts
+      (function(){
+        if (typeof window === 'undefined') return;
+        if (typeof window.timer === 'undefined') {
+          window.timer = null;
+        }
+        if (typeof window.updateTime !== 'function') {
+          window.updateTime = function(){ /* no-op shim to avoid ReferenceError */ };
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     
@@ -105,7 +117,6 @@
     </style>
   </head>
   <body class="min-h-screen bg-[#0d0f14] text-white">
-<<<<<<< HEAD
     <!-- Success/Error Messages -->
     @if(session('success'))
         <div class="fixed top-4 right-4 z-50 bg-green-500/20 border-2 border-green-500 rounded-xl p-4 shadow-2xl animate-fade-in max-w-md">

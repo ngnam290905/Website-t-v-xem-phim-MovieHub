@@ -478,7 +478,7 @@ class MovieController extends Controller
     {
         $movie->load(['suatChieu.phongChieu']);
         
-        if (request()->routeIs('movie-detail')) {
+        if (request()->routeIs('movie-detail') || request()->routeIs('movies.show')) {
             // Group showtimes by date
             $showtimesByDate = [];
             $selectedDate = request()->get('date', now()->format('Y-m-d'));

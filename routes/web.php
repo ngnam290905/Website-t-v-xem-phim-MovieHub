@@ -62,7 +62,7 @@ Route::get('/api/phong-chieu', [MovieController::class, 'getPhongChieu'])->name(
 Route::get('/api/booked-seats/{showtimeId}', [BookingController::class, 'getBookedSeats'])->name('api.booked-seats');
 Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowtimeSeats']);
 Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats');
-Route::get('/payment/vnpay-return', [BookingController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+// VNPAY return is handled by PaymentController below (single source of truth)
 // Booking routes (new user flow)
 Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
 Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->name('booking.showtimes');
@@ -108,6 +108,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
     Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
     Route::get('/tickets/{id}', [App\Http\Controllers\BookingController::class, 'ticketDetail'])->name('booking.ticket.detail');
+
+    // Continue to payment from seat selection
+    Route::post('/booking/continue', [App\Http\Controllers\BookingController::class, 'continueToPayment'])->name('booking.continue');
+    Route::get('/booking/payment', [App\Http\Controllers\BookingController::class, 'showPaymentPage'])->name('booking.payment');
 });
 
 // Legacy booking routes
@@ -276,7 +280,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     // Quản lý đặt vé
     Route::prefix('bookings')->name('bookings.')->group(function () {
         Route::get('/', [QuanLyDatVeController::class, 'index'])->name('index');
-        Route::get('/{id}', [QuanLyDatVeController::class, 'show'])->name('show');
+        // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
         Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
         Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
@@ -285,6 +289,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
         // API cho UI chỉnh sửa vé
         Route::get('/{id}/available-showtimes', [QuanLyDatVeController::class, 'availableShowtimes'])->name('available-showtimes');
+
+        // Đặt SAU cùng
+        Route::get('/{id}', [QuanLyDatVeController::class, 'show'])->name('show');
     });
 
     // API lấy bản đồ ghế theo suất chiếu

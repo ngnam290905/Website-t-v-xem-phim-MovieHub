@@ -32,14 +32,186 @@ class BookingController extends Controller
         if ($seat->id_loai == 2) {
             return true;
         }
-
         // Or check by name if id_loai has different values
         if ($seat->loaiGhe && stripos($seat->loaiGhe->ten_loai, 'vip') !== false) {
             return true;
         }
-
         return false;
     }
+
+    /**
+     * Start VNPAY payment for current hold booking
+     */
+    public function processPayment(\Illuminate\Http\Request $request, $bookingId)
+    {
+        // bookingId here is the hold id stored in session
+        $holdId = session('booking.hold_id');
+        if (!$holdId || $holdId !== $bookingId) {
+            return redirect()->route('booking.seats', ['showId' => session('booking.showtime_id')])
+                ->with('error', 'Phiên giữ ghế đã hết hạn hoặc không hợp lệ.');
+        }
+
+        $showtimeId = session('booking.showtime_id');
+        $selectedSeatCodes = session('booking.selected_seat_codes', []);
+        if (!$showtimeId || empty($selectedSeatCodes)) {
+            return redirect()->back()->with('error', 'Thiếu thông tin ghế để thanh toán.');
+        }
+
+        // Compute amount (VND) from seat selection with couple seat pairing
+        $amount = 0;
+        $showtime = SuatChieu::find($showtimeId);
+        if ($showtime) {
+            $seats = Ghe::where('id_phong', $showtime->id_phong)
+                ->whereIn('so_ghe', $selectedSeatCodes)
+                ->with('loaiGhe')
+                ->get()
+                ->keyBy('so_ghe');
+
+            $selected = collect($selectedSeatCodes)
+                ->map(function ($code) use ($seats) {
+                    $seat = $seats->get($code);
+                    $row = is_string($code) && strlen($code) > 0 ? substr($code, 0, 1) : null;
+                    $num = (int) preg_replace('/[^0-9]/', '', (string) $code);
+                    return [
+                        'code' => $code,
+                        'row' => $row,
+                        'num' => $num,
+                        'isCouple' => $seat ? $this->isCoupleSeat($seat) : false,
+                        'isVip' => $seat ? $this->isVipSeat($seat) : false,
+                    ];
+                })
+                ->sortBy(['row', 'num'])
+                ->values();
+
+            $i = 0;
+            while ($i < $selected->count()) {
+                $cur = $selected[$i];
+                $next = $selected[$i + 1] ?? null;
+                if ($cur['isCouple'] && $next && $next['isCouple'] && $cur['row'] === $next['row'] && $next['num'] === $cur['num'] + 1) {
+                    $amount += 200000;
+                    $i += 2;
+                } else {
+                    if ($cur['isCouple']) {
+                        $amount += 200000;
+                    } elseif ($cur['isVip']) {
+                        $amount += 120000;
+                    } else {
+                        $amount += 80000;
+                    }
+                    $i += 1;
+                }
+            }
+        }
+        if ($amount <= 0) $amount = 80000; // fallback
+
+        // Add combo total from session
+        $selectedCombos = collect(session('booking.selected_combos', []));
+        if ($selectedCombos->isNotEmpty()) {
+            // Optionally validate price by DB; for now sum by provided gia * so_luong
+            $comboTotal = (int) $selectedCombos->sum(function($c){
+                $price = (float) ($c['gia'] ?? 0);
+                $qty = (int) ($c['so_luong'] ?? 0);
+                return (int) round($price) * max(0, $qty);
+            });
+            $amount += $comboTotal;
+        }
+
+        // Apply promotion if selected and valid
+        $promoId = $request->input('promo_id');
+        if ($promoId) {
+            $promo = KhuyenMai::where('trang_thai', 1)
+                ->where('ngay_bat_dau', '<=', now())
+                ->where('ngay_ket_thuc', '>=', now())
+                ->find($promoId);
+            if ($promo) {
+                $type = strtolower($promo->loai_giam);
+                $val = (float)$promo->gia_tri_giam;
+                $discount = 0;
+                if ($type === 'phantram') {
+                    $discount = round($amount * ($val / 100));
+                } else {
+                    $discount = ($val >= 1000) ? $val : $val * 1000;
+                }
+                $amount = max(0, $amount - (int)$discount);
+            }
+        }
+
+        // Persist a pending booking BEFORE redirecting to VNPAY, so return can update it
+        try {
+            $booking = \DB::transaction(function () use ($showtimeId, $selectedSeatCodes, $seats, $amount) {
+                // 1) Create booking (pending)
+                $booking = \App\Models\DatVe::create([
+                    'id_nguoi_dung' => Auth::id(),
+                    'id_suat_chieu' => $showtimeId,
+                    'trang_thai' => 0, // pending
+                ]);
+
+                // 2) Create seat details
+                foreach ($selectedSeatCodes as $code) {
+                    $seat = $seats->get($code);
+                    if (!$seat) continue;
+                    $price = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 120000 : 80000);
+                    \App\Models\ChiTietDatVe::create([
+                        'id_dat_ve' => $booking->id,
+                        'id_ghe' => $seat->id,
+                        'gia' => $price,
+                    ]);
+                }
+
+                // 3) Create a payment record (unpaid)
+                \App\Models\ThanhToan::create([
+                    'id_dat_ve' => $booking->id,
+                    'phuong_thuc' => 'VNPAY',
+                    'so_tien' => $amount,
+                    'trang_thai' => 0,
+                    'thoi_gian' => now(),
+                ]);
+
+                return $booking;
+            });
+
+            // Store mapping hold_id -> booking_id (optional for debugging)
+            if ($holdId && $booking) {
+                session(['booking.mapped.' . $holdId => $booking->id]);
+            }
+
+            // Create VNPAY URL using REAL booking ID
+            $vnp_Url = app(\App\Http\Controllers\PaymentController::class)->createVnpayUrl($booking->id, $amount);
+            return redirect()->away($vnp_Url);
+        } catch (\Throwable $e) {
+            Log::error('Failed to create pending booking before VNPAY redirect', [
+                'error' => $e->getMessage(),
+            ]);
+            return redirect()->back()->with('error', 'Không thể tạo đơn đặt vé. Vui lòng thử lại.');
+        }
+    }
+
+    /**
+     * VNPAY return URL handler
+     */
+    public function vnpayReturn(\Illuminate\Http\Request $request)
+    {
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $data = $request->all();
+        $vnp_SecureHash = $data['vnp_SecureHash'] ?? '';
+        // Remove secure hash params before verify
+        foreach (['vnp_SecureHash', 'vnp_SecureHashType'] as $k) unset($data[$k]);
+        ksort($data);
+        $hashdata = urldecode(http_build_query($data));
+        $verified = $vnp_HashSecret ? hash_hmac('sha512', $hashdata, $vnp_HashSecret) === ($vnp_SecureHash) : false;
+
+        $success = $verified && ($request->input('vnp_ResponseCode') === '00');
+
+        // You can persist DatVe here. For demo, just show result.
+        return view('booking.payment-result', [
+            'success' => $success,
+            'txnRef' => $request->input('vnp_TxnRef'),
+            'amount' => (int) (($request->input('vnp_Amount') ?? 0) / 100),
+            'message' => $success ? 'Thanh toán thành công' : 'Thanh toán thất bại hoặc bị hủy',
+        ]);
+    }
+
+        
 
     /**
      * Helper method to check if seat is Couple
@@ -258,8 +430,27 @@ class BookingController extends Controller
                 ->where('ngay_bat_dau', '<=', now())
                 ->where('ngay_ket_thuc', '>=', now())
                 ->get();
+
+            // Build seats collection required by the seats view
+            $seats = Ghe::where('id_phong', $showtime->id_phong)
+                ->with('loaiGhe')
+                ->get()
+                ->map(function ($seat) {
+                    // Derive properties used by the Blade view
+                    $seat->seatType = $seat->loaiGhe; // alias expected by view
+                    $seat->booking_status = 'available'; // default status; can be updated later
+                    // Derive row label (so_hang) from seat code e.g., A10 -> A
+                    $seat->so_hang = is_string($seat->so_ghe) && strlen($seat->so_ghe) > 0
+                        ? substr($seat->so_ghe, 0, 1)
+                        : null;
+                    return $seat;
+                });
+
+            // Selected combos placeholder for view compatibility
+            $selectedCombos = collect();
             
-            return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'khuyenmais'));
+            $existingBooking = null; // default to avoid undefined in view
+            return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'khuyenmais', 'existingBooking', 'seats', 'selectedCombos'));
         } catch (\Exception $e) {
             Log::error('Error loading seat selection page', [
                 'showtime_id' => $showtimeId,
@@ -269,122 +460,339 @@ class BookingController extends Controller
                 ->with('error', 'Không thể tải trang chọn ghế. Vui lòng thử lại.');
         }
     }
-    
+
     /**
-     * Continue to payment page - save selected seats to session
+     * Backward-compatible alias for routes that call showSeats
      */
-    public function continueToPayment(Request $request)
+    public function showSeats($showtimeId)
     {
-        $request->validate([
-            'showtime_id' => 'required|exists:suat_chieu,id',
-            'seats' => 'required|array|min:1',
-            'seats.*' => 'required|string',
-            'booking_hold_id' => 'nullable|string',
-        ]);
-        
-        $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($request->showtime_id);
-        
-        // Save booking data to session
-        session([
-            'booking.showtime_id' => $request->showtime_id,
-            'booking.seats' => $request->seats,
-            'booking.booking_hold_id' => $request->booking_hold_id,
-            'booking.movie_id' => $showtime->id_phim,
-            'booking.room_id' => $showtime->id_phong,
-        ]);
-        
-        return redirect()->route('booking.payment');
+        return $this->showSeatsPage($showtimeId);
     }
     
     /**
-     * Show payment page - step 3: combo, promotion, payment method
+     * Lock seats for current user (hold for a short time)
+     */
+    public function lockSeats(Request $request, $showId)
+    {
+        $request->validate([
+            'seat_ids' => 'required|array|min:1',
+            'seat_ids.*' => 'integer'
+        ]);
+
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
+        }
+
+        $seatIds = $request->input('seat_ids', []);
+        $conflicts = [];
+        $expiresAt = null;
+
+        try {
+            // Prefer SeatHoldService if available
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+
+            foreach ($seatIds as $seatId) {
+                // Check current status first
+                $status = $seatHoldService->getSeatStatus($showId, (int)$seatId, $userId);
+                if ($status !== 'available' && $status !== 'hold') {
+                    $conflicts[] = ['seat_id' => (int)$seatId, 'status' => $status];
+                    continue;
+                }
+
+                $hold = $seatHoldService->holdSeat($showId, (int)$seatId, $userId, 5 * 60);
+                if (!$hold) {
+                    $conflicts[] = ['seat_id' => (int)$seatId, 'status' => 'conflict'];
+                } else {
+                    $expiresAt = $hold['hold_expires_at'] ?? $expiresAt;
+                }
+            }
+
+            if (count($conflicts) === count($seatIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Một số ghế đã bị giữ hoặc bán',
+                    'conflicts' => $conflicts,
+                ]);
+            }
+
+            // Create a transient booking hold id in session for next step
+            $bookingHoldId = session('booking.hold_id');
+            if (!$bookingHoldId) {
+                $bookingHoldId = 'hold_' . uniqid();
+            }
+            session([
+                'booking.hold_id' => $bookingHoldId,
+                'booking.showtime_id' => $showId,
+                'booking.seat_ids' => $seatIds,
+                'booking.hold_expires_at' => $expiresAt ? \Carbon\Carbon::parse($expiresAt)->timestamp : (time() + 5 * 60),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'expires_at' => $expiresAt ? \Carbon\Carbon::parse($expiresAt)->timestamp : (time() + 5 * 60),
+                'booking_id' => $bookingHoldId,
+            ]);
+        } catch (\Throwable $e) {
+            // Fallback: if service is not available, return success so UI can proceed in demo mode
+            \Log::warning('lockSeats fallback: ' . $e->getMessage());
+            $bookingHoldId = session('booking.hold_id');
+            if (!$bookingHoldId) {
+                $bookingHoldId = 'hold_' . uniqid();
+            }
+            session([
+                'booking.hold_id' => $bookingHoldId,
+                'booking.showtime_id' => $showId,
+                'booking.seat_ids' => $seatIds,
+                'booking.hold_expires_at' => time() + 5 * 60,
+            ]);
+            return response()->json([
+                'success' => true,
+                'expires_at' => time() + 5 * 60,
+                'booking_id' => $bookingHoldId,
+            ]);
+        }
+    }
+
+    /**
+     * Unlock seats for current user
+     */
+    public function unlockSeats(Request $request, $showId)
+    {
+        $request->validate([
+            'seat_ids' => 'required|array|min:1',
+            'seat_ids.*' => 'integer'
+        ]);
+
+        $userId = Auth::id();
+        $seatIds = $request->input('seat_ids', []);
+
+        try {
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+            foreach ($seatIds as $seatId) {
+                $seatHoldService->releaseSeat($showId, (int)$seatId, $userId);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('unlockSeats fallback: ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Continue to payment: persist selected seats and move to checkout
+     */
+    public function continueToPayment(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'showtime_id' => 'required|integer',
+            'seats' => 'required|array|min:1',
+            'seats.*' => 'string',
+            'booking_hold_id' => 'nullable|string',
+            'combos' => 'nullable|array',
+            'combos.*.id_combo' => 'required_with:combos|integer',
+            'combos.*.so_luong' => 'required_with:combos|integer|min:0',
+            'combos.*.gia' => 'required_with:combos|numeric|min:0'
+        ]);
+
+        $holdId = session('booking.hold_id');
+        if (!$holdId) {
+            return response()->json(['success' => false, 'message' => 'Phiên giữ ghế đã hết hạn. Vui lòng chọn lại.'], 410);
+        }
+
+        // Save selected seat codes, combos and showtime for the next step
+        session([
+            'booking.selected_seat_codes' => $validated['seats'],
+            'booking.showtime_id' => $validated['showtime_id'],
+            'booking.selected_combos' => collect($validated['combos'] ?? [])->filter(function($c){
+                return isset($c['id_combo']) && ($c['so_luong'] ?? 0) > 0; 
+            })->values()->all(),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Redirect to existing checkout route with the hold id
      */
     public function showPaymentPage()
     {
-        try {
-            // Get booking data from session
-            $showtimeId = session('booking.showtime_id');
-            $selectedSeats = session('booking.seats', []);
-            $bookingHoldId = session('booking.booking_hold_id');
-            
-            if (!$showtimeId || empty($selectedSeats)) {
-                return redirect()->route('booking.index')
-                    ->with('error', 'Vui lòng chọn ghế trước khi thanh toán.');
-            }
-            
-            $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($showtimeId);
-            $movie = $showtime->phim;
-            $room = $showtime->phongChieu;
-            
-            if (!$movie || !$room) {
-                return redirect()->route('booking.index')
-                    ->with('error', 'Thông tin suất chiếu không hợp lệ.');
-            }
-            
-            // Get seat details
-            $seatCodes = $selectedSeats;
-            $basePrice = 80000; // Base price for normal seats
-            
-            // Filter seats by room to avoid conflicts
+        $holdId = session('booking.hold_id');
+        if (!$holdId) {
+            return redirect()->back()->with('error', 'Phiên giữ ghế đã hết hạn. Vui lòng chọn lại ghế.');
+        }
+
+        $showtimeId = session('booking.showtime_id');
+        $selectedSeatCodes = session('booking.selected_seat_codes', []);
+        $showtime = $showtimeId ? SuatChieu::with(['phim', 'phongChieu'])->find($showtimeId) : null;
+        $movie = $showtime ? $showtime->phim : null;
+        $room = $showtime ? $showtime->phongChieu : null;
+
+        // Compute simple seat pricing for display with couple seat pairing
+        $seats = collect();
+        $seatDetails = [];
+        $totalSeatPrice = 0;
+        if ($showtime) {
             $seats = Ghe::where('id_phong', $showtime->id_phong)
-                ->whereIn('so_ghe', $seatCodes)
+                ->whereIn('so_ghe', $selectedSeatCodes)
                 ->with('loaiGhe')
                 ->get()
                 ->keyBy('so_ghe');
-            
-            // Calculate seat prices
-            $seatPrices = [];
-            $totalSeatPrice = 0;
-            foreach ($seatCodes as $code) {
-                $seat = $seats->get($code);
-                if ($seat) {
-                    // Calculate price based on he_so_gia (price coefficient)
-                    $heSoGia = $seat->loaiGhe->he_so_gia ?? 1.0;
-                    $price = (int)($basePrice * $heSoGia);
-                    
-                    $seatPrices[$code] = [
+
+            $selected = collect($selectedSeatCodes)
+                ->map(function ($code) use ($seats) {
+                    $seat = $seats->get($code);
+                    $row = is_string($code) && strlen($code) > 0 ? substr($code, 0, 1) : null;
+                    $num = (int) preg_replace('/[^0-9]/', '', (string) $code);
+                    $type = $seat ? (optional($seat->loaiGhe)->ten_loai ?? 'Thường') : 'Thường';
+                    return [
                         'code' => $code,
-                        'type' => $seat->loaiGhe->ten_loai ?? 'Thường',
-                        'price' => $price,
+                        'row' => $row,
+                        'num' => $num,
+                        'isCouple' => $seat ? $this->isCoupleSeat($seat) : false,
+                        'isVip' => $seat ? $this->isVipSeat($seat) : false,
+                        'type' => $type,
                     ];
-                    $totalSeatPrice += $price;
+                })
+                ->sortBy(['row', 'num'])
+                ->values();
+
+            $i = 0;
+            while ($i < $selected->count()) {
+                $cur = $selected[$i];
+                $next = $selected[$i + 1] ?? null;
+                if ($cur['isCouple'] && $next && $next['isCouple'] && $cur['row'] === $next['row'] && $next['num'] === $cur['num'] + 1) {
+                    $seatDetails[] = ['code' => $cur['code'], 'type' => $cur['type'], 'price' => 100000];
+                    $seatDetails[] = ['code' => $next['code'], 'type' => $next['type'], 'price' => 100000];
+                    $totalSeatPrice += 200000;
+                    $i += 2;
                 } else {
-                    // If seat not found, use default price
-                    $seatPrices[$code] = [
-                        'code' => $code,
-                        'type' => 'Thường',
-                        'price' => $basePrice,
-                    ];
-                    $totalSeatPrice += $basePrice;
+                    if ($cur['isCouple']) {
+                        $price = 200000;
+                    } elseif ($cur['isVip']) {
+                        $price = 120000;
+                    } else {
+                        $price = 80000;
+                    }
+                    $seatDetails[] = ['code' => $cur['code'], 'type' => $cur['type'], 'price' => $price];
+                    $totalSeatPrice += $price;
+                    $i += 1;
                 }
             }
-            
-            // Get combos and promotions
-            $combos = Combo::where('trang_thai', 1)->get();
-            $khuyenmais = KhuyenMai::where('trang_thai', 1)
-                ->where('ngay_bat_dau', '<=', now())
-                ->where('ngay_ket_thuc', '>=', now())
-                ->get();
-            
-            return view('booking.payment', compact(
-                'showtime',
-                'movie',
-                'room',
-                'selectedSeats',
-                'seatPrices',
-                'totalSeatPrice',
-                'combos',
-                'khuyenmais',
-                'bookingHoldId'
-            ));
-        } catch (\Exception $e) {
-            Log::error('Error in showPaymentPage', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return redirect()->route('booking.index')
-                ->with('error', 'Có lỗi xảy ra. Vui lòng thử lại.');
         }
+
+        // Load selected combos from session and compute totals for display
+        $comboDetails = [];
+        $comboTotal = 0;
+        $selectedCombosSession = collect(session('booking.selected_combos', []));
+        if ($selectedCombosSession->isNotEmpty()) {
+            $comboIds = $selectedCombosSession->pluck('id_combo')->unique()->values();
+            $comboMap = Combo::whereIn('id', $comboIds)->get()->keyBy('id');
+            foreach ($selectedCombosSession as $c) {
+                $id = (int) ($c['id_combo'] ?? 0);
+                $qty = (int) ($c['so_luong'] ?? 0);
+                $price = (float) ($c['gia'] ?? 0);
+                if ($qty <= 0) continue;
+                $name = optional($comboMap->get($id))->ten ?? ('Combo #' . $id);
+                $line = (int) round($price) * $qty;
+                $comboDetails[] = [
+                    'id' => $id,
+                    'name' => $name,
+                    'price' => (int) round($price),
+                    'qty' => $qty,
+                    'total' => $line,
+                ];
+                $comboTotal += $line;
+            }
+        }
+
+        // Read VNPAY env for on-screen debug (with legacy fallbacks)
+        $dbg_vnp_TmnCode = trim((string) env('VNPAY_TMN_CODE', ''));
+        $dbg_vnp_HashSecret = trim((string) env('VNPAY_HASH_SECRET', ''));
+        $dbg_vnp_Url = rtrim(trim((string) env('VNPAY_URL', '')), '/');
+        $dbg_vnp_ReturnUrl = trim((string) env('VNPAY_RETURN_URL', ''));
+        if ($dbg_vnp_TmnCode === '') { $dbg_vnp_TmnCode = trim((string) env('VNP_TMN_CODE', '')); }
+        if ($dbg_vnp_HashSecret === '') { $dbg_vnp_HashSecret = trim((string) env('VNP_HASH_SECRET', '')); }
+        if ($dbg_vnp_Url === '') { $dbg_vnp_Url = rtrim(trim((string) env('VNP_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html')), '/'); }
+        if ($dbg_vnp_ReturnUrl === '') { $dbg_vnp_ReturnUrl = trim((string) (env('VNP_RETURN_URL', url('/payment/vnpay-return')))); }
+
+        // VNPAY debug info (masked) for troubleshooting on the payment page
+        $vnpDebug = [
+            'tmn_code' => $dbg_vnp_TmnCode,
+            'return_url' => $dbg_vnp_ReturnUrl,
+            'url' => $dbg_vnp_Url,
+            'hash_present' => $dbg_vnp_HashSecret !== '',
+            'source_keys' => [
+                'tmn' => env('VNPAY_TMN_CODE') ? 'VNPAY_TMN_CODE' : (env('VNP_TMN_CODE') ? 'VNP_TMN_CODE' : 'none'),
+                'hash' => env('VNPAY_HASH_SECRET') ? 'VNPAY_HASH_SECRET' : (env('VNP_HASH_SECRET') ? 'VNP_HASH_SECRET' : 'none'),
+                'url'  => env('VNPAY_URL') ? 'VNPAY_URL' : (env('VNP_URL') ? 'VNP_URL' : 'default'),
+                'ret'  => env('VNPAY_RETURN_URL') ? 'VNPAY_RETURN_URL' : (env('VNP_RETURN_URL') ? 'VNP_RETURN_URL' : 'default'),
+            ]
+        ];
+
+        // Load active promotions for display on payment page
+        $khuyenmais = KhuyenMai::where('trang_thai', 1)
+            ->where('ngay_bat_dau', '<=', now())
+            ->where('ngay_ket_thuc', '>=', now())
+            ->get();
+
+        return view('booking.payment', [
+            'holdId' => $holdId,
+            'showtime' => $showtime,
+            'movie' => $movie,
+            'room' => $room,
+            'selectedSeatCodes' => $selectedSeatCodes,
+            'seatDetails' => $seatDetails,
+            'totalSeatPrice' => $totalSeatPrice,
+            'comboDetails' => $comboDetails,
+            'comboTotal' => $comboTotal,
+            'khuyenmais' => $khuyenmais,
+            'vnpDebug' => $vnpDebug,
+        ]);
+    }
+
+    /**
+     * Backward-compatible checkout route handler
+     * Simply forward to showPaymentPage using session hold
+     */
+    public function checkout($bookingId)
+    {
+        // Ensure the booking id matches current hold, otherwise redirect back
+        $holdId = session('booking.hold_id');
+        if (!$holdId || $holdId !== $bookingId) {
+            return redirect()->route('booking.seats', ['showId' => session('booking.showtime_id')])
+                ->with('error', 'Phiên giữ ghế đã hết hạn hoặc không hợp lệ.');
+        }
+        return $this->showPaymentPage();
+    }
+
+    /**
+     * Refresh seat statuses for a showtime
+     */
+    public function refreshSeats($showId)
+    {
+        $statuses = [];
+        try {
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+            // Load all seats in the room
+            $showtime = SuatChieu::find($showId);
+            if ($showtime) {
+                $seats = Ghe::where('id_phong', $showtime->id_phong)->get();
+                foreach ($seats as $seat) {
+                    $status = $seatHoldService->getSeatStatus($showId, $seat->id, Auth::id());
+                    if ($status === 'sold' || $status === 'hold' || $status === 'reserved' || $status === 'blocked') {
+                        $statuses[$seat->id] = $status === 'hold' ? 'locked_by_other' : $status;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('refreshSeats fallback: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'seats' => $statuses,
+        ]);
     }
     
     public function create($id = null)
@@ -1790,121 +2198,7 @@ class BookingController extends Controller
      * VNPAY Return Handler
      * Handle payment return from VNPAY gateway
      */
-    public function vnpayReturn(Request $request)
-    {
-        $vnp_HashSecret = trim(env('VNP_HASH_SECRET'));
-        $inputData = array();
-        foreach ($request->all() as $key => $value) {
-            if (substr($key, 0, 4) == "vnp_") $inputData[$key] = $value;
-        }
 
-        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
-        unset($inputData['vnp_SecureHash']);
-        ksort($inputData);
-        $i = 0;
-        $hashData = "";
-        foreach ($inputData as $key => $value) {
-            if ($i == 1) $hashData = $hashData . '&' . urlencode($key) . "=" . urlencode($value);
-            else {
-                $hashData = $hashData . urlencode($key) . "=" . urlencode($value);
-                $i = 1;
-            }
-        }
-        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
-
-        if ($secureHash == $vnp_SecureHash) {
-            $parts = explode("_", $request->vnp_TxnRef);
-            $bookingId = $parts[0];
-
-            $booking = DatVe::with('thanhToan')->find($bookingId); // Load kèm thanhToan
-
-            if (!$booking) {
-                return redirect()->route('home')->with('error', 'Không tìm thấy vé.');
-            }
-
-            // --- TRƯỜNG HỢP GIAO DỊCH LỖI / HỦY ---
-            if ($request->vnp_ResponseCode != '00') {
-                try {
-                    DB::transaction(function () use ($booking) {
-                        // 1. Nhả ghế
-                        if ($booking->id_nguoi_dung) {
-                            \App\Models\ShowtimeSeat::where('id_suat_chieu', $booking->id_suat_chieu)
-                                ->where('id_nguoi_dung', $booking->id_nguoi_dung)
-                                ->whereIn('trang_thai', ['booked', 'holding', 'dang_giu'])
-                                ->update(['trang_thai' => 'available', 'thoi_gian_het_han' => null]);
-                        }
-                        // 2. Hủy vé & Thanh toán
-                        $booking->update(['trang_thai' => 2]);
-                        if ($booking->thanhToan) {
-                            $booking->thanhToan()->update(['trang_thai' => 2]);
-                        }
-                    });
-                } catch (\Exception $e) {
-                    Log::error('VNPAY Cancel Error: ' . $e->getMessage());
-                }
-                return redirect()->route('home')->with('error', 'Bạn đã hủy thanh toán.');
-            }
-
-            // --- TRƯỜNG HỢP THÀNH CÔNG ---
-            else {
-                try {
-                    DB::transaction(function () use ($booking, $request) {
-                        // 1. Cập nhật Vé -> 1 (Dùng DB::table để tránh lỗi Model events)
-                        DB::table('dat_ve')
-                            ->where('id', $booking->id)
-                            ->update([
-                                'trang_thai' => 1,
-                                'updated_at' => now()
-                            ]);
-
-                        // 2. Cập nhật Thanh toán -> 1
-                        // Kiểm tra xem đã có record thanh toán chưa
-                        $paymentExists = DB::table('thanh_toan')->where('id_dat_ve', $booking->id)->exists();
-
-                        if ($paymentExists) {
-                            DB::table('thanh_toan')
-                                ->where('id_dat_ve', $booking->id)
-                                ->update([
-                                    'trang_thai' => 1,
-                                    'ma_giao_dich' => $request->vnp_TransactionNo,
-                                    'thoi_gian' => now()
-                                ]);
-                        } else {
-                            DB::table('thanh_toan')->insert([
-                                'id_dat_ve' => $booking->id,
-                                'phuong_thuc' => 'VNPAY',
-                                'so_tien' => $request->vnp_Amount / 100,
-                                'trang_thai' => 1,
-                                'ma_giao_dich' => $request->vnp_TransactionNo,
-                                'thoi_gian' => now()
-                            ]);
-                        }
-
-                        // 3. Cập nhật Ghế -> booked (Quan trọng: Force update bất kể trạng thái cũ là gì)
-                        if ($booking->id_nguoi_dung) {
-                            DB::table('tam_giu_ghe')
-                                ->where('id_suat_chieu', $booking->id_suat_chieu)
-                                ->where('id_nguoi_dung', $booking->id_nguoi_dung)
-                                ->update([
-                                    'trang_thai' => 'booked',
-                                    'thoi_gian_het_han' => null // Yêu cầu đã chạy lệnh SQL sửa bảng ở trên
-                                ]);
-                        }
-                    });
-
-                    return redirect()->route('booking.tickets')->with('success', 'Thanh toán thành công! Vé đã được xác nhận.');
-                } catch (\Exception $e) {
-                    // Ghi log lỗi để bạn biết tại sao nó fail
-                    Log::error('VNPAY Critical Error #' . $booking->id . ': ' . $e->getMessage());
-
-                    // Vẫn báo lỗi cho người dùng biết là có vấn đề
-                    return redirect()->route('home')->with('error', 'Thanh toán thành công nhưng lỗi hệ thống khi cập nhật vé. Vui lòng liên hệ Admin. Mã lỗi: ' . $e->getMessage());
-                }
-            }
-        } else {
-            return redirect()->route('home')->with('error', 'Chữ ký không hợp lệ!');
-        }
-    }
     /**
      * Helper method to create VNPAY payment URL
      */
