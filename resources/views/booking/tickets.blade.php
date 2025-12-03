@@ -310,6 +310,14 @@
                                         <i class="fas fa-eye"></i>
                                         <span>Chi tiết</span>
                                     </a>
+                                    <a 
+                                        href="{{ route('booking.ticket.detail', $booking->id) }}" 
+                                        onclick="setTimeout(() => window.print(), 500); return false;"
+                                        class="px-4 py-2 bg-gradient-to-r from-[#10b981] to-[#059669] text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-[#10b981]/50 transition-all flex items-center gap-2"
+                                    >
+                                        <i class="fas fa-print"></i>
+                                        <span>In vé</span>
+                                    </a>
                                 @endif
                                 @if(!$isCancelled && $showtime && $showtime->thoi_gian_bat_dau > now())
                                     <button 

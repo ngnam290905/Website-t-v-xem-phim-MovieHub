@@ -286,10 +286,10 @@
                     Vé đã được bảo vệ và xác thực
                 </div>
                 <div class="flex gap-3">
-                    @if($isPaid && $showtime && $showtime->thoi_gian_bat_dau > now())
+                    @if($isPaid)
                         <button 
                             onclick="printTicket()"
-                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2"
+                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2 print-hidden"
                         >
                             <i class="fas fa-print"></i>
                             <span>In vé</span>
@@ -365,15 +365,68 @@ function generateQRCodeFallback(qrData) {
 
 <style>
 @media print {
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+    
     body * {
         visibility: hidden;
     }
-    .bg-gradient-to-br, .bg-gradient-to-r, .bg-gradient-to-br {
+    
+    .min-h-screen, .min-h-screen * {
+        visibility: visible;
+    }
+    
+    .min-h-screen {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        padding: 0 !important;
+    }
+    
+    /* Hide buttons and navigation */
+    button, a[href*="tickets"] {
+        display: none !important;
+    }
+    
+    /* Improve print colors */
+    .bg-gradient-to-br, .bg-gradient-to-r {
         background: white !important;
         color: black !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
+    
+    .bg-[#0a1a2f], .bg-[#1a1d24], .bg-[#151822] {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    .text-[#a6a6b0] {
+        color: #666 !important;
+    }
+    
     .border {
         border-color: #000 !important;
+    }
+    
+    /* Ensure QR code is visible */
+    img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Keep status badges visible but readable */
+    .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20 {
+        background: #f0f0f0 !important;
+        border: 1px solid #000 !important;
     }
 }
 </style>
