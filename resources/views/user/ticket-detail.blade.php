@@ -196,22 +196,50 @@
                         </div>
                     </div>
 
-                    <!-- Right Column: Ticket Info -->
+                    <!-- Right Column: QR Code -->
                     <div class="flex flex-col items-center justify-center">
-                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
+                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center">
                             <p class="text-[#a6a6b0] text-sm mb-1">Ngày đặt vé</p>
                             <p class="text-white font-medium">{{ optional($booking->created_at)->format('d/m/Y H:i') }}</p>
                         </div>
 
                         <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
                             <p class="text-[#a6a6b0] text-sm mb-1">Mã vé</p>
-                            <p class="text-white font-medium font-mono">{{ $booking->ticket_code ?? 'N/A' }}</p>
+                            <p class="text-white font-medium font-mono">{{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}</p>
                         </div>
+
+                        <!-- QR Code for Confirmed Tickets -->
+                        @php
+                            // Always generate QR code data for confirmed tickets
+                            $qrData = $qrCodeData ?? null;
+                            if (!$qrData) {
+                                $qrData = 'ticket_id=' . $booking->id;
+                                if ($booking->ticket_code) {
+                                    $qrData = 'ticket_id=' . $booking->ticket_code;
+                                }
+                            }
+                            // Use QR code API for reliable display
+                            $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrData);
+                        @endphp
+                        
+                        @if($booking->trang_thai == 1)
+                            <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4">
+                                <p class="text-[#a6a6b0] text-sm mb-3">Mã QR Vé</p>
+                                <div class="bg-white p-3 rounded-lg inline-block" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                                    <img src="{{ $qrCodeUrl }}" alt="QR Code" id="qrcode-img-user" style="width: 200px; height: 200px; display: block;" onerror="console.error('QR Image failed to load'); this.style.display='none'; document.getElementById('qrcode-fallback-user').style.display='block'; generateQRCodeFallbackUser('{{ $qrData }}');">
+                                    <div id="qrcode-fallback-user" style="display: none; width: 200px; height: 200px;"></div>
+                                </div>
+                                <p class="text-[#a6a6b0] text-xs mt-3">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Xuất trình mã QR này tại rạp
+                                </p>
+                            </div>
+                        @endif
 
                         <!-- Action Buttons -->
                         <div class="mt-6 space-y-3 w-full">
-                            <button onclick="window.print()" 
-                                    class="w-full px-6 py-3 bg-[#F53003] text-white rounded-lg hover:bg-[#ff4d4d] transition-all duration-300 font-medium flex items-center justify-center">
+                            <button onclick="printTicket()" 
+                                    class="w-full px-6 py-3 bg-[#F53003] text-white rounded-lg hover:bg-[#ff4d4d] transition-all duration-300 font-medium flex items-center justify-center print-hidden">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                 </svg>
@@ -219,7 +247,7 @@
                             </button>
                             
                             <button onclick="downloadTicket()" 
-                                    class="w-full px-6 py-3 bg-[#2f3240] text-white rounded-lg hover:bg-[#3a3f50] transition-all duration-300 font-medium flex items-center justify-center">
+                                    class="w-full px-6 py-3 bg-[#2f3240] text-white rounded-lg hover:bg-[#3a3f50] transition-all duration-300 font-medium flex items-center justify-center print-hidden">
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                 </svg>
@@ -233,7 +261,7 @@
                                 <svg class="w-5 h-5 inline mr-1 text-[#F53003]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                Vui lòng xuất trình mã vé này khi đến rạp
+                                Vui lòng xuất trình mã QR này khi đến rạp
                             </p>
                         </div>
                     </div>
@@ -257,51 +285,121 @@
     </div>
 </div>
 
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
 <script>
-// Ticket functions
-document.addEventListener('DOMContentLoaded', function() {
-    // Ticket functions initialized
-});
+// Generate QR Code fallback for user ticket detail
+function generateQRCodeFallbackUser(qrData) {
+    const fallbackElement = document.getElementById('qrcode-fallback-user');
+    const imgElement = document.getElementById('qrcode-img-user');
+    
+    if (fallbackElement && typeof QRCode !== 'undefined') {
+        imgElement.style.display = 'none';
+        fallbackElement.style.display = 'block';
+        new QRCode(fallbackElement, {
+            text: qrData,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } else {
+        // If QRCode library not loaded, try to load it
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        script.onload = function() {
+            if (fallbackElement) {
+                imgElement.style.display = 'none';
+                fallbackElement.style.display = 'block';
+                new QRCode(fallbackElement, {
+                    text: qrData,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        };
+        document.head.appendChild(script);
+    }
+}
+
+// Print ticket function
+function printTicket() {
+    window.print();
+}
 
 // Download ticket function
 function downloadTicket() {
     // You can implement download as PDF or image here
     alert('Chức năng tải xuống sẽ được cập nhật sớm!');
 }
-
-// Print styles
-const style = document.createElement('style');
-style.textContent = `
-    @media print {
-        body * {
-            visibility: hidden;
-        }
-        .container, .container * {
-            visibility: visible;
-        }
-        .container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-        }
-        button {
-            display: none !important;
-        }
-        a[href*="bookings"] {
-            display: none !important;
-        }
-    }
-`;
-document.head.appendChild(style);
 </script>
 
 <style>
-    @media print {
-        @page {
-            size: A4;
-            margin: 10mm;
-        }
+@media print {
+    @page {
+        size: A4;
+        margin: 10mm;
     }
+    
+    body * {
+        visibility: hidden;
+    }
+    
+    .container, .container * {
+        visibility: visible;
+    }
+    
+    .container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .print-hidden {
+        display: none !important;
+    }
+    
+    a[href*="bookings"] {
+        display: none !important;
+    }
+    
+    /* Ensure ticket card is visible and properly styled for print */
+    .bg-gradient-to-br {
+        background: white !important;
+        border: 2px solid #000 !important;
+    }
+    
+    .bg-[#F53003] {
+        background: #F53003 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    .bg-[#222533] {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .text-[#a6a6b0] {
+        color: #666 !important;
+    }
+    
+    /* Ensure QR code is visible */
+    img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
 </style>
 @endsection

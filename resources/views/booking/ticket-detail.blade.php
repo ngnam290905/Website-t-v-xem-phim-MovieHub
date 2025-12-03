@@ -214,6 +214,49 @@
                         </div>
                     </div>
                 @endif
+                <!-- QR Code for Confirmed Tickets -->
+                @php
+                    // Always generate QR code data for confirmed tickets
+                    $qrData = $qrCodeData ?? null;
+                    if (!$qrData) {
+                        $qrData = 'ticket_id=' . $booking->id;
+                        if ($booking->ticket_code) {
+                            $qrData = 'ticket_id=' . $booking->ticket_code;
+                        }
+                    }
+                    // Use QR code API for reliable display
+                    $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrData);
+                @endphp
+                
+                @if($booking->trang_thai == 1)
+                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <i class="fas fa-qrcode text-[#0077c8]"></i>
+                            <span>Mã QR Vé</span>
+                        </h3>
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="bg-white p-4 rounded-lg mb-4" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                                <img src="{{ $qrCodeUrl }}" alt="QR Code" id="qrcode-img" style="width: 200px; height: 200px; display: block;" onerror="console.error('QR Image failed to load'); this.style.display='none'; document.getElementById('qrcode-fallback').style.display='block'; generateQRCodeFallback('{{ $qrData }}');">
+                                <div id="qrcode-fallback" style="display: none; width: 200px; height: 200px;"></div>
+                            </div>
+                            <p class="text-sm text-[#a6a6b0] text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Vui lòng xuất trình mã QR này tại rạp để vào xem phim
+                            </p>
+                            <p class="text-xs text-[#a6a6b0] text-center mt-2">
+                                Mã vé: #{{ str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}
+                            </p>
+                        </div>
+                    </div>
+                @else
+                    <!-- Debug: Show status if not confirmed -->
+                    <div class="bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-3 mb-4">
+                        <p class="text-yellow-400 text-sm">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Trạng thái vé: {{ $booking->trang_thai }} (QR code chỉ hiển thị khi trạng thái = 1)
+                        </p>
+                    </div>
+                @endif
 
                 <!-- Booking Info -->
                 <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
@@ -243,10 +286,10 @@
                     Vé đã được bảo vệ và xác thực
                 </div>
                 <div class="flex gap-3">
-                    @if($isPaid && $showtime && $showtime->thoi_gian_bat_dau > now())
+                    @if($isPaid)
                         <button 
                             onclick="printTicket()"
-                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2"
+                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2 print-hidden"
                         >
                             <i class="fas fa-print"></i>
                             <span>In vé</span>
@@ -267,6 +310,8 @@
     </div>
 </div>
 
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 function printTicket() {
     window.print();
@@ -278,19 +323,110 @@ function cancelTicket(bookingId) {
         alert('Tính năng hủy vé đang được phát triển');
     }
 }
+
+// Generate QR Code fallback if image fails to load
+function generateQRCodeFallback(qrData) {
+    const fallbackElement = document.getElementById('qrcode-fallback');
+    const imgElement = document.getElementById('qrcode-img');
+    
+    if (fallbackElement && typeof QRCode !== 'undefined') {
+        imgElement.style.display = 'none';
+        fallbackElement.style.display = 'block';
+        new QRCode(fallbackElement, {
+            text: qrData,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } else {
+        // If QRCode library not loaded, try to load it
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        script.onload = function() {
+            if (fallbackElement) {
+                imgElement.style.display = 'none';
+                fallbackElement.style.display = 'block';
+                new QRCode(fallbackElement, {
+                    text: qrData,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        };
+        document.head.appendChild(script);
+    }
+}
 </script>
 
 <style>
 @media print {
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+    
     body * {
         visibility: hidden;
     }
-    .bg-gradient-to-br, .bg-gradient-to-r, .bg-gradient-to-br {
+    
+    .min-h-screen, .min-h-screen * {
+        visibility: visible;
+    }
+    
+    .min-h-screen {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        padding: 0 !important;
+    }
+    
+    /* Hide buttons and navigation */
+    button, a[href*="tickets"] {
+        display: none !important;
+    }
+    
+    /* Improve print colors */
+    .bg-gradient-to-br, .bg-gradient-to-r {
         background: white !important;
         color: black !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
+    
+    .bg-[#0a1a2f], .bg-[#1a1d24], .bg-[#151822] {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    .text-[#a6a6b0] {
+        color: #666 !important;
+    }
+    
     .border {
         border-color: #000 !important;
+    }
+    
+    /* Ensure QR code is visible */
+    img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Keep status badges visible but readable */
+    .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20 {
+        background: #f0f0f0 !important;
+        border: 1px solid #000 !important;
     }
 }
 </style>

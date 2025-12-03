@@ -23,7 +23,6 @@ class PhongChieuController extends Controller
         if ($request->filled('search')) {
             $query->where('ten_phong', 'like', '%' . $request->search . '%');
         }
-
         // Filter by type (only if column exists)
         if ($request->filled('type')) {
             if (Schema::hasColumn('phong_chieu', 'type')) {
@@ -63,94 +62,6 @@ class PhongChieuController extends Controller
         }
         
         return view('admin.phong-chieu.index', compact('phongChieu', 'totalRooms', 'activeRooms', 'pausedRooms', 'showtimesToday'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    
-    /**
-     * Show form to configure showtimes for all rooms during peak hours
-     */
-    public function showPeakHoursConfig()
-    {
-        $phims = \App\Models\Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])->get();
-        $phongChieus = PhongChieu::where('trang_thai', 1)->get();
-        
-        return view('admin.phong-chieu.peak-hours', compact('phims', 'phongChieus'));
-    }
-    
-    /**
-     * Create showtimes for all rooms during peak hours
-     */
-    public function createPeakHoursShowtimes(Request $request)
-    {
-        $request->validate([
-            'phim_id' => 'required|exists:phim,id',
-            'ngay_chieu' => 'required|date|after_or_equal:today',
-            'gio_bat_dau' => 'required|date_format:H:i',
-            'gio_ket_thuc' => 'required|date_format:H:i|after:gio_bat_dau',
-            'thoi_gian_ngung' => 'required|integer|min:15|max:60',
-            'phong_chieu' => 'required|array|min:1',
-            'phong_chieu.*' => 'exists:phong_chieu,id',
-        ]);
-        
-        $phim = \App\Models\Phim::findOrFail($request->phim_id);
-        $ngayChieu = $request->ngay_chieu;
-        $gioBatDau = $request->gio_bat_dau;
-        $gioKetThuc = $request->gio_ket_thuc;
-        $thoiGianNgung = $request->thoi_gian_ngung;
-        
-        // Calculate time slots
-        $batDau = \Carbon\Carbon::parse("$ngayChieu $gioBatDau");
-        $ketThuc = \Carbon\Carbon::parse("$ngayChieu $gioKetThuc");
-        $thoiLuongPhut = $phim->thoi_luong; // Assuming thoi_luong is in minutes
-        
-        $createdCount = 0;
-        
-        DB::beginTransaction();
-        try {
-            foreach ($request->phong_chieu as $phongId) {
-                $currentTime = clone $batDau;
-                
-                while ($currentTime->addMinutes($thoiLuongPhut + $thoiGianNgung)->lte($ketThuc)) {
-                    $showtimeEnd = (clone $currentTime)->addMinutes($thoiLuongPhut);
-                    
-                    // Check for overlapping showtimes
-                    $exists = SuatChieu::where('id_phong', $phongId)
-                        ->where(function($query) use ($currentTime, $showtimeEnd) {
-                            $query->whereBetween('thoi_gian_bat_dau', [$currentTime, $showtimeEnd])
-                                  ->orWhereBetween('thoi_gian_ket_thuc', [$currentTime, $showtimeEnd])
-                                  ->orWhere(function($q) use ($currentTime, $showtimeEnd) {
-                                      $q->where('thoi_gian_bat_dau', '<', $currentTime)
-                                        ->where('thoi_gian_ket_thuc', '>', $showtimeEnd);
-                                  });
-                        })
-                        ->exists();
-                    
-                    if (!$exists) {
-                        SuatChieu::create([
-                            'id_phim' => $phim->id,
-                            'id_phong' => $phongId,
-                            'thoi_gian_bat_dau' => $currentTime,
-                            'thoi_gian_ket_thuc' => $showtimeEnd,
-                            'trang_thai' => 1
-                        ]);
-                        $createdCount++;
-                    }
-                    
-                    $currentTime = $showtimeEnd;
-                }
-            }
-            
-            DB::commit();
-            return redirect()->route('admin.phong-chieu.index')
-                ->with('success', "Đã tạo thành công $createdCount suất chiếu cho phim '{$phim->ten_phim}'");
-                
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
-        }
     }
 
     /**
@@ -240,6 +151,118 @@ class PhongChieuController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Có lỗi xảy ra khi tạo phòng chiếu: ' . $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * Append rows/columns of seats to the room without removing existing seats
+     */
+    public function appendSeats(Request $request, PhongChieu $phongChieu)
+    {
+        $request->validate([
+            'add_rows' => 'required|integer|min:0|max:20',
+            'add_cols' => 'required|integer|min:0|max:30',
+            'seat_type' => 'required|string|in:normal,vip,couple'
+        ]);
+
+        $addRows = (int) $request->add_rows;
+        $addCols = (int) $request->add_cols;
+
+        if ($addRows === 0 && $addCols === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không có hàng/cột nào được thêm.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Current dimensions (fallback to counts if null)
+            $currentRows = (int) ($phongChieu->rows ?? max(1, (int) $phongChieu->seats()->max('so_hang')));
+            $currentCols = (int) ($phongChieu->cols ?? max(1, (int) $phongChieu->seats()->selectRaw('MAX(LENGTH(so_ghe)) as len')->value('len')));
+
+            $newRows = $currentRows + $addRows;
+            $newCols = $currentCols + $addCols;
+
+            // Map seat_type string to id_loai
+            $typeIdMap = [ 'normal' => 1, 'vip' => 2, 'couple' => 3 ];
+            $typeId = $typeIdMap[$request->seat_type] ?? 1;
+            $seatType = LoaiGhe::find($typeId) ?: LoaiGhe::first();
+            $typeId = $seatType ? $seatType->id : null;
+
+            $toInsert = [];
+
+            // 1) New rows: rows (currentRows+1 .. newRows) with all columns up to newCols
+            if ($addRows > 0) {
+                for ($r = $currentRows + 1; $r <= $newRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            // 2) New columns: columns (currentCols+1 .. newCols) for existing rows (1 .. currentRows)
+            if ($addCols > 0) {
+                for ($r = 1; $r <= $currentRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = $currentCols + 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($toInsert)) {
+                // Avoid duplicate seat codes just in case
+                $existingCodes = Ghe::where('id_phong', $phongChieu->id)
+                    ->whereIn('so_ghe', array_map(fn($s) => $s['so_ghe'], $toInsert))
+                    ->pluck('so_ghe')
+                    ->all();
+                if (!empty($existingCodes)) {
+                    $toInsert = array_values(array_filter($toInsert, fn($s) => !in_array($s['so_ghe'], $existingCodes, true)));
+                }
+            }
+
+            if (!empty($toInsert)) {
+                Ghe::insert($toInsert);
+            }
+
+            // Update room dimensions
+            $phongChieu->update([
+                'rows' => $newRows,
+                'cols' => $newCols,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm hàng/cột ghế thành công!',
+                'added_rows' => $addRows,
+                'added_cols' => $addCols,
+                'total_inserted' => count($toInsert),
+                'new_rows' => $newRows,
+                'new_cols' => $newCols,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

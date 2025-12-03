@@ -50,6 +50,7 @@
             @foreach($phim as $movie)
             <option value="{{ $movie->id }}" data-duration="{{ $movie->do_dai }}" {{ old('id_phim') == $movie->id ? 'selected' : '' }}>
               {{ $movie->ten_phim }} ({{ $movie->do_dai }} phút)
+
             </option>
             @endforeach
           </select>
@@ -143,7 +144,6 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const movieSelect = document.getElementById('id_phim');
       const startTimeInput = document.getElementById('start_time');
       const endTimeInput = document.getElementById('end_time');
       

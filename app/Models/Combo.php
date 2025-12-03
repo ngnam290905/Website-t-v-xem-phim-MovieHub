@@ -24,6 +24,8 @@ class Combo extends Model
         'ngay_bat_dau',
         'ngay_ket_thuc',
         'trang_thai',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -102,6 +104,6 @@ class Combo extends Model
             }
             return asset('storage/' . $this->anh);
         }
-        return asset('images/default-combo.jpg');
+        return asset('images/no-poster.svg');
     }
 }

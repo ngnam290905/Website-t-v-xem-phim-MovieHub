@@ -4,7 +4,7 @@
 <div class="max-w-5xl mx-auto px-4 py-10">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-white">Kiểm tra vé</h1>
-    <p class="text-[#a6a6b0] text-sm">Nhập mã vé để xem thông tin.</p>
+    <p class="text-[#a6a6b0] text-sm">Nhập mã vé để xem thông tin và quét QR khi vào rạp.</p>
   </div>
 
   <div class="rounded-2xl border border-[#262833] bg-[#10131a] shadow-xl overflow-hidden">
@@ -53,11 +53,13 @@
           </div>
         </div>
         <div class="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#262833] p-4">
+<<<<<<< HEAD
           <div class="w-44 h-44 bg-[#151822] rounded-md flex items-center justify-center">
-            <div class="text-center">
-              <p class="text-white font-mono text-lg font-bold" id="t-code-display">—</p>
-              <p class="text-[#a6a6b0] text-xs mt-2">Mã vé</p>
-            </div>
+            <div id="t-qr" class="w-40 h-40"></div>
+          </div>
+          <div class="text-center">
+            <p class="text-white font-mono text-lg font-bold" id="t-code-display">—</p>
+            <p class="text-[#a6a6b0] text-xs mt-2">Mã vé</p>
           </div>
           <div class="text-[#a6a6b0] text-xs">Xuất trình mã vé khi đến rạp</div>
         </div>
@@ -81,7 +83,11 @@
   var priceEl = document.getElementById('t-price');
   var createdEl = document.getElementById('t-created');
   var methodEl = document.getElementById('t-method');
+<<<<<<< HEAD
   var codeDisplayEl = document.getElementById('t-code-display');
+=======
+  var qrEl = document.getElementById('t-qr');
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
 
   function parseId(raw){ if(!raw) return null; raw = String(raw).trim(); var m = raw.match(/(\d+)/); return m? m[1] : null; }
   function formatVND(x){ try{ return Number(x).toLocaleString('vi-VN') + ' đ'; }catch(e){ return x; }}
@@ -99,7 +105,17 @@
     if(t.showtime){ if(t.showtime.movie) showParts.push(t.showtime.movie); if(t.showtime.room) showParts.push(t.showtime.room); if(t.showtime.start) showParts.push(t.showtime.start); }
     showEl.textContent = showParts.join(' • ');
     seatsEl.textContent = Array.isArray(t.seats) ? t.seats.join(', ') : '—';
-    codeDisplayEl.textContent = t.code || '—';
+<<<<<<< HEAD
+    var numericId = (t.id || '').toString();
+    var mvCode = t.id ? ('MV' + String(t.id).padStart(6,'0')) : (t.code || '—');
+    codeDisplayEl.textContent = mvCode;
+    try{
+      var qrEl = document.getElementById('t-qr');
+      if(qrEl){ qrEl.innerHTML=''; new QRCode(qrEl, { text: 'ticket_id=' + numericId, width: 160, height: 160 }); }
+    }catch(e){ console.error('QR render error', e); }
+=======
+    if(t.qr && t.qr.image){ qrEl.src = t.qr.image; qrEl.alt = t.qr.data || 'QR'; }
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
   }
 
   function load(id){
@@ -121,4 +137,9 @@
   })();
 })();
 </script>
+<<<<<<< HEAD
+<!-- QRCode.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+=======
+>>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
 @endsection

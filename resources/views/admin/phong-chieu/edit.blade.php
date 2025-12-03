@@ -142,6 +142,44 @@
             <div id="regen_msg" class="text-sm mt-2 hidden"></div>
           </div>
 
+          <!-- Append rows/columns -->
+          <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 mt-6">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-white font-semibold">Thêm hàng/cột ghế</div>
+              <div class="text-xs text-[#a6a6b0]">Không xóa ghế hiện tại, chỉ thêm vào cuối</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Thêm số hàng</label>
+                <input type="number" id="append_rows" min="0" max="20" value="0" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-300 mb-1">Thêm số cột</label>
+                <input type="number" id="append_cols" min="0" max="30" value="0" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+              </div>
+              <div class="md:col-span-3">
+                <span class="block text-xs text-gray-300 mb-1">Loại ghế cho phần thêm</span>
+                <div class="flex items-center gap-4">
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                    <input type="radio" name="append_type" value="normal" checked> Ghế thường
+                  </label>
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                    <input type="radio" name="append_type" value="vip"> Ghế VIP
+                  </label>
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+                    <input type="radio" name="append_type" value="couple"> Ghế đôi
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center justify-end mt-4">
+              <button type="button" id="btnAppend" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <i class="fas fa-plus mr-2"></i>Thêm hàng/cột
+              </button>
+            </div>
+            <div id="append_msg" class="text-sm mt-2 hidden"></div>
+          </div>
+
           <!-- Inline seat editor -->
           @php $phongChieu->loadMissing(['seats.seatType']); @endphp
           <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
@@ -418,15 +456,51 @@
           try {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const res = await fetch("{{ route('admin.phong-chieu.generate-seats', $phongChieu) }}", {
-              method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token},
+              method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':token},
               body: JSON.stringify({ rows, cols, seat_type: type })
             });
+            const ct = (res.headers.get('content-type')||'').toLowerCase();
+            if (res.redirected) { window.location.href = res.url; return; }
+            if (!ct.includes('application/json')) {
+              const text = await res.text();
+              throw new Error('Máy chủ trả về HTML thay vì JSON. Mã: '+res.status);
+            }
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi tạo lại ghế');
             msg.className = 'text-green-400 text-sm mt-2'; msg.textContent = data.message || 'Đã tạo lại ghế thành công'; msg.classList.remove('hidden');
             setTimeout(()=>{ window.location.reload(); }, 800);
           } catch(e) {
             msg.className = 'text-red-400 text-sm mt-2'; msg.textContent = e.message || 'Có lỗi xảy ra'; msg.classList.remove('hidden');
+          }
+        });
+      }
+      // Append rows/cols
+      const btnAppend = document.getElementById('btnAppend');
+      const appendMsg = document.getElementById('append_msg');
+      if (btnAppend) {
+        btnAppend.addEventListener('click', async function(){
+          const add_rows = parseInt(document.getElementById('append_rows').value||'0');
+          const add_cols = parseInt(document.getElementById('append_cols').value||'0');
+          const seat_type = (document.querySelector('input[name="append_type"]:checked')||{}).value || 'normal';
+          if ((add_rows<=0 && add_cols<=0) || add_rows<0 || add_cols<0) { alert('Nhập số hàng/cột cần thêm.'); return; }
+          try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const res = await fetch("{{ route('admin.phong-chieu.seats.append', $phongChieu) }}", {
+              method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':token},
+              body: JSON.stringify({ add_rows, add_cols, seat_type })
+            });
+            const ct = (res.headers.get('content-type')||'').toLowerCase();
+            if (res.redirected) { window.location.href = res.url; return; }
+            if (!ct.includes('application/json')) {
+              const text = await res.text();
+              throw new Error('Máy chủ trả về HTML thay vì JSON. Mã: '+res.status);
+            }
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi thêm ghế');
+            appendMsg.className = 'text-green-400 text-sm mt-2'; appendMsg.textContent = data.message || 'Đã thêm ghế thành công'; appendMsg.classList.remove('hidden');
+            setTimeout(()=>{ window.location.reload(); }, 800);
+          } catch(e) {
+            appendMsg.className = 'text-red-400 text-sm mt-2'; appendMsg.textContent = e.message || 'Có lỗi xảy ra'; appendMsg.classList.remove('hidden');
           }
         });
       }

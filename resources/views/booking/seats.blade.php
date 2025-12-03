@@ -5,6 +5,27 @@
 @section('content')
 <div class="min-h-screen bg-[#0F1117]">
   <div class="max-w-7xl mx-auto px-4">
+    <style>
+      /* Seat map visual refinements */
+      #seat-map-container .seat-btn-enhanced{width:46px;height:46px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#1a1d24;border:1px solid #2a2f3a;transition:transform .15s ease, box-shadow .15s ease}
+      #seat-map-container .seat-btn-enhanced.seat-available:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(255,120,78,.18)}
+      #seat-map-container .seat-btn-enhanced.seat-vip{background:linear-gradient(180deg,#3a2a00,#251a00);border-color:#6b4e00}
+      #seat-map-container .seat-btn-enhanced.seat-selected{background:linear-gradient(180deg,#FF784E,#FFB25E);color:#fff;border-color:#FF8A5E}
+      #seat-map-container .seat-btn-enhanced.seat-sold{background:#4b5563;border-color:#6b7280;color:#cbd5e1;opacity:.75}
+      #seat-map-container .seat-btn-enhanced.seat-locked{background:#334155;border-color:#475569;color:#cbd5e1}
+      #seat-map-container .seat-btn-enhanced.seat-disabled{background:#1f2937;border-color:#374151;opacity:.5}
+      #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff}
+      #seat-map-container .seat-number{font-size:12px;font-weight:700;color:#E6E7EB}
+      /* Row/column labels */
+      #seat-map-container .col-label{width:46px;height:46px;border-radius:10px}
+      #seat-map-container .col-label-text{font-size:13px;font-weight:700}
+      #seat-map-container .row-label{width:46px;height:46px;border-radius:12px}
+      /* Grid spacing */
+      #seat-map-container .seat-row-gap{gap:6px}
+      @media (min-width: 1024px){
+        #seat-map-container .seat-row-gap{gap:8px}
+      }
+    </style>
     
     <!-- Movie Info Header -->
     <div class="pt-4 pb-6">
@@ -140,7 +161,7 @@
           </div>
 
           <!-- Seat Map Container -->
-          <div class="relative overflow-x-auto mb-6" id="seat-map-container">
+          <div class="relative mb-6" id="seat-map-container">
             <!-- Column Numbers (Top) - Enhanced -->
             @php
               // Group seats by row và sắp xếp lại
@@ -182,13 +203,13 @@
               }
             @endphp
             
-            <div class="flex items-center gap-1 mb-4 pl-12">
+            <div class="flex items-center gap-2 mb-5 pl-14">
               <div class="w-10"></div>
               @foreach($colNumbers as $colItem)
                 @if($colItem === 'aisle')
-                  <div class="w-4"></div>
+                  <div class="w-5"></div>
                 @else
-                <div class="w-10 h-10 flex items-center justify-center text-xs font-bold text-[#a6a6b0] bg-[#1a1d24] rounded border border-[#2a2d3a]">
+                <div class="col-label flex items-center justify-center text-sm col-label-text text-[#a6a6b0] bg-[#1a1d24] rounded border border-[#2a2d3a]">
                     {{ $colItem }}
                 </div>
                 @endif
@@ -196,7 +217,7 @@
             </div>
             
             <!-- Seat Grid - Ma trận cải tiến -->
-            <div class="inline-block min-w-full space-y-3">
+            <div id="seat-map-scale" class="inline-block space-y-4" style="transform-origin: top center; display:block; margin: 0 auto;">
               @foreach($seatMatrix as $rowLabel => $rowSeats)
                 @php
                   $isVipRow = in_array($rowLabel, $vipRows);
@@ -230,17 +251,17 @@
                     <div class="absolute -left-4 -right-4 top-0 h-px bg-gradient-to-r from-transparent via-[#FF784E]/30 to-transparent mb-3"></div>
                   @endif
                   
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-4">
                     <!-- Row Label -->
-                    <div class="w-10 h-10 flex items-center justify-center text-sm font-bold text-[#E6E7EB] bg-gradient-to-br from-[#2a2d3a] to-[#1a1d24] rounded-lg border border-[#3a3d4a] shadow-lg shrink-0 {{ $isVipRow ? 'ring-2 ring-yellow-500/50' : '' }}">
+                    <div class="row-label flex items-center justify-center text-base font-bold text-[#E6E7EB] bg-gradient-to-br from-[#2a2d3a] to-[#1a1d24] rounded-lg border border-[#3a3d4a] shadow-lg shrink-0 {{ $isVipRow ? 'ring-2 ring-yellow-500/50' : '' }}">
                       {{ $rowLabel }}
                     </div>
                     
                     <!-- Seats Row - Ma trận với spacing -->
-                    <div class="flex gap-1 items-center">
+                    <div class="flex seat-row-gap items-center">
                       @for($col = 1; $col <= $maxCols; $col++)
                         @if(in_array($col, [6, 11])) {{-- Lối đi sau cột 5 và 10 --}}
-                          <div class="w-4"></div>
+                          <div class="w-5"></div>
                         @endif
                         
                         @if(isset($seatMap[$col]))
@@ -253,6 +274,11 @@
                           $price = $basePrice * $seatPrice;
                           $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
                             $isVipSeat = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
+                            $isCoupleSeat = $seatType && (
+                              strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
+                              strpos(strtolower($seatType->ten_loai ?? ''), 'doi') !== false ||
+                              strpos(strtolower($seatType->ten_loai ?? ''), 'couple') !== false
+                            );
                         @endphp
                         
                         <button 
@@ -263,6 +289,7 @@
                           @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
                           @elseif($status === 'disabled') seat-disabled
                           @elseif($isVipSeat) seat-vip
+                          @elseif($isCoupleSeat) seat-couple
                           @else seat-available
                           @endif"
                           data-seat-id="{{ $seat->id }}"
@@ -313,7 +340,7 @@
                         </button>
                         @else
                           {{-- Empty cell để giữ alignment --}}
-                          <div class="w-10 h-10"></div>
+                          <div class="w-[46px] h-[46px]"></div>
                         @endif
                       @endfor
                     </div>
@@ -333,53 +360,51 @@
             </div>
           </div>
 
-          <!-- Enhanced Legend -->
+          <!-- Legend (5 types only) -->
           <div class="bg-gradient-to-r from-[#151822] via-[#1a1d24] to-[#151822] rounded-xl p-6 border border-[#2A2F3A]">
             <h4 class="text-sm font-bold text-[#E6E7EB] mb-4 text-center flex items-center justify-center gap-2">
               <i class="fas fa-info-circle text-[#FF784E]"></i>
               <span>Chú thích</span>
             </h4>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-[#3a3d4a] transition-colors">
-                <div class="w-12 h-12 rounded-lg bg-[#2a2d3a] border-2 border-[#3a3d4a] flex items-center justify-center shadow-lg">
-                  <div class="w-8 h-8 rounded bg-[#2a2d3a] border border-[#3a3d4a]"></div>
-                </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">Trống</span>
-              </div>
-              
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-yellow-500/50 transition-colors">
-                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-yellow-600 to-yellow-700 border-2 border-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                  <i class="fas fa-crown text-yellow-200 text-sm"></i>
-                </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">VIP</span>
-              </div>
-              
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-[#FF784E]/50 transition-colors">
-                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-[#FF784E] to-[#FFB25E] border-2 border-[#FF784E] flex items-center justify-center shadow-lg shadow-[#FF784E]/30">
-                  <i class="fas fa-check text-white text-sm"></i>
-                </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">Đã chọn</span>
-              </div>
-              
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-gray-500/50 transition-colors">
-                <div class="w-12 h-12 rounded-lg bg-gray-700/50 border-2 border-gray-600 flex items-center justify-center shadow-lg">
-                  <i class="fas fa-clock text-gray-400 text-sm animate-pulse"></i>
-                </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">Đang chọn</span>
-              </div>
-              
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-red-500/50 transition-colors">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <!-- Ghế đã đặt -->
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a]">
                 <div class="w-12 h-12 rounded-lg bg-red-600/80 border-2 border-red-700 flex items-center justify-center shadow-lg">
                   <i class="fas fa-times text-white text-sm"></i>
                 </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">Đã bán</span>
+                <span class="text-xs text-[#a6a6b0] font-medium">Ghế đã đặt</span>
               </div>
-              
-              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a] hover:border-gray-600/50 transition-colors">
-                <div class="w-12 h-12 rounded-lg bg-gray-800/30 border-2 border-dashed border-gray-700 flex items-center justify-center">
-                  <i class="fas fa-ban text-gray-600 text-sm"></i>
+
+              <!-- Ghế bạn chọn -->
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a]">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-[#FF784E] to-[#FFB25E] border-2 border-[#FF784E] flex items-center justify-center shadow-lg">
+                  <i class="fas fa-check text-white text-sm"></i>
                 </div>
-                <span class="text-xs text-[#a6a6b0] font-medium">Vô hiệu</span>
+                <span class="text-xs text-[#a6a6b0] font-medium">Ghế bạn chọn</span>
+              </div>
+
+              <!-- Ghế VIP -->
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a]">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-yellow-600 to-yellow-700 border-2 border-yellow-500 flex items-center justify-center shadow-lg">
+                  <i class="fas fa-crown text-yellow-200 text-sm"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Ghế VIP</span>
+              </div>
+
+              <!-- Ghế đôi -->
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a]">
+                <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 border-2 border-pink-500 flex items-center justify-center shadow-lg">
+                  <i class="fas fa-heart text-white text-sm"></i>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Ghế đôi</span>
+              </div>
+
+              <!-- Ghế thường -->
+              <div class="flex flex-col items-center gap-2 p-3 rounded-lg bg-[#1a1d24] border border-[#2a2d3a]">
+                <div class="w-12 h-12 rounded-lg bg-[#2a2d3a] border-2 border-[#3a3d4a] flex items-center justify-center">
+                  <div class="w-8 h-8 rounded bg-[#2a2d3a] border border-[#3a3d4a]"></div>
+                </div>
+                <span class="text-xs text-[#a6a6b0] font-medium">Ghế thường</span>
               </div>
             </div>
           </div>
@@ -681,16 +706,106 @@ function toggleSeat(seatId, seatCode, price, type) {
   }
 }
 
+// Helpers for contiguity check per row
+function seatRowFromCode(code){
+  return (code || '').trim().charAt(0);
+}
+function seatNumFromCode(code){
+  const m = String(code || '').match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : NaN;
+}
+function isRowContiguous(seatMap){
+  // Build rows => numbers array
+  const rows = {};
+  for (const { code } of seatMap.values()){
+    const r = seatRowFromCode(code);
+    const n = seatNumFromCode(code);
+    if (!r || isNaN(n)) continue;
+    (rows[r] ||= []).push(n);
+  }
+  // Check each row: if >=2, must form a single block: max-min+1 == count
+  for (const r in rows){
+    const arr = rows[r].sort((a,b)=>a-b);
+    if (arr.length >= 2){
+      const contiguous = (arr[arr.length-1] - arr[0] + 1) === arr.length;
+      if (!contiguous) return false;
+    }
+  }
+  return true;
+}
+
+// Couple-seat helpers
+function isCoupleTypeText(t){
+  const s = String(t || '').toLowerCase();
+  return s.includes('đôi') || s.includes('doi') || s.includes('couple');
+}
+function pairedSeatCodeOf(code){
+  const row = seatRowFromCode(code);
+  const n = seatNumFromCode(code);
+  if (!row || isNaN(n)) return null;
+  const pairNum = (n % 2 === 0) ? (n - 1) : (n + 1);
+  return row + String(pairNum);
+}
+function getSeatBtnByCode(code){
+  return document.querySelector(`[data-seat-code="${code}"]`);
+}
+
 function addSeat(seatId, seatCode, price, type) {
-  selectedSeats.set(seatId, { code: seatCode, price: price, type: type });
+  const draft = new Map(selectedSeats);
+
+  // If selecting a couple seat, auto-include its pair
+  if (isCoupleTypeText(type)){
+    const pairCode = pairedSeatCodeOf(seatCode);
+    const pairBtn = pairCode ? getSeatBtnByCode(pairCode) : null;
+    if (!pairBtn) {
+      alert('Không thể chọn ghế đôi vì ghế cặp không khả dụng.');
+      return;
+    }
+    const pairDisabled = pairBtn.hasAttribute('disabled');
+    const pairType = pairBtn.getAttribute('data-seat-type');
+    const pairPrice = parseInt(pairBtn.getAttribute('data-seat-price') || '0', 10);
+    const pairId = parseInt(pairBtn.getAttribute('data-seat-id') || '0', 10);
+    if (pairDisabled || !isCoupleTypeText(pairType)){
+      alert('Ghế cặp của ghế đôi đang không khả dụng. Vui lòng chọn cặp khác.');
+      return;
+    }
+    // Add both to draft
+    draft.set(seatId, { code: seatCode, price: price, type: type });
+    draft.set(pairId, { code: pairCode, price: pairPrice, type: pairType });
+  } else {
+    draft.set(seatId, { code: seatCode, price: price, type: type });
+  }
+
+  // Enforce contiguity per row
+  if (!isRowContiguous(draft)){
+    alert('Khi chọn từ 2 ghế trở lên trong cùng một hàng, các ghế phải liền nhau (không có khoảng trống).');
+    return;
+  }
+
+  selectedSeats = draft;
   updateUI();
   lockSeats();
 }
 
 function removeSeat(seatId) {
+  const current = selectedSeats.get(seatId);
+  const toUnlock = [seatId];
+  if (current && isCoupleTypeText(current.type)){
+    const pairCode = pairedSeatCodeOf(current.code);
+    if (pairCode){
+      // find the selected seatId that matches this code
+      for (const [id, data] of selectedSeats.entries()){
+        if (data.code === pairCode){
+          selectedSeats.delete(id);
+          toUnlock.push(id);
+          break;
+        }
+      }
+    }
+  }
   selectedSeats.delete(seatId);
   updateUI();
-  unlockSeats([seatId]);
+  unlockSeats(toUnlock);
 }
 
 let selectedCombos = new Map();
@@ -720,12 +835,20 @@ function updateUI() {
   // Update seat buttons
   document.querySelectorAll('.seat-btn, .seat-btn-enhanced').forEach(btn => {
     const id = parseInt(btn.dataset.seatId);
+    const typeText = String(btn.dataset.seatType || '').toLowerCase();
+    const isVip = typeText.includes('vip');
+    const isCouple = typeText.includes('đôi') || typeText.includes('doi') || typeText.includes('couple');
+
     if (selectedSeats.has(id)) {
-      btn.classList.remove('seat-available', 'seat-vip');
+      // Selected: ensure only seat-selected remains
+      btn.classList.remove('seat-available', 'seat-vip', 'seat-couple');
       btn.classList.add('seat-selected');
     } else if (!btn.disabled) {
-      btn.classList.remove('seat-selected');
-      if (btn.classList.contains('seat-vip')) {
+      // Not selected: remove selected state and restore base class
+      btn.classList.remove('seat-selected', 'seat-available', 'seat-vip', 'seat-couple');
+      if (isCouple) {
+        btn.classList.add('seat-couple');
+      } else if (isVip) {
         btn.classList.add('seat-vip');
       } else {
         btn.classList.add('seat-available');
@@ -1043,19 +1166,55 @@ function startRefresh() {
   }, 5000); // Refresh every 5 seconds
 }
 
-function continueToAddons() {
+async function continueToAddons() {
   if (selectedSeats.size === 0) {
     alert('Vui lòng chọn ít nhất một ghế');
     return;
   }
-  
-  const currentBookingId = window.bookingId || bookingId;
-  if (!currentBookingId) {
-    alert('Có lỗi xảy ra. Vui lòng thử lại.');
+
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (!token) {
+    alert('Không tìm thấy CSRF token. Vui lòng tải lại trang.');
     return;
   }
-  
-  window.location.href = `/bookings/${currentBookingId}/addons`;
+
+  const seatsArray = Array.from(selectedSeats.values()).map(s => s.code);
+  const bookingHoldId = window.bookingId || null;
+
+  try {
+    const combosPayload = Array.from(selectedCombos.entries()).map(([id, info]) => ({
+      id_combo: id,
+      so_luong: info.quantity,
+      gia: info.price
+    }));
+
+    const res = await fetch('/booking/continue', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': token,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        showtime_id: showId,
+        seats: seatsArray,
+        booking_hold_id: bookingHoldId,
+        combos: combosPayload
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+
+    // Redirect to payment step
+    window.location.href = '/booking/payment';
+  } catch (e) {
+    console.error('continueToPayment error', e);
+    alert('Có lỗi xảy ra. Vui lòng thử lại.');
+  }
 }
 
 function formatPrice(price) {
@@ -1067,28 +1226,63 @@ let currentZoom = 1;
 const minZoom = 0.7;
 const maxZoom = 1.5;
 const zoomStep = 0.1;
+let baseScale = 1;
 
 function zoomIn() {
-  const container = document.getElementById('seat-map-container');
-  if (!container) return;
-  
+  const scaleEl = document.getElementById('seat-map-scale');
+  if (!scaleEl) return;
   currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
-  container.style.transform = `scale(${currentZoom})`;
-  container.style.transformOrigin = 'top center';
+  scaleEl.style.transform = `scale(${(baseScale * currentZoom).toFixed(3)})`;
 }
 
 function zoomOut() {
-  const container = document.getElementById('seat-map-container');
-  if (!container) return;
-  
+  const scaleEl = document.getElementById('seat-map-scale');
+  if (!scaleEl) return;
   currentZoom = Math.max(currentZoom - zoomStep, minZoom);
-  container.style.transform = `scale(${currentZoom})`;
-  container.style.transformOrigin = 'top center';
+  scaleEl.style.transform = `scale(${(baseScale * currentZoom).toFixed(3)})`;
 }
 
 // Keyboard navigation for seat map
 let currentFocusedSeat = null;
 const seatButtons = [];
+
+// Auto-fit seat map to container width
+function fitSeatMap() {
+  const container = document.getElementById('seat-map-container');
+  const scaleEl = document.getElementById('seat-map-scale');
+  if (!container || !scaleEl) return;
+
+  // Temporarily reset transform to measure natural width
+  const prev = scaleEl.style.transform;
+  scaleEl.style.transform = 'none';
+
+  const containerWidth = container.clientWidth;
+  const gridWidth = scaleEl.scrollWidth; // natural width
+  // leave some breathing room
+  const target = Math.max(0, containerWidth - 24);
+  let scale = 1;
+  if (gridWidth > 0) {
+    scale = Math.min(1, target / gridWidth);
+  }
+
+  baseScale = scale;
+  currentZoom = 1; // reset incremental zoom when auto-fit
+  scaleEl.style.transform = `scale(${scale.toFixed(3)})`;
+  scaleEl.style.transformOrigin = 'top center';
+  // Restore if needed
+  // not restoring prev because we set the new scale
+}
+
+window.addEventListener('resize', () => {
+  // Debounce
+  clearTimeout(window.__fitSeatMapTimer);
+  window.__fitSeatMapTimer = setTimeout(fitSeatMap, 100);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Run after DOM ready and a tick for fonts/images
+  setTimeout(fitSeatMap, 0);
+});
 
 function initKeyboardNavigation() {
     const seats = document.querySelectorAll('.seat-btn:not([disabled]), .seat-btn-enhanced:not([disabled])');

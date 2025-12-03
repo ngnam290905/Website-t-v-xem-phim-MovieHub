@@ -1,3 +1,4 @@
+
 @extends('layouts.main')
 
 @section('title', 'Chọn combo - ' . $booking->suatChieu->phim->ten_phim)

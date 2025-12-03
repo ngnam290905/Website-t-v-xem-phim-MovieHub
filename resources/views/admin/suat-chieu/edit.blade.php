@@ -144,7 +144,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const movieSelect = document.getElementById('id_phim');
+
       const startTimeInput = document.getElementById('start_time');
       const endTimeInput = document.getElementById('end_time');
       
@@ -152,6 +152,7 @@
       const today = new Date().toISOString().slice(0, 16);
       startTimeInput.min = today;
       
+<<<<<<< HEAD
       // Function to round duration (làm tròn thời lượng)
       // 1-15 phút -> 30 phút
       // 16-45 phút -> 1 giờ (60 phút)

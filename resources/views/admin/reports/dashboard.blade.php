@@ -274,11 +274,11 @@
                                 <td class="py-4 px-6">
                                     <div class="flex items-center gap-3">
                                         <div class="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-800 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                            {{ substr($booking->nguoiDung->ho_ten, 0, 1) }}
+                                            {{ substr(optional($booking->nguoiDung)->ho_ten ?? 'N', 0, 1) }}
                                         </div>
                                         <div>
-                                            <div class="text-white font-medium group-hover:text-cyan-300 transition-colors">{{ $booking->nguoiDung->ho_ten }}</div>
-                                            <div class="text-gray-500 text-sm">{{ $booking->nguoiDung->email }}</div>
+                                            <div class="text-white font-medium group-hover:text-cyan-300 transition-colors">{{ optional($booking->nguoiDung)->ho_ten ?? 'Khách hàng N/A' }}</div>
+                                            <div class="text-gray-500 text-sm">{{ optional($booking->nguoiDung)->email ?? '—' }}</div>
                                         </div>
                                     </div>
                                 </td>
