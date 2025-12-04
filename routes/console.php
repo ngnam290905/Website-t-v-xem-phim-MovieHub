@@ -13,3 +13,5 @@ Schedule::command('bookings:auto-cancel-expired')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+Schedule::command('booking:delete-guest-trash')->everyMinute();
+Schedule::command('booking:delete-cancelled')->everyMinute();
