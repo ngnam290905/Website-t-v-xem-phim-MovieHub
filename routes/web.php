@@ -84,6 +84,7 @@ Route::get('/lich-chieu', [PublicController::class, 'schedule'])->middleware('bl
 Route::get('/combo', [PublicController::class, 'combos'])->middleware('block.admin.staff')->name('public.combos');
 Route::get('/tin-tuc', [PublicController::class, 'news'])->middleware('block.admin.staff')->name('public.news');
 Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->middleware('block.admin.staff')->name('public.news.detail');
+Route::get('/gioi-thieu', function(){ return View::make('about'); })->middleware('block.admin.staff')->name('about');
 
 // Debug route (remove in production)
 Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');

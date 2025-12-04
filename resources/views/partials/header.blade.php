@@ -9,6 +9,7 @@
       <a href="{{ route('home') }}" class="hover:text-[#F53003] transition">Trang chủ</a>
       <a href="{{ route('movies.index') }}" class="hover:text-[#F53003] transition">Phim</a>
       <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition">Giờ vé</a>
+      <a href="{{ route('about') }}" class="hover:text-[#F53003] transition">Giới thiệu</a>
       
       @php
         // Get all unique genres from the database
