@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\DatVe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class ScanController extends Controller
 {
@@ -35,21 +34,12 @@ class ScanController extends Controller
             });
         }
 
-        // Filter by checked_in status
-        if ($request->filled('status')) {
-            if ($request->status === 'checked') {
-                $query->where('checked_in', true);
-            } elseif ($request->status === 'not_checked') {
-                $query->where('checked_in', false);
-            }
-        }
-
-        // Filter by date
+        // Filter by date created
         if ($request->filled('date')) {
             $query->whereDate('created_at', $request->date);
         }
 
-        // Filter by showtime date
+        // Filter showtime date
         if ($request->filled('showtime_date')) {
             $query->whereHas('suatChieu', function($q) use ($request) {
                 $q->whereDate('thoi_gian_bat_dau', $request->showtime_date);
@@ -58,18 +48,16 @@ class ScanController extends Controller
 
         $tickets = $query->orderByDesc('created_at')->paginate(20);
 
-        // Statistics
+        // Statistics (KHÔNG DÙNG checked_in)
         $stats = [
             'total_paid' => DatVe::where('trang_thai', 1)->count(),
-            'checked_in' => DatVe::where('trang_thai', 1)->where('checked_in', true)->count(),
-            'not_checked' => DatVe::where('trang_thai', 1)->where('checked_in', false)->count(),
-            'today_checked' => DatVe::where('trang_thai', 1)
-                ->where('checked_in', true)
-                ->whereDate('created_at', Carbon::today())
-                ->count(),
-            'today_not_checked' => DatVe::where('trang_thai', 1)
-                ->where('checked_in', false)
-                ->whereDate('created_at', Carbon::today())
+            'total_today' => DatVe::where('trang_thai', 1)
+                                   ->whereDate('created_at', today())
+                                   ->count(),
+            'total_showtime_today' => DatVe::where('trang_thai', 1)
+                ->whereHas('suatChieu', function($q) {
+                    $q->whereDate('thoi_gian_bat_dau', today());
+                })
                 ->count(),
         ];
 
@@ -99,9 +87,7 @@ class ScanController extends Controller
         return view('admin.scan.show', compact('ticket', 'seats'));
     }
 
-    /**
-     * AJAX: Check ticket validity (Admin)
-     */
+    // AJAX: Check ticket validity
     public function check(Request $request)
     {
         $ticketId = $request->input('ticket_id');
@@ -109,19 +95,20 @@ class ScanController extends Controller
             return response()->json(['valid' => false, 'message' => 'Vui lòng nhập mã vé']);
         }
 
-        // Accept formats like ticket_id=123, MV000123, plain 123
         $raw = (string)$ticketId;
+
         if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) {
             $raw = $m[1];
         }
-        // Prefer numeric id if digits present (e.g., MV000290 -> 290)
+
         $numeric = null;
         if (preg_match('/(\d+)/', $raw, $m2)) {
             $numeric = (int)$m2[1];
         }
+
         $ticket = DatVe::with(['suatChieu.phim','chiTietDatVe.ghe'])
-            ->when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
-            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
+            ->when($numeric !== null, fn($q) => $q->where('id', $numeric))
+            ->when($numeric === null, fn($q) => $q->where('id', $raw))
             ->orWhere('ticket_code', $raw)
             ->first();
 
@@ -131,11 +118,9 @@ class ScanController extends Controller
         if ($ticket->trang_thai != 1) {
             return response()->json(['valid' => false, 'message' => 'Vé chưa thanh toán']);
         }
-        if ($ticket->checked_in) {
-            return response()->json(['valid' => false, 'message' => 'Vé này đã được quét trước đó']);
-        }
 
         $seats = $ticket->chiTietDatVe->map(fn($d) => $d->ghe->so_ghe ?? 'N/A')->filter()->implode(', ');
+
         return response()->json([
             'valid' => true,
             'ticket' => [
@@ -148,38 +133,12 @@ class ScanController extends Controller
         ]);
     }
 
-    /**
-     * AJAX: Confirm check-in (Admin)
-     */
+    // AJAX: Confirm check-in (KHÔNG LƯU TRẠNG THÁI)
     public function confirm(Request $request)
     {
-        $ticketId = $request->input('ticket_id');
-        if (!$ticketId) {
-            return response()->json(['success' => false, 'message' => 'Vui lòng nhập mã vé']);
-        }
-
-        $raw = (string)$ticketId;
-        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) { $raw = $m[1]; }
-        $numeric = null;
-        if (preg_match('/(\d+)/', $raw, $m2)) { $numeric = (int)$m2[1]; }
-
-        $ticket = DatVe::when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
-            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
-            ->orWhere('ticket_code', $raw)
-            ->first();
-        if (!$ticket) {
-            return response()->json(['success' => false, 'message' => 'Vé không tồn tại']);
-        }
-        if ($ticket->trang_thai != 1) {
-            return response()->json(['success' => false, 'message' => 'Vé chưa thanh toán']);
-        }
-        if ($ticket->checked_in) {
-            return response()->json(['success' => false, 'message' => 'Vé này đã được quét trước đó']);
-        }
-
-        $ticket->checked_in = true;
-        $ticket->save();
-
-        return response()->json(['success' => true, 'message' => 'Xác nhận thành công']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Quét vé thành công (KHÔNG LƯU TRẠNG THÁI CHECK-IN)'
+        ]);
     }
 }

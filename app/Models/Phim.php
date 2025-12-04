@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-<<<<<<< HEAD
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +25,6 @@ class Phim extends Model
         'do_tuoi',
         'ngay_khoi_chieu',
         'ngay_ket_thuc',
-<<<<<<< HEAD
         'mo_ta',
         'mo_ta_ngan',
         'diem_danh_gia',
@@ -35,19 +33,12 @@ class Phim extends Model
         'trang_thai',
         'doanh_thu',
         'loi_nhuan',
-=======
-        'diem_danh_gia',
-        'so_luot_danh_gia',
-        'hot',
-        'trang_thai'
->>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
     ];
 
     protected $casts = [
         'hot' => 'boolean',
         'ngay_khoi_chieu' => 'date',
         'ngay_ket_thuc' => 'date',
-<<<<<<< HEAD
         'diem_danh_gia' => 'decimal:1',
         'so_luot_danh_gia' => 'integer',
         'do_dai' => 'integer',
@@ -55,9 +46,6 @@ class Phim extends Model
         'loi_nhuan' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-=======
-        'diem_danh_gia' => 'float',
->>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
     ];
 
     public function suatChieu()
@@ -167,25 +155,5 @@ class Phim extends Model
             ->where('suat_chieu.id_phim', $this->id)
             ->where('thanh_toan.trang_thai', 1)
             ->count();
-=======
-     * Calculate total revenue from all showtimes of this movie
-     */
-    public function calculateDoanhThu()
-    {
-        return $this->suatChieu()
-            ->with('datVe')
-            ->get()
-            ->sum(function ($suatChieu) {
-                return $suatChieu->datVe->sum('tong_tien');
-            });
-    }
-    /**
-     * Calculate profit (revenue minus estimated costs)
-     * For now, returns revenue as profit calculation requires cost data
-     */
-    public function calculateLoiNhuan()
-    {
-        return $this->calculateDoanhThu();
->>>>>>> 7c41d7cf79cbaa269a41f5d8314177793bcddb1f
     }
 }

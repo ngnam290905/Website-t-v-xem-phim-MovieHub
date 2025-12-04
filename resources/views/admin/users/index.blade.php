@@ -31,7 +31,6 @@
       <div class="px-5 py-4 border-b border-[#262833] flex items-center justify-between">
         <h2 class="font-semibold">Danh sách người dùng</h2>
         <div class="flex items-center gap-4">
-          <a href="{{ route('admin.users.trash') }}" class="text-sm text-gray-400 hover:underline">Thùng rác</a>
           <a href="{{ route('admin.users.create') }}" class="text-sm text-[#F53003] hover:underline">Tạo mới</a>
         </div>
       </div>
@@ -104,16 +103,7 @@
                        title="Chỉnh sửa">
                       <i class="fas fa-edit text-xs"></i>
                     </a>
-                    <form action="{{ route('admin.users.destroy', $user->id) }}" 
-                          method="POST" 
-                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa người dùng này?');">
                       @csrf
-                      @method('DELETE')
-                      <button type="submit" 
-                              class="btn-table-action btn-table-delete"
-                              title="Xóa">
-                        <i class="fas fa-trash text-xs"></i>
-                      </button>
                     </form>
                   </form>
                 </td>
