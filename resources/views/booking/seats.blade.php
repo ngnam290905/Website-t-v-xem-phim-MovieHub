@@ -1,4 +1,4 @@
-@extends('layouts.main')
+@extends('layouts.app')
 
 @section('title', 'Chọn ghế - ' . $showtime->phim->ten_phim)
 
@@ -11,7 +11,7 @@
       #seat-map-container .seat-btn-enhanced.seat-available:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(255,120,78,.18)}
       #seat-map-container .seat-btn-enhanced.seat-vip{background:linear-gradient(180deg,#3a2a00,#251a00);border-color:#6b4e00}
       #seat-map-container .seat-btn-enhanced.seat-selected{background:linear-gradient(180deg,#FF784E,#FFB25E);color:#fff;border-color:#FF8A5E}
-      #seat-map-container .seat-btn-enhanced.seat-sold{background:#4b5563;border-color:#6b7280;color:#cbd5e1;opacity:.75}
+      #seat-map-container .seat-btn-enhanced.seat-sold{background:#dc2626;border-color:#b91c1c;color:#fee2e2;opacity:1; cursor: not-allowed;}
       #seat-map-container .seat-btn-enhanced.seat-locked{background:#334155;border-color:#475569;color:#cbd5e1}
       #seat-map-container .seat-btn-enhanced.seat-disabled{background:#1f2937;border-color:#374151;opacity:.5}
       #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff;width:98px}

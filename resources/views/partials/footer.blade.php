@@ -54,7 +54,7 @@
     
     <div class="border-t border-[#262833] mt-8 pt-8 text-center">
       <p class="text-[#a6a6b0] text-sm">
-        © {{ date('Y') }} MovieHub. Tất cả quyền được bảo lưu.
+        
       </p>
     </div>
   </div>
