@@ -77,7 +77,9 @@ class ChatController extends Controller
 
         if ($intentData['intent'] === 'showtime_search') {
             $params = $intentData['params'] ?? [];
-            $query = SuatChieu::with(['phim:id,ten_phim', 'phongChieu:id,ten_phong'])->whereHas('phim');
+            $query = SuatChieu::with(['phim:id,ten_phim', 'phongChieu:id,ten_phong'])
+                ->whereHas('phim')
+                ->where('thoi_gian_ket_thuc', '>', now()); // Only showtimes that haven't ended
 
             if (isset($params['movie'])) {
                 $query->whereHas('phim', function($q) use ($params) {

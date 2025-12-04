@@ -210,7 +210,7 @@
           if (empty($showtimesByDate)) {
             $showtimes = App\Models\SuatChieu::where('id_phim', $movie->id)
               ->where('trang_thai', 1)
-              ->where('thoi_gian_bat_dau', '>', now())
+              ->where('thoi_gian_bat_dau', '>=', now()) // Bao gồm suất chiếu trong ngày hôm nay chưa bắt đầu
               ->orderBy('thoi_gian_bat_dau')
               ->with('phongChieu')
               ->get()

@@ -405,10 +405,9 @@
 
             <div class="mt-6 px-2">
                 {{ $bookings->links('pagination::tailwind') }}
-            @endif
-        </div>
-
-
+            </div>
+        @endif
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

@@ -335,9 +335,7 @@ class QuanLyDatVeController extends Controller
 
         $showtimes = SuatChieu::with('phongChieu')
             ->where('id_phim', $movieId)->where('trang_thai', 1)
-            ->where(function ($q) {
-                $q->where('thoi_gian_bat_dau', '>', now()); // Chỉ lấy suất tương lai
-            })
+            ->where('thoi_gian_bat_dau', '>=', now()) // Bao gồm suất chiếu trong ngày hôm nay chưa bắt đầu
             ->orderBy('thoi_gian_bat_dau')->get()
             ->map(fn($s) => [
                 'id' => $s->id,

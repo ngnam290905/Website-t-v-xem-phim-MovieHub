@@ -14,7 +14,7 @@
       #seat-map-container .seat-btn-enhanced.seat-sold{background:#4b5563;border-color:#6b7280;color:#cbd5e1;opacity:.75}
       #seat-map-container .seat-btn-enhanced.seat-locked{background:#334155;border-color:#475569;color:#cbd5e1}
       #seat-map-container .seat-btn-enhanced.seat-disabled{background:#1f2937;border-color:#374151;opacity:.5}
-      #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff}
+      #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff;width:98px}
       #seat-map-container .seat-number{font-size:12px;font-weight:700;color:#E6E7EB}
       /* Row/column labels */
       #seat-map-container .col-label{width:46px;height:46px;border-radius:10px}
@@ -224,11 +224,43 @@
                   $rowIndex = array_search($rowLabel, array_keys($seatMatrix));
                   
                   // Tạo map ghế theo vị trí để align đúng cột
+                  // Gom nhóm ghế đôi theo pair_id
                   $seatMap = [];
+                  $processedSeats = [];
                   foreach($rowSeats as $seat) {
+                    // Skip nếu ghế này đã được xử lý như một phần của cặp
+                    if (in_array($seat->id, $processedSeats)) {
+                      continue;
+                    }
+                    
                     preg_match('/(\d+)/', $seat->so_ghe, $matches);
                     $colNum = (int)($matches[1] ?? 0);
-                    $seatMap[$colNum] = $seat;
+                    
+                    // Kiểm tra nếu là ghế đôi
+                    $isDouble = ($seat->is_double ?? false) || ($seat->id_loai == 3);
+                    $pairId = $seat->pair_id ?? null;
+                    
+                    if ($isDouble && $pairId) {
+                      // Tìm ghế cặp
+                      $pairSeat = $rowSeats->firstWhere('id', $pairId);
+                      if ($pairSeat) {
+                        // Gom nhóm 2 ghế thành 1 entry
+                        $seatMap[$colNum] = [
+                          'type' => 'couple',
+                          'seat1' => $seat,
+                          'seat2' => $pairSeat,
+                          'col' => $colNum
+                        ];
+                        $processedSeats[] = $seat->id;
+                        $processedSeats[] = $pairSeat->id;
+                      } else {
+                        // Không tìm thấy ghế cặp, hiển thị như ghế thường
+                        $seatMap[$colNum] = $seat;
+                      }
+                    } else {
+                      // Ghế thường
+                      $seatMap[$colNum] = $seat;
+                    }
                   }
                 @endphp
                 
@@ -266,78 +298,169 @@
                         
                         @if(isset($seatMap[$col]))
                         @php
-                            $seat = $seatMap[$col];
-                          $status = $seat->booking_status ?? 'available';
-                          $seatType = $seat->seatType ?? null;
-                          $seatPrice = $seatType->he_so_gia ?? 1;
-                          $basePrice = 50000;
-                          $price = $basePrice * $seatPrice;
-                          $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
-                            $isVipSeat = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
-                            $isCoupleSeat = $seatType && (
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'doi') !== false ||
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'couple') !== false
-                            );
+                            $seatData = $seatMap[$col];
+                            $isCouplePair = is_array($seatData) && isset($seatData['type']) && $seatData['type'] === 'couple';
+                            
+                            if ($isCouplePair) {
+                              $seat1 = $seatData['seat1'];
+                              $seat2 = $seatData['seat2'];
+                              $seatType1 = $seat1->seatType ?? $seat1->loaiGhe ?? null;
+                              $seatType2 = $seat2->seatType ?? $seat2->loaiGhe ?? null;
+                              $seatPrice1 = $seatType1->he_so_gia ?? 1;
+                              $seatPrice2 = $seatType2->he_so_gia ?? 1;
+                              $basePrice = 50000;
+                              $price1 = $basePrice * $seatPrice1;
+                              $price2 = $basePrice * $seatPrice2;
+                              $totalPrice = $price1 + $price2;
+                              $status1 = $seat1->booking_status ?? 'available';
+                              $status2 = $seat2->booking_status ?? 'available';
+                              $status = ($status1 === 'booked' || $status2 === 'booked') ? 'booked' : 
+                                        (($status1 === 'locked_by_other' || $status2 === 'locked_by_other') ? 'locked_by_other' : 
+                                        (($status1 === 'selected' || $status2 === 'selected' || $status1 === 'locked_by_me' || $status2 === 'locked_by_me') ? 'selected' : 'available'));
+                              $seatNumber1 = preg_replace('/^[A-Z]/', '', $seat1->so_ghe);
+                              $seatNumber2 = preg_replace('/^[A-Z]/', '', $seat2->so_ghe);
+                              $seatCodes = $seat1->so_ghe . '-' . $seat2->so_ghe;
+                            } else {
+                              $seat = $seatData;
+                              $status = $seat->booking_status ?? 'available';
+                              $seatType = $seat->seatType ?? $seat->loaiGhe ?? null;
+                              $seatPrice = $seatType->he_so_gia ?? 1;
+                              $basePrice = 50000;
+                              $price = $basePrice * $seatPrice;
+                              $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
+                              $isVipSeat = ($seat->id_loai == 2) || ($seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false);
+                              $isCoupleSeat = ($seat->id_loai == 3) || ($seat->is_double ?? false) || ($seatType && (
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'doi') !== false ||
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'couple') !== false
+                              ));
+                            }
                         @endphp
                         
-                        <button 
-                          type="button"
-                          class="seat-btn-enhanced relative group
-                          @if($status === 'booked') seat-sold
-                          @elseif($status === 'locked_by_other') seat-locked
-                          @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
-                          @elseif($status === 'disabled') seat-disabled
-                          @elseif($isVipSeat) seat-vip
-                          @elseif($isCoupleSeat) seat-couple
-                          @else seat-available
-                          @endif"
-                          data-seat-id="{{ $seat->id }}"
-                          data-seat-code="{{ $seat->so_ghe }}"
-                          data-seat-price="{{ $price }}"
-                          data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
-                          @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
-                          @endif
-                          onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
-                          aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
-                          tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
-                          
-                          <!-- Seat Glow Effect -->
-                          <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
-                            @if($isVipSeat) bg-yellow-500/30
-                            @elseif($status === 'selected') bg-[#FF784E]/30
-                            @else bg-[#FF784E]/20
-                            @endif"></div>
-                          
-                          <!-- Seat Content -->
-                          <div class="relative z-10 flex flex-col items-center justify-center h-full w-full">
-                            <span class="seat-number block leading-none">{{ $seatNumber }}</span>
-                            @if($isVipSeat && $status !== 'booked' && $status !== 'locked_by_other')
-                              <i class="fas fa-crown text-[9px] text-yellow-300 mt-0.5 drop-shadow-lg"></i>
+                        @if($isCouplePair)
+                          {{-- Couple Seat Pair --}}
+                          <button 
+                            type="button"
+                            class="seat-btn-enhanced seat-couple relative group
+                            @if($status === 'booked') seat-sold
+                            @elseif($status === 'locked_by_other') seat-locked
+                            @elseif($status === 'selected') seat-selected
+                            @elseif($status === 'disabled') seat-disabled
+                            @endif"
+                            data-seat-id="{{ $seat1->id }}"
+                            data-seat-id-2="{{ $seat2->id }}"
+                            data-seat-code="{{ $seat1->so_ghe }}"
+                            data-seat-code-2="{{ $seat2->so_ghe }}"
+                            data-seat-price="{{ $totalPrice }}"
+                            data-seat-price-1="{{ $price1 }}"
+                            data-seat-price-2="{{ $price2 }}"
+                            data-seat-type="Ghế Đôi"
+                            data-is-couple="true"
+                            @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
                             @endif
-                          </div>
-                          
-                          <!-- Seat Border Glow -->
-                          <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                            @if($isVipSeat) border-yellow-400/50
-                            @elseif($status === 'selected') border-[#FF784E]/50
-                            @else border-[#FF784E]/30
-                            @endif"></div>
-                          
-                          <!-- Enhanced Tooltip -->
-                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
-                            <div class="flex items-center gap-2 mb-2">
-                              <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
-                              <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                            onclick="toggleCoupleSeat({{ $seat1->id }}, '{{ $seat1->so_ghe }}', {{ $price1 }}, {{ $seat2->id }}, '{{ $seat2->so_ghe }}', {{ $price2 }})"
+                            aria-label="Ghế đôi {{ $seatCodes }}"
+                            tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
+                            
+                            <!-- Seat Glow Effect -->
+                            <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
+                              @if($status === 'selected') bg-[#FF784E]/30
+                              @else bg-pink-500/20
+                              @endif"></div>
+                            
+                            <!-- Seat Content -->
+                            <div class="relative z-10 flex items-center justify-center h-full w-full gap-1">
+                              <div class="flex flex-col items-center">
+                                <span class="seat-number block leading-none text-xs">{{ $seatNumber1 }}</span>
+                                <i class="fas fa-heart text-[8px] text-pink-200 mt-0.5"></i>
+                              </div>
+                              <div class="w-px h-6 bg-pink-300/50"></div>
+                              <div class="flex flex-col items-center">
+                                <span class="seat-number block leading-none text-xs">{{ $seatNumber2 }}</span>
+                                <i class="fas fa-heart text-[8px] text-pink-200 mt-0.5"></i>
+                              </div>
                             </div>
-                            <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
-                            <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
-                              <i class="fas fa-tag text-[8px]"></i>
-                              <span>{{ $seatType->ten_loai ?? 'Thường' }}</span>
+                            
+                            <!-- Seat Border Glow -->
+                            <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                              @if($status === 'selected') border-[#FF784E]/50
+                              @else border-pink-400/50
+                              @endif"></div>
+                            
+                            <!-- Enhanced Tooltip -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-pink-500/50 pointer-events-none backdrop-blur-sm">
+                              <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 rounded-full bg-pink-500"></div>
+                                <div class="font-bold text-pink-400">Ghế đôi {{ $seatCodes }}</div>
+                              </div>
+                              <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($totalPrice) }}đ</div>
+                              <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
+                                <i class="fas fa-heart text-[8px]"></i>
+                                <span>Ghế Đôi</span>
+                              </div>
+                              <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
                             </div>
-                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
-                          </div>
-                        </button>
+                          </button>
+                        @else
+                          {{-- Single Seat --}}
+                          <button 
+                            type="button"
+                            class="seat-btn-enhanced relative group
+                            @if($status === 'booked') seat-sold
+                            @elseif($status === 'locked_by_other') seat-locked
+                            @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
+                            @elseif($status === 'disabled') seat-disabled
+                            @elseif($isVipSeat) seat-vip
+                            @elseif($isCoupleSeat) seat-couple
+                            @else seat-available
+                            @endif"
+                            data-seat-id="{{ $seat->id }}"
+                            data-seat-code="{{ $seat->so_ghe }}"
+                            data-seat-price="{{ $price }}"
+                            data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
+                            @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
+                            @endif
+                            onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
+                            aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
+                            tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
+                            
+                            <!-- Seat Glow Effect -->
+                            <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
+                              @if($isVipSeat) bg-yellow-500/30
+                              @elseif($status === 'selected') bg-[#FF784E]/30
+                              @else bg-[#FF784E]/20
+                              @endif"></div>
+                            
+                            <!-- Seat Content -->
+                            <div class="relative z-10 flex flex-col items-center justify-center h-full w-full">
+                              <span class="seat-number block leading-none">{{ $seatNumber }}</span>
+                              @if($isVipSeat && $status !== 'booked' && $status !== 'locked_by_other')
+                                <i class="fas fa-crown text-[9px] text-yellow-300 mt-0.5 drop-shadow-lg"></i>
+                              @endif
+                            </div>
+                            
+                            <!-- Seat Border Glow -->
+                            <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                              @if($isVipSeat) border-yellow-400/50
+                              @elseif($status === 'selected') border-[#FF784E]/50
+                              @else border-[#FF784E]/30
+                              @endif"></div>
+                            
+                            <!-- Enhanced Tooltip -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
+                              <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
+                                <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                              </div>
+                              <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
+                              <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
+                                <i class="fas fa-tag text-[8px]"></i>
+                                <span>{{ $seatType->ten_loai ?? 'Thường' }}</span>
+                              </div>
+                              <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
+                            </div>
+                          </button>
+                        @endif
                         @else
                           {{-- Empty cell để giữ alignment --}}
                           <div class="w-[46px] h-[46px]"></div>
@@ -703,6 +826,32 @@ function toggleSeat(seatId, seatCode, price, type) {
     removeSeat(seatId);
   } else {
     addSeat(seatId, seatCode, price, type);
+  }
+}
+
+function toggleCoupleSeat(seatId1, seatCode1, price1, seatId2, seatCode2, price2) {
+  const isSeat1Selected = selectedSeats.has(seatId1);
+  const isSeat2Selected = selectedSeats.has(seatId2);
+  
+  if (isSeat1Selected || isSeat2Selected) {
+    // Remove both seats if either is selected
+    if (isSeat1Selected) removeSeat(seatId1);
+    if (isSeat2Selected) removeSeat(seatId2);
+  } else {
+    // Add both seats
+    const draft = new Map(selectedSeats);
+    draft.set(seatId1, { code: seatCode1, price: price1, type: 'Ghế Đôi' });
+    draft.set(seatId2, { code: seatCode2, price: price2, type: 'Ghế Đôi' });
+    
+    // Enforce contiguity per row
+    if (!isRowContiguous(draft)){
+      alert('Khi chọn từ 2 ghế trở lên trong cùng một hàng, các ghế phải liền nhau (không có khoảng trống).');
+      return;
+    }
+    
+    selectedSeats = draft;
+    updateUI();
+    lockSeats();
   }
 }
 

@@ -65,7 +65,7 @@ class BookingDataController extends Controller
     {
         $movie = Phim::with(['suatChieu' => function($query) {
             $query->where('trang_thai', 1)
-                  ->where('thoi_gian_bat_dau', '>', now())
+                  ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
                   ->orderBy('thoi_gian_bat_dau');
         }, 'suatChieu.phongChieu'])
             ->findOrFail($id);
@@ -84,7 +84,7 @@ class BookingDataController extends Controller
     {
         $room = PhongChieu::with(['seats.seatType', 'showtimes' => function($query) {
             $query->where('trang_thai', 1)
-                  ->where('thoi_gian_bat_dau', '>', now())
+                  ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
                   ->orderBy('thoi_gian_bat_dau')
                   ->take(5);
         }, 'showtimes.phim'])

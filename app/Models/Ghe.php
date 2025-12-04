@@ -20,7 +20,9 @@ class Ghe extends Model
         'pos_x',
         'pos_y',
         'zone',
-        'meta'
+        'meta',
+        'is_double',
+        'pair_id'
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class Ghe extends Model
         'pos_x' => 'integer',
         'pos_y' => 'integer',
         'meta' => 'array',
+        'is_double' => 'boolean',
+        'pair_id' => 'integer',
     ];
 
     // Relationship with PhongChieu (Room)
