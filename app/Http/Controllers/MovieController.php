@@ -245,13 +245,18 @@ class MovieController extends Controller
         // Get all active showtimes for the selected date
         $startOfDay = $selectedDate->copy()->startOfDay();
         $endOfDay = $selectedDate->copy()->endOfDay();
+        $isToday = $selectedDate->isToday();
         
         // Get all unique genres from movies that have showtimes
         $genres = Phim::where('trang_thai', 'dang_chieu')
-            ->whereHas('suatChieu', function($query) use ($startOfDay, $endOfDay) {
+            ->whereHas('suatChieu', function($query) use ($startOfDay, $endOfDay, $isToday) {
                 $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
                     ->where('thoi_gian_bat_dau', '<=', $endOfDay)
                     ->where('trang_thai', 1);
+                // For today: only show showtimes that haven't ended yet
+                if ($isToday) {
+                    $query->where('thoi_gian_ket_thuc', '>', now());
+                }
             })
             ->select('the_loai')
             ->distinct()
@@ -264,15 +269,18 @@ class MovieController extends Controller
         $selectedGenre = $request->input('genre');
         
         // Get movies that have showtimes in the selected date range
+        // Only show showtimes that haven't ended yet (for all dates, not just today)
         $movies = Phim::with(['suatChieu' => function($query) use ($startOfDay, $endOfDay) {
                 $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
                     ->where('thoi_gian_bat_dau', '<=', $endOfDay)
-                    ->where('trang_thai', 1) // Only active showtimes
-                    ->orderBy('thoi_gian_bat_dau');
+                    ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
+                    ->where('trang_thai', 1); // Only active showtimes
+                $query->orderBy('thoi_gian_bat_dau');
             }])
             ->whereHas('suatChieu', function($query) use ($startOfDay, $endOfDay) {
                 $query->where('thoi_gian_bat_dau', '>=', $startOfDay)
                     ->where('thoi_gian_bat_dau', '<=', $endOfDay)
+                    ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
                     ->where('trang_thai', 1); // Only active showtimes
             })
             ->when($selectedGenre, function($query) use ($selectedGenre) {
@@ -476,21 +484,45 @@ class MovieController extends Controller
     
     public function show(Phim $movie)
     {
+        \Log::info('=== MovieController::show START ===', [
+            'movie_id' => $movie->id,
+            'movie_name' => $movie->ten_phim,
+        ]);
+
         $movie->load(['suatChieu.phongChieu']);
         
         if (request()->routeIs('movie-detail') || request()->routeIs('movies.show')) {
             // Group showtimes by date
             $showtimesByDate = [];
             $selectedDate = request()->get('date', now()->format('Y-m-d'));
+            $today = now()->format('Y-m-d');
+            
+            \Log::info('MovieController::show - Query showtimes', [
+                'movie_id' => $movie->id,
+                'selected_date' => $selectedDate,
+                'today' => $today,
+            ]);
             
             // Lấy showtimes từ hôm nay trở đi (trong 7 ngày tới)
+            // Bao gồm cả suất chiếu chưa kết thúc (cả hôm nay và tương lai)
             $showtimes = SuatChieu::where('id_phim', $movie->id)
                 ->where('trang_thai', 1)
-                ->where('thoi_gian_bat_dau', '>', now()) // Chỉ lấy showtimes chưa bắt đầu
-                ->where('thoi_gian_bat_dau', '<=', now()->addDays(7)) // Trong 7 ngày tới
+                ->where('thoi_gian_ket_thuc', '>', now()) // Show all showtimes that haven't ended yet
+                ->where('thoi_gian_bat_dau', '<=', now()->addDays(7)) // Limit to next 7 days
                 ->with(['phongChieu'])
                 ->orderBy('thoi_gian_bat_dau')
                 ->get();
+
+            \Log::info('MovieController::show - Showtimes found', [
+                'count' => $showtimes->count(),
+                'showtimes' => $showtimes->map(function($st) {
+                    return [
+                        'id' => $st->id,
+                        'start' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                        'end' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
+                    ];
+                })->toArray(),
+            ]);
             
             foreach ($showtimes as $showtime) {
                 $date = $showtime->thoi_gian_bat_dau->format('Y-m-d');
@@ -508,6 +540,13 @@ class MovieController extends Controller
             if (!in_array($selectedDate, $availableDates) && !empty($availableDates)) {
                 $selectedDate = $availableDates[0];
             }
+            
+            \Log::info('MovieController::show - Final result', [
+                'available_dates' => $availableDates,
+                'selected_date' => $selectedDate,
+                'showtimes_by_date_count' => count($showtimesByDate),
+                'showtimes_for_selected_date' => isset($showtimesByDate[$selectedDate]) ? count($showtimesByDate[$selectedDate]) : 0,
+            ]);
             
             return view('movie-detail', compact('movie', 'showtimesByDate', 'selectedDate', 'availableDates'));
         }
@@ -627,9 +666,9 @@ class MovieController extends Controller
     public function destroy(Phim $movie)
     {
         try {
-            // Không cho phép xóa nếu còn suất chiếu trong tương lai
+            // Không cho phép xóa nếu còn suất chiếu trong tương lai (bao gồm hôm nay)
             $hasFutureShowtimes = SuatChieu::where('id_phim', $movie->id)
-                ->where('thoi_gian_bat_dau', '>', now())
+                ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
                 ->where('trang_thai', 1)
                 ->exists();
 

@@ -466,12 +466,20 @@ class PaymentController extends Controller
                     }
                 }
 
-                // 2. Update booking status to confirmed
+                // 2. Update booking status to confirmed (paid)
                 try {
-                    if ($booking->trang_thai == 0) {
-                        Log::info('Updating booking status', ['booking_id' => $booking->id]);
-                        $booking->update(['trang_thai' => 1]);
-                    }
+                    Log::info('Updating booking status to paid', [
+                        'booking_id' => $booking->id,
+                        'current_status' => $booking->trang_thai
+                    ]);
+                    $booking->update([
+                        'trang_thai' => 1, // Always set to paid when payment succeeds
+                        'expires_at' => null // Clear expiration when paid
+                    ]);
+                    Log::info('Booking status updated successfully', [
+                        'booking_id' => $booking->id,
+                        'new_status' => 1
+                    ]);
                 } catch (\Exception $e) {
                     Log::error('Failed to update booking status', [
                         'booking_id' => $booking->id,
@@ -533,8 +541,8 @@ class PaymentController extends Controller
                                         'id_ghe' => $detail->ghe->id
                                     ],
                                     [
-                                        'status' => 'booked',
-                                        'hold_expires_at' => null
+                                        'trang_thai' => 'booked',
+                                        'thoi_gian_het_han' => null
                                     ]
                                 );
                             }

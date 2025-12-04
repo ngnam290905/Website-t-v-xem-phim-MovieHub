@@ -87,6 +87,43 @@ Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->middlewa
 
 // Debug route (remove in production)
 Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
+Route::get('/test/showtimes-today', function() {
+    $today = \Carbon\Carbon::today()->format('Y-m-d');
+    $now = now();
+    
+    $allToday = \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', $today)
+        ->where('trang_thai', 1)
+        ->get();
+    
+    $notEnded = \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', $today)
+        ->where('trang_thai', 1)
+        ->where('thoi_gian_ket_thuc', '>', $now)
+        ->get();
+    
+    return response()->json([
+        'today' => $today,
+        'now' => $now->format('Y-m-d H:i:s'),
+        'all_today_count' => $allToday->count(),
+        'not_ended_count' => $notEnded->count(),
+        'all_today' => $allToday->map(function($st) {
+            return [
+                'id' => $st->id,
+                'movie_id' => $st->id_phim,
+                'start' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                'end' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
+                'is_ended' => $st->thoi_gian_ket_thuc->lt(now()),
+            ];
+        }),
+        'not_ended' => $notEnded->map(function($st) {
+            return [
+                'id' => $st->id,
+                'movie_id' => $st->id_phim,
+                'start' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                'end' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
+            ];
+        }),
+    ], 200, [], JSON_PRETTY_PRINT);
+});
 
 // Booking store route - requires authentication
 Route::post('/booking/store', [BookingController::class, 'store'])->middleware('auth')->middleware('block.admin.staff')->name('booking.store.public');

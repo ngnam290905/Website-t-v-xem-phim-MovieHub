@@ -47,7 +47,7 @@ class ShowController extends Controller
     {
         $shows = Show::with(['movie', 'room'])
             ->where('movie_id', $movieId)
-            ->where('start_at', '>', now())
+            ->where('end_at', '>', now()) // Only shows that haven't ended
             ->orderBy('start_at')
             ->get();
         

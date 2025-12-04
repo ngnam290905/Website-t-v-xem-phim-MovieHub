@@ -255,6 +255,7 @@
                                 @endif
                             </td>
                             <td class="py-3">
+                                <div class="flex gap-2">
                                 <a 
                                     href="{{ route('admin.scan.show', $ticket->id) }}" 
                                     class="btn-table-action btn-table-view"
@@ -262,6 +263,16 @@
                                 >
                                     <i class="fas fa-eye text-xs"></i>
                                 </a>
+                                    <a 
+                                        href="{{ route('admin.scan.show', $ticket->id) }}" 
+                                        onclick="setTimeout(() => window.print(), 500); return false;"
+                                        class="btn-table-action"
+                                        style="background: #10b981;"
+                                        title="In vé"
+                                    >
+                                        <i class="fas fa-print text-xs"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     @empty

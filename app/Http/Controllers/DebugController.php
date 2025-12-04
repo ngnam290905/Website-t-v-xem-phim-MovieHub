@@ -41,20 +41,39 @@ class DebugController extends Controller
                 ];
             });
             
-            // Check by date
-            $byDate = SuatChieu::where('id_phim', $movieId)
+            // Check by date with new logic
+            $today = Carbon::today()->format('Y-m-d');
+            $isToday = ($date === $today);
+            $now = now();
+            
+            $byDateQuery = SuatChieu::where('id_phim', $movieId)
                 ->where('trang_thai', 1)
-                ->whereDate('thoi_gian_bat_dau', $date)
-                ->where('thoi_gian_bat_dau', '>', now())
-                ->get();
+                ->whereDate('thoi_gian_bat_dau', $date);
+            
+            if ($isToday) {
+                $byDateQuery->where('thoi_gian_ket_thuc', '>', $now);
+            } else {
+                $byDateQuery->where('thoi_gian_bat_dau', '>', $now);
+            }
+            
+            $byDate = $byDateQuery->get();
             
             $data['showtimes_for_date'] = $byDate->map(function($st) {
                 return [
                     'id' => $st->id,
                     'thoi_gian_bat_dau' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                    'thoi_gian_ket_thuc' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
                     'phong_chieu' => $st->phongChieu->ten_phong ?? 'N/A',
+                    'is_ended' => $st->thoi_gian_ket_thuc->lt(now()),
                 ];
             });
+            
+            $data['date_check'] = [
+                'date' => $date,
+                'today' => $today,
+                'is_today' => $isToday,
+                'now' => $now->format('Y-m-d H:i:s'),
+            ];
         } else {
             // All showtimes
             $all = SuatChieu::where('trang_thai', 1)

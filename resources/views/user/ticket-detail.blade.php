@@ -236,6 +236,21 @@
                             </div>
                         @endif
 
+                        <!-- QR Code for Print (Always visible when printing) -->
+                        <div class="bg-[#222533] rounded-lg p-4 w-full text-center mb-4 print-only" style="display: none;">
+                            <p class="text-[#a6a6b0] text-sm mb-3">Mã QR Vé</p>
+                            <div class="bg-white p-3 rounded-lg inline-block" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                                <img src="{{ $qrCodeUrl }}" alt="QR Code" style="width: 200px; height: 200px; display: block;">
+                            </div>
+                            <p class="text-[#a6a6b0] text-xs mt-3">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Xuất trình mã QR này tại rạp
+                            </p>
+                            <p class="text-[#a6a6b0] text-xs mt-2 font-mono">
+                                Mã vé: {{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}
+                            </p>
+                        </div>
+
                         <!-- Action Buttons -->
                         <div class="mt-6 space-y-3 w-full">
                             <button onclick="printTicket()" 
@@ -340,35 +355,35 @@ function downloadTicket() {
 </script>
 
 <style>
-@media print {
+    @media print {
     @page {
         size: A4;
         margin: 10mm;
     }
     
-    body * {
-        visibility: hidden;
-    }
+        body * {
+            visibility: hidden;
+        }
     
-    .container, .container * {
-        visibility: visible;
-    }
+        .container, .container * {
+            visibility: visible;
+        }
     
-    .container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
+        .container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
         max-width: 100%;
-    }
+        }
     
     .print-hidden {
-        display: none !important;
-    }
+            display: none !important;
+        }
     
-    a[href*="bookings"] {
-        display: none !important;
-    }
+        a[href*="bookings"] {
+            display: none !important;
+        }
     
     /* Ensure ticket card is visible and properly styled for print */
     .bg-gradient-to-br {
@@ -395,11 +410,36 @@ function downloadTicket() {
         color: #666 !important;
     }
     
-    /* Ensure QR code is visible */
-    img {
+    /* Ensure QR code is always visible when printing */
+    img[alt="QR Code"], 
+    img[id*="qrcode"], 
+    #qrcode-img-user, 
+    #qrcode-fallback-user,
+    .bg-white img {
+        visibility: visible !important;
+        display: block !important;
         max-width: 100% !important;
         height: auto !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
-}
+    
+    #qrcode-fallback-user canvas {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
+    /* Force QR code section to be visible */
+    .bg-\[#222533\]:has(img[alt="QR Code"]) {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Show print-only QR code section */
+    .print-only {
+        display: block !important;
+        visibility: visible !important;
+        }
+    }
 </style>
 @endsection

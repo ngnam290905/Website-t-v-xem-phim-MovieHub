@@ -258,6 +258,26 @@
                     </div>
                 @endif
 
+                <!-- QR Code for Print (Always visible when printing) -->
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 print-only" style="display: none;">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-qrcode text-[#0077c8]"></i>
+                        <span>Mã QR Vé</span>
+                    </h3>
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="bg-white p-4 rounded-lg mb-4" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="{{ $qrCodeUrl }}" alt="QR Code" style="width: 200px; height: 200px; display: block;">
+                        </div>
+                        <p class="text-sm text-[#a6a6b0] text-center">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Vui lòng xuất trình mã QR này tại rạp để vào xem phim
+                        </p>
+                        <p class="text-xs text-[#a6a6b0] text-center mt-2 font-mono">
+                            Mã vé: {{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Booking Info -->
                 <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -417,10 +437,36 @@ function generateQRCodeFallback(qrData) {
         border-color: #000 !important;
     }
     
-    /* Ensure QR code is visible */
-    img {
+    /* Ensure QR code is always visible when printing */
+    img[alt="QR Code"], 
+    img[id*="qrcode"], 
+    #qrcode-img, 
+    #qrcode-fallback,
+    .bg-white img {
+        visibility: visible !important;
+        display: block !important;
         max-width: 100% !important;
         height: auto !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    #qrcode-fallback canvas {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
+    /* Force QR code section to be visible */
+    .bg-\[#0a1a2f\]:has(img[alt="QR Code"]),
+    .bg-\[#0a1a2f\]:has(#qrcode-img) {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Show print-only QR code section */
+    .print-only {
+        display: block !important;
+        visibility: visible !important;
     }
     
     /* Keep status badges visible but readable */

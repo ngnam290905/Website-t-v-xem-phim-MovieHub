@@ -337,9 +337,9 @@ class PhongChieuController extends Controller
      */
     public function destroy(PhongChieu $phongChieu)
     {
-        // Check if room has upcoming showtimes
+        // Check if room has upcoming showtimes (bao gồm hôm nay)
         $upcomingShowtimes = $phongChieu->showtimes()
-            ->where('thoi_gian_bat_dau', '>', now())
+            ->where('thoi_gian_bat_dau', '>=', now()) // Bao gồm suất chiếu trong ngày hôm nay
             ->count();
 
         if ($upcomingShowtimes > 0) {
@@ -390,7 +390,7 @@ class PhongChieuController extends Controller
     public function canModify(PhongChieu $phongChieu)
     {
         $future = $phongChieu->showtimes()
-            ->where('thoi_gian_bat_dau', '>', now())
+            ->where('thoi_gian_bat_dau', '>=', now()) // Bao gồm suất chiếu trong ngày hôm nay
             ->count();
         return response()->json([
             'success' => true,
