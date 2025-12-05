@@ -1404,7 +1404,19 @@ async function continueToAddons() {
     });
 
     if (!res.ok) {
-      throw new Error('HTTP ' + res.status);
+      let data = null;
+      try { data = await res.json(); } catch (_) { /* ignore */ }
+      if (res.status === 410) {
+        alert((data && data.message) || 'Phiên giữ ghế đã hết hạn. Vui lòng chọn lại.');
+        window.location.reload();
+        return;
+      }
+      if (res.status === 422) {
+        alert((data && data.message) || 'Lựa chọn ghế không hợp lệ.');
+        return;
+      }
+      alert((data && data.message) || ('Có lỗi xảy ra (' + res.status + '). Vui lòng thử lại.'));
+      return;
     }
 
     // Redirect to payment step

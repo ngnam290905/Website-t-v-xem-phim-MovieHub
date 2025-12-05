@@ -6,7 +6,7 @@
     'aspectRatio' => null, // e.g., '16/9', '4/3', '1/1', '2/3'
     'placeholder' => true,
     'quality' => 'high', // 'low', 'medium', 'high'
-    'fallback' => '/images/no-poster.jpg'
+    'fallback' => '/images/no-poster.svg'
 ])
 
 @php

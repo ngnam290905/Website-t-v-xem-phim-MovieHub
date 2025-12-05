@@ -704,6 +704,15 @@ class BookingController extends Controller
                     ], 400);
                 }
 
+                // Track temporary hold in session for continueToPayment
+                if (!session('booking.hold_id')) {
+                    $generatedHoldId = 'hold_'.$showId.'_'.uniqid('', true);
+                    session([
+                        'booking.hold_id' => $generatedHoldId,
+                        'booking.showtime_id' => (int)$showId,
+                    ]);
+                }
+
                 $expiresAt = !empty($result['holds']) ? $result['holds'][0]->expires_at->timestamp : (time() + 10 * 60);
 
                 return response()->json([
@@ -728,6 +737,15 @@ class BookingController extends Controller
                     'success' => false,
                     'message' => $result['message'] ?? 'Không thể giữ ghế'
                 ], 400);
+            }
+
+            // Track temporary hold in session for continueToPayment
+            if (!session('booking.hold_id')) {
+                $generatedHoldId = 'hold_'.$showId.'_'.uniqid('', true);
+                session([
+                    'booking.hold_id' => $generatedHoldId,
+                    'booking.showtime_id' => (int)$showId,
+                ]);
             }
 
             return response()->json([
@@ -780,6 +798,15 @@ class BookingController extends Controller
                     'message' => $result['message'] ?? 'Không thể giữ ghế',
                     'failed_seats' => $result['failed_seats'] ?? []
                 ], 400);
+            }
+
+            // Track temporary hold in session for continueToPayment
+            if (!session('booking.hold_id')) {
+                $generatedHoldId = 'hold_'.$showId.'_'.uniqid('', true);
+                session([
+                    'booking.hold_id' => $generatedHoldId,
+                    'booking.showtime_id' => (int)$showId,
+                ]);
             }
 
             // Get expiration time from first hold

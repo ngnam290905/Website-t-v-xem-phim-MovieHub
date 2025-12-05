@@ -58,7 +58,28 @@ class ShowtimeSeatController extends Controller
         $result = $this->seatService->holdSeats($showtime, $request->seat_ids, $userId);
 
         if ($result['success']) {
-            return response()->json($result);
+            // Ensure booking hold is tracked in session for subsequent steps
+            if (!session('booking.hold_id')) {
+                $generatedHoldId = 'hold_'.$showtime->id.'_'.uniqid('', true);
+                session([
+                    'booking.hold_id' => $generatedHoldId,
+                    'booking.showtime_id' => $showtime->id,
+                ]);
+            }
+
+            // Normalize response to include expires_at timestamp for frontend timer
+            $expiresAtTs = null;
+            if (!empty($result['hold_expires_at'])) {
+                try {
+                    $expiresAtTs = optional($result['hold_expires_at'])->timestamp;
+                } catch (\Throwable $e) {
+                    $expiresAtTs = null;
+                }
+            }
+
+            return response()->json(array_merge($result, [
+                'expires_at' => $expiresAtTs,
+            ]));
         } else {
             return response()->json($result, 400);
         }

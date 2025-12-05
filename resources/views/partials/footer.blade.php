@@ -11,6 +11,9 @@
           Nền tảng đặt vé xem phim trực tuyến hàng đầu Việt Nam. 
           Trải nghiệm điện ảnh tuyệt vời với giá vé ưu đãi và dịch vụ chuyên nghiệp.
         </p>
+        <p class="text-[#a6a6b0] text-sm leading-relaxed mb-4">
+          Số nhà 12 Hòe Thị phường Phương Canh quận Nam Từ Liêm Hà Nội
+        </p>
         <div class="flex gap-4">
           <a href="#" class="text-[#a6a6b0] hover:text-[#F53003] transition-colors duration-300">
             <i class="fab fa-facebook text-xl"></i>
