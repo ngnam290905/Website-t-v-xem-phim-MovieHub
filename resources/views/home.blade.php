@@ -183,7 +183,7 @@
             @forelse($hotMovies as $movie)
                 <div class="group relative">
                     <div class="relative overflow-hidden rounded-xl bg-[#1a1d29]">
-                        <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                        <img src="{{ $movie->poster_url }}" 
                              alt="{{ $movie->ten_phim }}" 
                              class="w-full h-[300px] object-cover transition-transform duration-300 group-hover:scale-110">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -244,13 +244,13 @@
                 @forelse($nowShowing as $movie)
                     <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
                         <div class="relative">
-                            <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                            <img src="{{ $movie->poster_url }}" 
                                  alt="{{ $movie->ten_phim }}" 
                                  class="w-full h-[200px] object-cover">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 <div class="absolute bottom-4 left-4 right-4 flex gap-2">
                                     <a href="{{ route('movies.show', $movie->id) }}" class="flex-1 bg-white/20 backdrop-blur text-white py-2 rounded-lg text-center font-medium hover:bg-white/30 transition">
-                                        Chi tiết
+                                        Xem chi tiết
                                     </a>
                                     <a href="{{ route('booking', $movie->id) }}" class="flex-1 bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg text-center font-medium transition">
                                         Đặt vé
@@ -261,18 +261,10 @@
                         </div>
                         <div class="p-4">
                             <h3 class="font-bold text-white text-lg mb-2">{{ $movie->ten_phim }}</h3>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-gray-400">{{ $movie->do_dai ?? 120 }} phút</span>
-                                <div class="flex items-center gap-1">
-                                    <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                    </svg>
-                                    <span class="text-white">{{ number_format($movie->diem_danh_gia ?? 8.5, 1) }}</span>
-                                </div>
-                            </div>
-                            <div class="mt-3 flex items-center gap-2">
-                                <span class="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">{{ $movie->the_loai ?? 'Hành động' }}</span>
-                                <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">Lồng tiếng</span>
+                            <div class="flex items-center gap-3 text-sm text-gray-400">
+                                <span>{{ $movie->do_dai ?? 120 }} phút</span>
+                                <span>•</span>
+                                <span>{{ $movie->the_loai ?? 'Hành động' }}</span>
                             </div>
                         </div>
                     </div>
@@ -309,7 +301,7 @@
             @forelse($comingSoon as $movie)
                 <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
                     <div class="relative">
-                        <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                        <img src="{{ $movie->poster_url }}" 
                              alt="{{ $movie->ten_phim }}" 
                              class="w-full h-[200px] object-cover">
                         <div class="absolute top-3 right-3 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">
@@ -359,7 +351,7 @@
                 @forelse($allMovies as $movie)
                     <div class="group">
                         <div class="relative overflow-hidden rounded-lg bg-[#1a1d29] border border-white/5">
-                            <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" 
+                            <img src="{{ $movie->poster_url }}" 
                                  alt="{{ $movie->ten_phim }}" 
                                  class="w-full h-[250px] object-cover transition-transform duration-300 group-hover:scale-110">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">

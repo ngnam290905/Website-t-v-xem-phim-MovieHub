@@ -75,7 +75,8 @@
         </div>
         @endif
 
-        @if(isset($khuyenmais) && $khuyenmais->count() > 0)
+
+        @if(isset($khuyenmais))
         <div>
           <h2 class="section-title">Khuyến mãi</h2>
           <div style="display:flex; flex-direction:column; gap:8px;">
@@ -87,27 +88,48 @@
               <input type="radio" name="promo_pick" value="" checked style="accent-color:#FF784E;"/>
             </label>
             @foreach($khuyenmais as $km)
-              <label class="row" style="cursor:pointer;">
-                <div>
-                  <div>{{ $km->ten_khuyen_mai ?? ('KM #' . $km->id) }}</div>
-                  <div class="muted">
-                    @php($type = strtolower($km->loai_giam))
+              @php
+                $type = strtolower($km->loai_giam);
+                $now = \Carbon\Carbon::now();
+                $start = $km->ngay_bat_dau ? \Carbon\Carbon::parse($km->ngay_bat_dau) : null;
+                $end = $km->ngay_ket_thuc ? \Carbon\Carbon::parse($km->ngay_ket_thuc) : null;
+                $active = ($km->trang_thai == 1) && (!$start || $start->lte($now)) && (!$end || $end->gte($now));
+              @endphp
+              <label class="row" style="cursor:pointer; align-items:flex-start; gap:12px; opacity: {{ $active ? '1' : '.6' }};">
+                <div style="flex:1;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div style="font-weight:600;">{{ $km->ten_khuyen_mai ?? ('KM #' . $km->id) }}</div>
+                    <span class="pill">Mã: {{ strtoupper($km->ma_km ?? '—') }}</span>
+                  </div>
+                  <div class="muted" style="margin-top:4px;">
                     @if($type === 'phantram')
                       Giảm {{ (float)$km->gia_tri_giam }}%
                     @else
                       Giảm {{ number_format(((float)$km->gia_tri_giam >= 1000) ? (float)$km->gia_tri_giam : ((float)$km->gia_tri_giam*1000), 0, ',', '.') }}đ
                     @endif
+                    @if($start && $end)
+                      • Hiệu lực: {{ $start->format('d/m/Y') }} - {{ $end->format('d/m/Y') }}
+                    @endif
                   </div>
+                  @if(!empty($km->mo_ta))
+                    <div class="muted" style="margin-top:4px;">{{ $km->mo_ta }}</div>
+                  @endif
+                  @if(!empty($km->dieu_kien))
+                    <div class="muted" style="margin-top:4px;">Điều kiện: {{ $km->dieu_kien }}</div>
+                  @endif
                 </div>
                 <input type="radio" name="promo_pick" value="{{ $km->id }}"
                        data-type="{{ strtolower($km->loai_giam) }}"
                        data-val="{{ (float)$km->gia_tri_giam }}"
-                       style="accent-color:#FF784E;"/>
+                       data-code="{{ strtoupper($km->ma_km ?? '') }}"
+                       {{ $active ? '' : 'disabled' }}
+                       style="accent-color:#FF784E; margin-top:4px;"/>
               </label>
             @endforeach
           </div>
         </div>
         @endif
+
 
         <div class="row" style="margin-top:8px;">
           <div class="total">Tổng tiền ghế</div>
@@ -136,6 +158,7 @@
           <form method="POST" action="{{ url('/checkout/' . $holdId . '/payment') }}" id="payForm">
             @csrf
             <input type="hidden" name="promo_id" id="promo_id" value="" />
+            <input type="hidden" name="promo_code" id="promo_code" value="" />
             <button type="submit" class="btn">Thanh toán VNPAY</button>
           </form>
         </div>
@@ -154,7 +177,11 @@
       const discountAmountEl = document.getElementById('discountAmount');
       const finalTotalEl = document.getElementById('finalTotal');
       const promoIdInput = document.getElementById('promo_id');
+      const promoCodeHidden = document.getElementById('promo_code');
       const radios = document.querySelectorAll('input[name="promo_pick"]');
+      const promoSelect = document.getElementById('promo_select');
+      const promoCodeInput = document.getElementById('promo_code_input');
+      const applyPromoBtn = document.getElementById('apply_promo_btn');
 
       function fmt(n){
         return (n||0).toLocaleString('vi-VN');
@@ -176,16 +203,53 @@
           discountRow.style.display = '';
           discountAmountEl.textContent = '-' + fmt(discount) + 'đ';
           promoIdInput.value = selected.value;
+          promoCodeHidden.value = '';
         } else {
           discountRow.style.display = 'none';
           discountAmountEl.textContent = '-0đ';
           promoIdInput.value = '';
+          // keep promo_code as last entered free text
         }
         const final = Math.max(0, baseTotal - discount);
         finalTotalEl.textContent = fmt(final) + 'đ';
       }
 
       radios.forEach(r => r.addEventListener('change', recalc));
+      if (promoSelect) {
+        promoSelect.addEventListener('change', function(){
+          const val = this.value;
+          if (!val) {
+            const none = document.querySelector('input[name="promo_pick"][value=""]');
+            if (none) none.checked = true;
+          } else {
+            const target = document.querySelector(`input[name="promo_pick"][value="${val}"]`);
+            if (target) target.checked = true;
+          }
+          recalc();
+        });
+      }
+      if (applyPromoBtn) {
+        applyPromoBtn.addEventListener('click', function(){
+          const code = (promoCodeInput?.value || '').trim().toUpperCase();
+          if (!code) {
+            alert('Vui lòng nhập mã khuyến mãi.');
+            return;
+          }
+          const choices = Array.from(document.querySelectorAll('input[name="promo_pick"][data-code]'));
+          const target = choices.find(r => (r.getAttribute('data-code') || '').toUpperCase() === code);
+          if (target) {
+            target.checked = true;
+            recalc();
+          } else {
+            // No preloaded promo matches: send code to backend, preview discount not available
+            promoIdInput.value = '';
+            promoCodeHidden.value = code;
+            discountRow.style.display = 'none';
+            discountAmountEl.textContent = '-0đ';
+            alert('Đã áp dụng mã. Giảm giá sẽ được tính khi thanh toán.');
+          }
+        });
+      }
       recalc();
     })();
   </script>

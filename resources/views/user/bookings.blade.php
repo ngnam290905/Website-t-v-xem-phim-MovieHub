@@ -21,15 +21,7 @@
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-4">
                                 <span class="text-sm font-semibold text-[#F53003]">Mã đặt vé: #{{ $booking->id }}</span>
-                                <span class="text-sm px-2 py-1 rounded-full 
-                                    {{ $booking->trang_thai == 0 ? 'bg-yellow-900 text-yellow-300' : '' }}
-                                    {{ $booking->trang_thai == 1 ? 'bg-green-900 text-green-300' : '' }}
-                                    {{ $booking->trang_thai == 2 ? 'bg-red-900 text-red-300' : '' }}
-                                ">
-                                    {{ $booking->trang_thai == 0 ? 'Chờ xác nhận' : '' }}
-                                    {{ $booking->trang_thai == 1 ? 'Đã xác nhận' : '' }}
-                                    {{ $booking->trang_thai == 2 ? 'Đã hủy' : '' }}
-                                </span>
+                                
                             </div>
                             <span class="text-[#a6a6b0] text-sm">Ngày đặt: <span class="text-white">{{ optional($booking->created_at)->format('d/m/Y H:i') }}</span></span>
                         </div>
@@ -137,7 +129,7 @@
                                     Tổng tiền: {{ number_format($displayTotal, 0) }}đ
                                 </span>
                                 <div class="flex gap-2">
-                                    <a href="{{ route('user.bookings.show', $booking->id) }}" 
+                                    <a href="{{ route('booking.ticket.detail', $booking->id) }}" 
                                        class="px-4 py-2 bg-[#2f3240] text-white rounded-lg hover:bg-[#3a3f50] transition-all duration-300 flex items-center">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -145,12 +137,6 @@
                                         </svg>
                                         Xem chi tiết
                                     </a>
-                                    @if($booking->trang_thai == 0)
-                                        <button onclick="cancelBooking({{ $booking->id }})"
-                                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300">
-                                            Hủy đặt vé
-                                        </button>
-                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -176,54 +162,6 @@
 </div>
 
 <script>
-function cancelBooking(bookingId) {
-    if (confirm('Bạn có chắc muốn hủy đặt vé này?')) {
-        fetch(`/user/bookings/${bookingId}/cancel`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Đã hủy đặt vé thành công!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification(data.message || 'Có lỗi xảy ra!', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Có lỗi xảy ra!', 'error');
-        });
-    }
-}
-
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-20 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium shadow-lg transform translate-x-full transition-transform duration-300 ${
-        type === 'success' ? 'bg-green-500' : 
-        type === 'error' ? 'bg-red-500' :
-        'bg-blue-500'
-    }`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    setTimeout(() => {
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
-    }, 3000);
-}
+// Cancel booking removed by request; no client-side cancellation available.
 </script>
 @endsection

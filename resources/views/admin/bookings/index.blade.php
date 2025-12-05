@@ -23,31 +23,6 @@
             <div class="text-xs text-[#a6a6b0]">Tổng đơn</div>
             <div class="text-xl font-bold text-white mt-1">{{ $totalBookings ?? 0 }}</div>
         </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 0]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-3 hover:border-yellow-400 transition {{ request('status') == '0' ? 'border-yellow-400 ring-1 ring-yellow-400' : '' }}">
-            <div class="text-xs text-[#a6a6b0]">Chờ xác nhận</div>
-            <div class="text-xl font-bold text-yellow-400 mt-1">{{ $pendingCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 1]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-3 hover:border-green-400 transition {{ request('status') == '1' ? 'border-green-400 ring-1 ring-green-400' : '' }}">
-            <div class="text-xs text-[#a6a6b0]">Đã xác nhận</div>
-            <div class="text-xl font-bold text-green-400 mt-1">{{ $confirmedCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 3]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-3 hover:border-orange-300 transition {{ request('status') == '3' ? 'border-orange-300 ring-1 ring-orange-300' : '' }}">
-            <div class="text-xs text-[#a6a6b0]">Yêu cầu hủy</div>
-            <div class="text-xl font-bold text-orange-300 mt-1">{{ $requestCancelCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 2]) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-3 hover:border-red-400 transition {{ request('status') == '2' ? 'border-red-400 ring-1 ring-red-400' : '' }}">
-            <div class="text-xs text-[#a6a6b0]">Đã hủy</div>
-            <div class="text-xl font-bold text-red-400 mt-1">{{ $canceledCount ?? 0 }}</div>
-        </a>
-        <a href="{{ route('admin.bookings.index', ['status' => 'expired']) }}"
-            class="block bg-[#151822] border border-[#262833] rounded-xl p-3 hover:border-gray-500 transition {{ request('status') == 'expired' ? 'border-gray-500 ring-1 ring-gray-500' : '' }}">
-            <div class="text-xs text-[#a6a6b0]">Đã hết hạn</div>
-            <div class="text-xl font-bold text-gray-500 mt-1">{{ $expiredCount ?? 0 }}</div>
-        </a>
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-3">
             <div class="text-xs text-[#a6a6b0]">Doanh thu hôm nay</div>
             <div class="text-xl font-bold text-blue-400 mt-1 truncate" title="{{ number_format($revenueToday ?? 0) }} VNĐ">
@@ -67,28 +42,7 @@
             <form method="GET" action="{{ route('admin.bookings.index') }}" class="w-full">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
 
-                    {{-- 1. Trạng thái (2 cột) --}}
-                    <div class="lg:col-span-2">
-                        <label class="block text-[10px] text-gray-400 uppercase font-bold mb-1 ml-1">Trạng thái</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-filter text-gray-500 text-xs"></i>
-                            </div>
-                            <select name="status"
-                                class="w-full bg-[#1b1e28] border border-[#262833] text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block pl-8 p-2 outline-none appearance-none">
-                                <option value="">-- Tất cả --</option>
-                                <option value="0" {{ request('status') == '0' ? 'selected' : '' }}>Chờ xác nhận
-                                </option>
-                                <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Đã xác nhận
-                                </option>
-                                <option value="3" {{ request('status') == '3' ? 'selected' : '' }}>Yêu cầu hủy
-                                </option>
-                                <option value="2" {{ request('status') == '2' ? 'selected' : '' }}>Đã hủy</option>
-                                <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Đã hết hạn
-                                </option>
-                            </select>
-                        </div>
-                    </div>
+                    
 
                     {{-- 2. Ngày đặt vé (2 cột) --}}
                     <div class="lg:col-span-2">
@@ -160,7 +114,7 @@
                             <th class="px-4 py-3">Phim & Suất chiếu</th>
                             <th class="px-4 py-3">Chi tiết đặt chỗ</th>
                             <th class="px-4 py-3">Thanh toán</th>
-                            <th class="px-4 py-3 text-center">Trạng thái</th>
+                            
                             <th class="px-4 py-3 text-center sticky right-0 bg-[#1b1e28] z-20">Hành động</th>
 
                         </tr>
@@ -309,60 +263,7 @@
                                     @endif
                                 </td>
 
-                                {{-- Cột 6: Trạng thái Vé --}}
-                                <td class="px-4 py-3 align-top text-center">
-                                    @switch($booking->trang_thai)
-                                        @case(0)
-                                            <span
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-400 border border-yellow-700/30">
-                                                Chờ xác nhận
-                                            </span>
-                                            @php
-                                                $expireTime =
-                                                    $booking->expires_at ?? $booking->created_at->addMinutes(15);
-                                                $isFuture = now()->lessThan($expireTime);
-                                                // Kiểm tra khách vãng lai (id_nguoi_dung == null)
-                                                $isGuest = is_null($booking->id_nguoi_dung);
-                                            @endphp
-                                            @if ($isFuture)
-                                                {{-- DATA ATTRIBUTES QUAN TRỌNG CHO JS --}}
-                                                <div class="text-[11px] font-bold text-red-400 mt-1 countdown-timer"
-                                                    data-id="{{ $booking->id }}" data-guest="{{ $isGuest ? 'true' : 'false' }}"
-                                                    data-expire="{{ $expireTime->format('Y-m-d H:i:s') }}">
-                                                    Hủy sau: {{ $expireTime->format('H:i') }}
-                                                </div>
-                                            @else
-                                                <div class="text-[10px] text-gray-500 mt-1 italic">
-                                                    Đang xử lý...
-                                                </div>
-                                            @endif
-                                        @break
-
-                                        @case(1)
-                                            @if ($isExpired)
-                                                <span
-                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">Đã
-                                                    hết hạn</span>
-                                            @else
-                                                <span
-                                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/30 text-green-400 border border-green-700/30">Đã
-                                                    xác nhận</span>
-                                            @endif
-                                        @break
-
-                                        @case(3)
-                                            <span
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-700/30">Yêu
-                                                cầu hủy</span>
-                                        @break
-
-                                        @case(2)
-                                            <span
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/30 text-red-400 border border-red-700/30">Đã
-                                                hủy</span>
-                                        @break
-                                    @endswitch
-                                </td>
+                                
 
                                 {{-- Cột 7: Hành động --}}
                                 <td
@@ -409,48 +310,5 @@
         @endif
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            function updateCountdowns() {
-                const timers = document.querySelectorAll('.countdown-timer');
-                const now = new Date().getTime();
-
-                timers.forEach(timer => {
-                    const expireString = timer.getAttribute('data-expire');
-
-                    const isGuest = timer.getAttribute('data-guest') === 'true';
-                    const bookingId = timer.getAttribute('data-id');
-
-
-                    const expireDate = new Date(expireString).getTime();
-                    const distance = expireDate - now;
-
-                    if (distance > 0) {
-                        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                        timer.innerHTML = `Hủy sau: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-                    } else {
-                        // Hết giờ giữ vé
-                        if (isGuest) {
-                            const row = document.getElementById('row-' + bookingId);
-                            if (row) {
-                                row.style.transition = 'opacity 0.5s ease';
-                                row.style.opacity = '0';
-                                setTimeout(() => row.remove(), 500);
-                            }
-                        } else {
-                            timer.innerHTML = 'Đang xử lý...';
-                            timer.className = 'text-[10px] text-gray-500 mt-1 italic';
-                            if (!timer.dataset.reloading) {
-                                timer.dataset.reloading = 'true';
-                                setTimeout(() => location.reload(), 2000);
-                            }
-                        }
-                    }
-                });
-            }
-            setInterval(updateCountdowns, 1000);
-            updateCountdowns();
-        });
-    </script>
+    
 @endsection

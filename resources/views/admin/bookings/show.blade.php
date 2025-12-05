@@ -41,12 +41,6 @@
                     </a>
                     <h1 class="text-2xl font-bold text-white">Chi tiết Vé #{{ $booking->id }}</h1>
                     
-                    @switch($booking->trang_thai)
-                        @case(0) <span class="px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">Chờ xác nhận</span> @break
-                        @case(1) <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">Đã xác nhận</span> @break
-                        @case(2) <span class="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">Đã hủy</span> @break
-                        @case(3) <span class="px-3 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30">Yêu cầu hủy</span> @break
-                    @endswitch
                 </div>
                 <p class="text-sm text-gray-400 mt-1 ml-8">
                     Ngày tạo: {{ $booking->created_at->format('H:i d/m/Y') }}

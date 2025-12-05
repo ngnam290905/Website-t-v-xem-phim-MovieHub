@@ -4,6 +4,18 @@
 
 @section('content')
 <div class="space-y-6">
+    @php $locked = isset($locked) ? $locked : ($phongChieu->showtimes->count() > 0); @endphp
+    @if($locked)
+      <div class="bg-yellow-900/40 border border-yellow-600 text-yellow-200 px-4 py-3 rounded-lg" role="alert">
+        <div class="flex items-start">
+          <i class="fas fa-exclamation-triangle mt-0.5 mr-2"></i>
+          <div>
+            <p class="font-semibold">Phòng đã có suất chiếu.</p>
+            <p class="text-sm">Không thể chỉnh sửa sơ đồ ghế (thêm/xóa/đổi loại/khóa ghế hoặc tạo lại ghế).</p>
+          </div>
+        </div>
+      </div>
+    @endif
     <!-- Header Actions -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
@@ -20,14 +32,16 @@
                 Quay lại
             </a>
             <button type="button" 
-                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
-                    onclick="openAddSeatModal()">
+                    class="{{ $locked ? 'bg-green-900/50 text-white/60 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' }} px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
+                    @if($locked) disabled title="Không thể thêm ghế khi đã có suất chiếu" @endif
+                    onclick="if(LOCKED){alert('Phòng đã có suất chiếu, không thể thêm ghế.');}else{openAddSeatModal()}">
                 <i class="fas fa-plus mr-2"></i>
                 Thêm ghế
             </button>
             <button type="button" 
-                    class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
-                    onclick="openGenerateSeatsModal()">
+                    class="{{ $locked ? 'bg-yellow-900/50 text-white/60 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700 text-white' }} px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
+                    @if($locked) disabled title="Không thể tạo lại ghế khi đã có suất chiếu" @endif
+                    onclick="if(LOCKED){alert('Phòng đã có suất chiếu, không thể tạo lại ghế.');}else{openGenerateSeatsModal()}">
                 <i class="fas fa-sync mr-2"></i>
                 Tạo lại ghế
             </button>
@@ -72,6 +86,7 @@
 
 @push('scripts')
 <script>
+const LOCKED = {{ $locked ? 'true' : 'false' }};
 document.addEventListener('DOMContentLoaded', function() {
   const actionSel = document.getElementById('bulk_action');
   if (actionSel) {
@@ -86,13 +101,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   const bulkBtn = document.querySelector('[data-bulk-open]');
-  if (bulkBtn) bulkBtn.addEventListener('click', openBulkModal);
+  if (bulkBtn) bulkBtn.addEventListener('click', function(){ if(LOCKED){alert('Phòng đã có suất chiếu, không thể chỉnh sửa hàng loạt.');} else { openBulkModal(); } });
 });
 
 function openBulkModal(){ document.getElementById('bulkModal').classList.remove('hidden'); }
 function closeBulkModal(){ document.getElementById('bulkModal').classList.add('hidden'); }
 
 async function applyBulkAction(){
+  if (LOCKED) { alert('Phòng đã có suất chiếu, không thể chỉnh sửa hàng loạt.'); return; }
   const ids = Array.from(document.querySelectorAll('.seat-checkbox:checked')).map(cb => parseInt(cb.value)).filter(Boolean);
   if (ids.length === 0) { alert('Vui lòng chọn ít nhất một ghế.'); return; }
   const action = document.getElementById('bulk_action').value;

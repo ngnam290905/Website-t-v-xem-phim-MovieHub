@@ -34,7 +34,6 @@ Route::get('/movies/category/{category}', [MovieController::class, 'category'])-
 
 // Movie detail routes
 Route::get('/movies/{movie}', [MovieController::class, 'show'])->middleware('block.admin.staff')->name('movie-detail');
-Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
 
 // Client Movie Routes
 Route::prefix('phim')->name('movies.')->middleware('block.admin.staff')->group(function () {
@@ -137,8 +136,11 @@ Route::middleware('auth')->middleware('block.admin.staff')->prefix('booking')->n
 
 Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
-    Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
-    Route::post('/shows/{showId}/seats/unlock', [App\Http\Controllers\BookingController::class, 'unlockSeats'])->name('booking.seats.unlock');
+    // New seat hold endpoints
+    Route::post('/shows/{showId}/seats/hold', [App\Http\Controllers\BookingController::class, 'holdSeat'])->name('booking.seats.hold');
+    Route::post('/shows/{showId}/seats/release', [App\Http\Controllers\BookingController::class, 'releaseSeat'])->name('booking.seats.release');
+    Route::post('/shows/{showId}/seats/confirm-booking', [App\Http\Controllers\BookingController::class, 'confirmBooking'])->name('booking.seats.confirm');
+    // Legacy endpoints removed: lock/unlock (frontend switched to hold/release)
     Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
     Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
     Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
@@ -162,6 +164,10 @@ Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
 
 
 Route::get('/payment/vnpay-return', [\App\Http\Controllers\PaymentController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+// VNPAY IPN (server-to-server) callback (no CSRF)
+Route::post('/payment/vnpay-ipn', [\App\Http\Controllers\PaymentController::class, 'vnpayIpn'])
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+    ->name('payment.vnpay_ipn');
 
 // Mini game route
 Route::get('/mini-game', function () {
@@ -189,12 +195,12 @@ Route::middleware('auth')->middleware('block.admin.staff')->prefix('user')->name
     Route::get('/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password');
     Route::post('/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
     Route::get('/booking-history', [UserProfileController::class, 'bookingHistory'])->name('booking-history');
-    Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking');
+    // Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking'); // disabled
     
     // Additional routes from master
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
     Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
-    Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
+    // Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel'); // disabled
 });
 
 // Thành viên routes (loyalty program)
@@ -323,7 +329,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
         Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
-        Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
+        // Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
 

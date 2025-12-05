@@ -59,12 +59,11 @@
     @endif
 
     <!-- Movie Grid -->
-    <!-- Movie Grid -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         @forelse($movies as $movie)
         <div class="group bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden transition-all duration-300 hover:border-[#F53003]/50 hover:shadow-lg hover:shadow-[#F53003]/10">
             <div class="relative overflow-hidden">
-                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105">
+                <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105">
                 @if($movie->trang_thai === 'sap_chieu')
                 <div class="absolute top-2 left-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Sắp chiếu</div>
                 @elseif($movie->trang_thai === 'dang_chieu')

@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentService
 {
-    public function __construct(
-        private SeatLockService $seatLockService
-    ) {}
+    public function __construct()
+    {
+        // SeatLockService removed - using SeatHoldService instead
+    }
 
     public function processWebhook(
         string $transactionId,

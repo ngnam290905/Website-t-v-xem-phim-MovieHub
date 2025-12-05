@@ -39,6 +39,51 @@ class BookingController extends Controller
         return false;
     }
 
+    private function buildRowStates(int $showtimeId, array $selectedSeatCodes): array
+    {
+        $showtime = \App\Models\SuatChieu::find($showtimeId);
+        if (!$showtime) return [];
+
+        // Load all seats of the room ordered by row then number
+        $seats = \App\Models\Ghe::where('id_phong', $showtime->id_phong)
+            ->with('loaiGhe')
+            ->get()
+            ->sortBy(function ($g) {
+                $row = is_string($g->so_ghe) ? substr($g->so_ghe, 0, 1) : 'A';
+                $num = (int)preg_replace('/[^0-9]/', '', (string)$g->so_ghe);
+                return $row . str_pad((string)$num, 4, '0', STR_PAD_LEFT);
+            })
+            ->values();
+
+        // Map booked seats for this showtime (treat pending/paid as occupied)
+        $occupiedIds = \DB::table('chi_tiet_dat_ve as c')
+            ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
+            ->where('d.id_suat_chieu', $showtimeId)
+            ->whereIn('d.trang_thai', [0,1])
+            ->pluck('c.id_ghe')
+            ->toArray();
+
+        $selectedSet = collect($selectedSeatCodes)->map(function ($code) { return strtoupper(trim($code)); })->filter()->values()->all();
+
+        $rows = [];
+        foreach ($seats as $g) {
+            $label = (string)$g->so_ghe;
+            $row = substr($label, 0, 1);
+            if ($row === '' || !ctype_alpha($row)) continue;
+            $rows[$row] = $rows[$row] ?? [];
+            $state = 0;
+            if (in_array($g->id, $occupiedIds)) {
+                $state = 1;
+            }
+            if (in_array(strtoupper($label), $selectedSet, true)) {
+                $state = 2; // selection overrides
+            }
+            $rows[$row][] = $state;
+        }
+
+        return $rows;
+    }
+
     /**
      * Start VNPAY payment for current hold booking
      */
@@ -84,25 +129,27 @@ class BookingController extends Controller
                 ->values();
 
             $i = 0;
+            $base = 100000; // Admin base ticket price
             while ($i < $selected->count()) {
                 $cur = $selected[$i];
                 $next = $selected[$i + 1] ?? null;
                 if ($cur['isCouple'] && $next && $next['isCouple'] && $cur['row'] === $next['row'] && $next['num'] === $cur['num'] + 1) {
-                    $amount += 200000;
+                    // Couple pair: price = sum of each seat's multiplier * base
+                    $s1 = $seats->get($cur['code']);
+                    $s2 = $seats->get($next['code']);
+                    $m1 = (float) optional(optional($s1)->loaiGhe)->he_so_gia ?: 1.0;
+                    $m2 = (float) optional(optional($s2)->loaiGhe)->he_so_gia ?: 1.0;
+                    $amount += (int) round($base * $m1) + (int) round($base * $m2);
                     $i += 2;
                 } else {
-                    if ($cur['isCouple']) {
-                        $amount += 200000;
-                    } elseif ($cur['isVip']) {
-                        $amount += 120000;
-                    } else {
-                        $amount += 80000;
-                    }
+                    $s = $seats->get($cur['code']);
+                    $m = (float) optional(optional($s)->loaiGhe)->he_so_gia ?: 1.0;
+                    $amount += (int) round($base * $m);
                     $i += 1;
                 }
             }
         }
-        if ($amount <= 0) $amount = 80000; // fallback
+        if ($amount <= 0) $amount = 100000; // fallback
 
         // Add combo total from session
         $selectedCombos = collect(session('booking.selected_combos', []));
@@ -118,6 +165,21 @@ class BookingController extends Controller
 
         // Apply promotion if selected and valid
         $promoId = $request->input('promo_id');
+        $promoCode = strtoupper(trim((string)$request->input('promo_code', '')));
+        if (!$promoId && $promoCode !== '') {
+            // Fallback: user entered a code that wasn't preloaded
+            $promoLookup = KhuyenMai::where('trang_thai', 1)
+                ->where('ngay_bat_dau', '<=', now())
+                ->where('ngay_ket_thuc', '>=', now())
+                ->where(function($q) use ($promoCode){
+                    $q->where('ma_km', $promoCode);
+                })
+                ->first();
+            if ($promoLookup) {
+                $promoId = $promoLookup->id;
+            }
+        }
+
         if ($promoId) {
             $promo = KhuyenMai::where('trang_thai', 1)
                 ->where('ngay_bat_dau', '<=', now())
@@ -267,30 +329,7 @@ class BookingController extends Controller
         }
     }
 
-    /**
-     * VNPAY return URL handler
-     */
-    public function vnpayReturn(\Illuminate\Http\Request $request)
-    {
-        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
-        $data = $request->all();
-        $vnp_SecureHash = $data['vnp_SecureHash'] ?? '';
-        // Remove secure hash params before verify
-        foreach (['vnp_SecureHash', 'vnp_SecureHashType'] as $k) unset($data[$k]);
-        ksort($data);
-        $hashdata = urldecode(http_build_query($data));
-        $verified = $vnp_HashSecret ? hash_hmac('sha512', $hashdata, $vnp_HashSecret) === ($vnp_SecureHash) : false;
-
-        $success = $verified && ($request->input('vnp_ResponseCode') === '00');
-
-        // You can persist DatVe here. For demo, just show result.
-        return view('booking.payment-result', [
-            'success' => $success,
-            'txnRef' => $request->input('vnp_TxnRef'),
-            'amount' => (int) (($request->input('vnp_Amount') ?? 0) / 100),
-            'message' => $success ? 'Thanh toán thành công' : 'Thanh toán thất bại hoặc bị hủy',
-        ]);
-    }
+    
 
 
 
@@ -359,17 +398,23 @@ class BookingController extends Controller
                 $query->whereNotNull('expires_at')
                       ->where('expires_at', '<=', now());
             })
+            ->with('thanhToan')
             ->get();
         
         if ($expiredBookings->count() > 0) {
             foreach ($expiredBookings as $expiredBooking) {
-                // Delete seat details
+                // Skip cleanup if payment was completed (avoid deleting tickets paid via late IPN)
+                $hasPaid = $expiredBooking->thanhToan && (int)$expiredBooking->thanhToan->trang_thai === 1;
+                if ($hasPaid) {
+                    // Ensure booking is marked paid and expiration cleared
+                    $expiredBooking->update(['trang_thai' => 1, 'expires_at' => null]);
+                    continue;
+                }
+
+                // Safe to cleanup unpaid expired pending bookings
                 ChiTietDatVe::where('id_dat_ve', $expiredBooking->id)->delete();
-                // Delete combo details
                 ChiTietCombo::where('id_dat_ve', $expiredBooking->id)->delete();
-                // Delete payment record
                 ThanhToan::where('id_dat_ve', $expiredBooking->id)->delete();
-                // Delete booking
                 $expiredBooking->delete();
             }
             
@@ -393,7 +438,9 @@ class BookingController extends Controller
         ])
             ->where('id_nguoi_dung', $userId)
             ->whereIn('trang_thai', [1, 2]) // Only paid (1) or cancelled (2)
-            ->orderByRaw('COALESCE(created_at, id) DESC')
+            // Show newest first. Do not use updated_at because model disables it
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(10);
 
         // Debug log
@@ -573,16 +620,32 @@ class BookingController extends Controller
             $seats = Ghe::where('id_phong', $showtime->id_phong)
                 ->with('loaiGhe')
                 ->get()
-                ->map(function ($seat) {
-                    // Derive properties used by the Blade view
-                    $seat->seatType = $seat->loaiGhe; // alias expected by view
-                    $seat->booking_status = 'available'; // default status; can be updated later
-                    // Derive row label (so_hang) from seat code e.g., A10 -> A
+                ->map(function ($seat) use ($showtime) {
+                    $seat->seatType = $seat->loaiGhe;
+                    $seat->booking_status = 'available';
                     $seat->so_hang = is_string($seat->so_ghe) && strlen($seat->so_ghe) > 0
                         ? substr($seat->so_ghe, 0, 1)
                         : null;
                     return $seat;
                 });
+
+            // Preload booked/held statuses so UI disables them immediately
+            try {
+                $seatHoldService = app(\App\Services\SeatHoldService::class);
+                $currentUserId = \Illuminate\Support\Facades\Auth::id();
+                foreach ($seats as $s) {
+                    $st = $seatHoldService->getSeatStatus($showtime->id, $s->id, $currentUserId);
+                    if ($st === 'booked') {
+                        $s->booking_status = 'booked';
+                    } elseif ($st === 'held_by_other') {
+                        $s->booking_status = 'locked_by_other';
+                    } elseif ($st === 'held_by_me') {
+                        $s->booking_status = 'locked_by_me';
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore preload errors; frontend refresh will handle
+            }
 
             // Selected combos placeholder for view compatibility
             $selectedCombos = collect();
@@ -608,7 +671,89 @@ class BookingController extends Controller
     }
 
     /**
-     * Lock seats for current user (hold for a short time)
+     * Hold seat(s) for current user (NEW LOGIC - 10 minutes, DB-based)
+     */
+    public function holdSeat(Request $request, $showId)
+    {
+        $request->validate([
+            'seat_id' => 'sometimes|integer',
+            'seat_ids' => 'sometimes|array|min:1',
+            'seat_ids.*' => 'integer',
+        ]);
+
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
+        }
+
+        $seatId = $request->input('seat_id');
+        $seatIds = $request->input('seat_ids');
+        $sessionId = $request->session()->getId();
+
+        try {
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+            // Batch mode
+            if (is_array($seatIds) && count($seatIds) > 0) {
+                $result = $seatHoldService->holdSeats($showId, array_map('intval', $seatIds), $userId, $sessionId);
+
+                if (!$result['success']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Không thể giữ ghế',
+                        'failed_seats' => $result['failed_seats'] ?? []
+                    ], 400);
+                }
+
+                $expiresAt = !empty($result['holds']) ? $result['holds'][0]->expires_at->timestamp : (time() + 10 * 60);
+
+                return response()->json([
+                    'success' => true,
+                    'holds' => collect($result['holds'])->map(function($hold) {
+                        return [
+                            'id' => $hold->id,
+                            'seat_id' => $hold->seat_id,
+                            'expires_at' => $hold->expires_at->timestamp,
+                        ];
+                    })->toArray(),
+                    'expires_at' => $expiresAt,
+                    'message' => $result['message']
+                ]);
+            }
+
+            // Single mode
+            $result = $seatHoldService->holdSeat($showId, intval($seatId), $userId, $sessionId);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Không thể giữ ghế'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'hold' => [
+                    'id' => $result['hold']->id,
+                    'seat_id' => $result['hold']->seat_id,
+                    'expires_at' => $result['hold']->expires_at->timestamp,
+                    'expires_at_iso' => $result['hold']->expires_at->toIso8601String(),
+                ],
+                'message' => $result['message']
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('holdSeat error: ' . $e->getMessage(), [
+                'show_id' => $showId,
+                'seat_id' => $seatId,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi giữ ghế: ' . ($e->getMessage() ?: 'Lỗi không xác định')
+            ], 500);
+        }
+    }
+
+    /**
+     * Hold multiple seats at once (NEW LOGIC)
      */
     public function lockSeats(Request $request, $showId)
     {
@@ -623,77 +768,91 @@ class BookingController extends Controller
         }
 
         $seatIds = $request->input('seat_ids', []);
-        $conflicts = [];
-        $expiresAt = null;
+        $sessionId = $request->session()->getId();
 
         try {
-            // Prefer SeatHoldService if available
             $seatHoldService = app(\App\Services\SeatHoldService::class);
+            $result = $seatHoldService->holdSeats($showId, array_map('intval', $seatIds), $userId, $sessionId);
 
-            foreach ($seatIds as $seatId) {
-                // Check current status first
-                $status = $seatHoldService->getSeatStatus($showId, (int)$seatId, $userId);
-                if ($status !== 'available' && $status !== 'hold') {
-                    $conflicts[] = ['seat_id' => (int)$seatId, 'status' => $status];
-                    continue;
-                }
-
-                $hold = $seatHoldService->holdSeat($showId, (int)$seatId, $userId, 5 * 60);
-                if (!$hold) {
-                    $conflicts[] = ['seat_id' => (int)$seatId, 'status' => 'conflict'];
-                } else {
-                    $expiresAt = $hold['hold_expires_at'] ?? $expiresAt;
-                }
-            }
-
-            if (count($conflicts) === count($seatIds)) {
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Một số ghế đã bị giữ hoặc bán',
-                    'conflicts' => $conflicts,
-                ]);
+                    'message' => $result['message'] ?? 'Không thể giữ ghế',
+                    'failed_seats' => $result['failed_seats'] ?? []
+                ], 400);
             }
 
-            // Create a transient booking hold id in session for next step
-            $bookingHoldId = session('booking.hold_id');
-            if (!$bookingHoldId) {
-                $bookingHoldId = 'hold_' . uniqid();
-            }
-            session([
-                'booking.hold_id' => $bookingHoldId,
-                'booking.showtime_id' => $showId,
-                'booking.seat_ids' => $seatIds,
-                'booking.hold_expires_at' => $expiresAt ? \Carbon\Carbon::parse($expiresAt)->timestamp : (time() + 5 * 60),
-            ]);
+            // Get expiration time from first hold
+            $expiresAt = !empty($result['holds']) ? $result['holds'][0]->expires_at->timestamp : (time() + 10 * 60);
 
             return response()->json([
                 'success' => true,
-                'expires_at' => $expiresAt ? \Carbon\Carbon::parse($expiresAt)->timestamp : (time() + 5 * 60),
-                'booking_id' => $bookingHoldId,
+                'holds' => collect($result['holds'])->map(function($hold) {
+                    return [
+                        'id' => $hold->id,
+                        'seat_id' => $hold->seat_id,
+                        'expires_at' => $hold->expires_at->timestamp,
+                    ];
+                })->toArray(),
+                'expires_at' => $expiresAt,
+                'message' => $result['message']
             ]);
         } catch (\Throwable $e) {
-            // Fallback: if service is not available, return success so UI can proceed in demo mode
-            \Log::warning('lockSeats fallback: ' . $e->getMessage());
-            $bookingHoldId = session('booking.hold_id');
-            if (!$bookingHoldId) {
-                $bookingHoldId = 'hold_' . uniqid();
-            }
-            session([
-                'booking.hold_id' => $bookingHoldId,
-                'booking.showtime_id' => $showId,
-                'booking.seat_ids' => $seatIds,
-                'booking.hold_expires_at' => time() + 5 * 60,
+            \Log::error('lockSeats error: ' . $e->getMessage(), [
+                'show_id' => $showId,
+                'seat_ids' => $seatIds,
             ]);
             return response()->json([
-                'success' => true,
-                'expires_at' => time() + 5 * 60,
-                'booking_id' => $bookingHoldId,
-            ]);
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi giữ ghế: ' . ($e->getMessage() ?: 'Lỗi không xác định')
+            ], 500);
         }
     }
 
     /**
-     * Unlock seats for current user
+     * Release seat hold (NEW LOGIC)
+     */
+    public function releaseSeat(Request $request, $showId)
+    {
+        $request->validate([
+            'seat_id' => 'sometimes|integer',
+            'seat_ids' => 'sometimes|array|min:1',
+            'seat_ids.*' => 'integer',
+        ]);
+
+        $userId = Auth::id();
+        $seatId = $request->input('seat_id');
+        $seatIds = $request->input('seat_ids', []);
+        $sessionId = $request->session()->getId();
+
+        try {
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+            if (is_array($seatIds) && count($seatIds) > 0) {
+                $count = $seatHoldService->releaseSeats($showId, array_map('intval', $seatIds), $userId, $sessionId);
+                return response()->json([
+                    'success' => true,
+                    'released_count' => $count,
+                    'message' => "Đã nhả {$count} ghế"
+                ]);
+            }
+
+            $released = $seatHoldService->releaseSeat($showId, intval($seatId), $userId, $sessionId);
+
+            return response()->json([
+                'success' => $released,
+                'message' => $released ? 'Đã nhả ghế' : 'Không tìm thấy ghế đang giữ'
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('releaseSeat error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi nhả ghế'
+            ], 500);
+        }
+    }
+
+    /**
+     * Unlock seats for current user (NEW LOGIC)
      */
     public function unlockSeats(Request $request, $showId)
     {
@@ -704,17 +863,24 @@ class BookingController extends Controller
 
         $userId = Auth::id();
         $seatIds = $request->input('seat_ids', []);
+        $sessionId = $request->session()->getId();
 
         try {
             $seatHoldService = app(\App\Services\SeatHoldService::class);
-            foreach ($seatIds as $seatId) {
-                $seatHoldService->releaseSeat($showId, (int)$seatId, $userId);
-            }
-        } catch (\Throwable $e) {
-            \Log::warning('unlockSeats fallback: ' . $e->getMessage());
-        }
+            $count = $seatHoldService->releaseSeats($showId, array_map('intval', $seatIds), $userId, $sessionId);
 
-        return response()->json(['success' => true]);
+            return response()->json([
+                'success' => true,
+                'released_count' => $count,
+                'message' => "Đã nhả {$count} ghế"
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('unlockSeats error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi nhả ghế'
+            ], 500);
+        }
     }
 
     /**
@@ -736,6 +902,13 @@ class BookingController extends Controller
         $holdId = session('booking.hold_id');
         if (!$holdId) {
             return response()->json(['success' => false, 'message' => 'Phiên giữ ghế đã hết hạn. Vui lòng chọn lại.'], 410);
+        }
+
+        // Validate No Single Seat Rule before saving
+        $rowStates = $this->buildRowStates((int)$validated['showtime_id'], (array)$validated['seats']);
+        $nsr = \App\Services\SeatPatternValidator::validateNoSingleSeatRule($rowStates);
+        if (!$nsr['valid']) {
+            return response()->json(['success' => false, 'message' => $nsr['message'] ?? 'Không được để ghế trống lẻ.'], 422);
         }
 
         // Save selected seat codes, combos and showtime for the next step
@@ -766,7 +939,7 @@ class BookingController extends Controller
         $movie = $showtime ? $showtime->phim : null;
         $room = $showtime ? $showtime->phongChieu : null;
 
-        // Compute simple seat pricing for display with couple seat pairing
+        // Compute seat pricing for display with Admin rule (base 100000 * he_so_gia), couple = sum of two seats
         $seats = collect();
         $seatDetails = [];
         $totalSeatPrice = 0;
@@ -796,22 +969,25 @@ class BookingController extends Controller
                 ->values();
 
             $i = 0;
+            $base = 100000; // Admin base ticket price
             while ($i < $selected->count()) {
                 $cur = $selected[$i];
                 $next = $selected[$i + 1] ?? null;
                 if ($cur['isCouple'] && $next && $next['isCouple'] && $cur['row'] === $next['row'] && $next['num'] === $cur['num'] + 1) {
-                    $seatDetails[] = ['code' => $cur['code'], 'type' => $cur['type'], 'price' => 100000];
-                    $seatDetails[] = ['code' => $next['code'], 'type' => $next['type'], 'price' => 100000];
-                    $totalSeatPrice += 200000;
+                    $s1 = $seats->get($cur['code']);
+                    $s2 = $seats->get($next['code']);
+                    $m1 = (float) optional(optional($s1)->loaiGhe)->he_so_gia ?: 1.0;
+                    $m2 = (float) optional(optional($s2)->loaiGhe)->he_so_gia ?: 1.0;
+                    $p1 = (int) round($base * $m1);
+                    $p2 = (int) round($base * $m2);
+                    $seatDetails[] = ['code' => $cur['code'], 'type' => $cur['type'], 'price' => $p1];
+                    $seatDetails[] = ['code' => $next['code'], 'type' => $next['type'], 'price' => $p2];
+                    $totalSeatPrice += ($p1 + $p2);
                     $i += 2;
                 } else {
-                    if ($cur['isCouple']) {
-                        $price = 200000;
-                    } elseif ($cur['isVip']) {
-                        $price = 120000;
-                    } else {
-                        $price = 80000;
-                    }
+                    $s = $seats->get($cur['code']);
+                    $m = (float) optional(optional($s)->loaiGhe)->he_so_gia ?: 1.0;
+                    $price = (int) round($base * $m);
                     $seatDetails[] = ['code' => $cur['code'], 'type' => $cur['type'], 'price' => $price];
                     $totalSeatPrice += $price;
                     $i += 1;
@@ -876,11 +1052,8 @@ class BookingController extends Controller
             ]
         ];
 
-        // Load active promotions for display on payment page
-        $khuyenmais = KhuyenMai::where('trang_thai', 1)
-            ->where('ngay_bat_dau', '<=', now())
-            ->where('ngay_ket_thuc', '>=', now())
-            ->get();
+        // Load all promotions for display; view will disable those not applicable
+        $khuyenmais = KhuyenMai::orderBy('ngay_ket_thuc', 'desc')->get();
 
         return view('booking.payment', [
             'holdId' => $holdId,
@@ -913,42 +1086,31 @@ class BookingController extends Controller
     }
 
     /**
-     * Refresh seat statuses for a showtime
+     * Refresh seat statuses for a showtime (NEW LOGIC)
      */
-
     public function refreshSeats($showId)
     {
         $statuses = [];
         try {
-            // 1. Lấy danh sách ghế ĐÃ BÁN từ Database (Status 1: Đã thanh toán, 0: Đang chờ thanh toán)
-            $soldSeats = \DB::table('chi_tiet_dat_ve')
-                ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
-                ->where('dat_ve.id_suat_chieu', $showId)
-                ->whereIn('dat_ve.trang_thai', [0, 1]) // 0: Pending, 1: Thành công
-                ->pluck('chi_tiet_dat_ve.id_ghe')
-                ->toArray();
-
-            // Gán trạng thái 'sold' cho các ghế này
-            foreach ($soldSeats as $seatId) {
-                $statuses[$seatId] = 'booked'; // JS bên view check 'booked' hoặc 'sold'
-            }
-
-            // 2. Lấy danh sách ghế ĐANG GIỮ (từ Service/Redis)
             $seatHoldService = app(\App\Services\SeatHoldService::class);
             $showtime = SuatChieu::find($showId);
+            $currentUserId = Auth::id();
 
             if ($showtime) {
                 $seats = Ghe::where('id_phong', $showtime->id_phong)->get();
                 foreach ($seats as $seat) {
-                    // Nếu ghế đã bán rồi thì bỏ qua, không cần check giữ chỗ nữa
-                    if (isset($statuses[$seat->id])) continue;
-
-                    $status = $seatHoldService->getSeatStatus($showId, $seat->id, Auth::id());
-
-                    // Nếu status là 'hold' (người khác giữ) hoặc 'sold' (redis báo bán)
-                    if ($status === 'hold' || $status === 'sold') {
-                        $statuses[$seat->id] = ($status === 'hold') ? 'locked_by_other' : 'booked';
+                    $status = $seatHoldService->getSeatStatus($showId, $seat->id, $currentUserId);
+                    
+                    // Map status to frontend format
+                    if ($status === 'booked') {
+                        $statuses[$seat->id] = 'booked';
+                    } elseif ($status === 'held_by_other') {
+                        $statuses[$seat->id] = 'locked_by_other';
+                    } elseif ($status === 'held_by_me') {
+                        // Don't mark as locked if it's held by current user
+                        // Frontend will show it as selected
                     }
+                    // 'available' doesn't need to be in the response
                 }
             }
         } catch (\Throwable $e) {
@@ -959,6 +1121,40 @@ class BookingController extends Controller
             'success' => true,
             'seats' => $statuses,
         ]);
+    }
+
+    /**
+     * Confirm booking: Convert holds to booked (called after payment success)
+     */
+    public function confirmBooking(Request $request, $showId)
+    {
+        $request->validate([
+            'seat_ids' => 'required|array|min:1',
+            'seat_ids.*' => 'integer'
+        ]);
+
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
+        }
+
+        $seatIds = $request->input('seat_ids', []);
+
+        try {
+            $seatHoldService = app(\App\Services\SeatHoldService::class);
+            $result = $seatHoldService->confirmBooking($showId, array_map('intval', $seatIds), $userId);
+
+            return response()->json([
+                'success' => $result,
+                'message' => $result ? 'Đã xác nhận đặt vé' : 'Không thể xác nhận đặt vé'
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('confirmBooking error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi xác nhận đặt vé'
+            ], 500);
+        }
     }
 
     public function create($id = null)
@@ -1164,17 +1360,17 @@ class BookingController extends Controller
                 ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
                 ->join('ghe', 'chi_tiet_dat_ve.id_ghe', '=', 'ghe.id')
                 ->where('dat_ve.id_suat_chieu', $showtimeId)
-                ->whereIn('dat_ve.trang_thai', [0, 1]) // 0: Pending, 1: Success
+                ->where('dat_ve.trang_thai', 1) // Chỉ ghế đã thanh toán
                 ->pluck('ghe.so_ghe')
                 ->toArray();
 
-            // Lấy danh sách mã ghế đang giữ (Redis/Table phụ)
+            // Lấy danh sách mã ghế đang giữ (bảng tam_giu_ghe)
             $holdingSeats = [];
             try {
-                if (Schema::hasTable('suat_chieu_ghe')) {
+                if (Schema::hasTable('tam_giu_ghe')) {
                     $holdingSeats = ShowtimeSeat::where('id_suat_chieu', $showtimeId)
-                        ->where('status', 'holding')
-                        ->where('hold_expires_at', '>', Carbon::now())
+                        ->where('trang_thai', 'holding')
+                        ->where('thoi_gian_het_han', '>', Carbon::now())
                         ->with('ghe')
                         ->get()
                         ->pluck('ghe.so_ghe')
@@ -1205,15 +1401,13 @@ class BookingController extends Controller
                 return response()->json(['seats' => []]);
             }
 
-            // --- [FIX BẮT ĐẦU] ---
-            // Lấy danh sách ID ghế đã bán thật sự trong Database (Trạng thái 0: Chờ, 1: Đã mua)
+            // Lấy danh sách ID ghế đã bán thật sự trong Database (chỉ trạng thái 1: Đã mua)
             $soldSeatIds = DB::table('chi_tiet_dat_ve')
                 ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
                 ->where('dat_ve.id_suat_chieu', $showtimeId)
-                ->whereIn('dat_ve.trang_thai', [0, 1])
+                ->where('dat_ve.trang_thai', 1)
                 ->pluck('chi_tiet_dat_ve.id_ghe')
                 ->toArray();
-            // --- [FIX KẾT THÚC] ---
 
             // 2. Lấy dịch vụ giữ ghế (Redis)
             $seatHoldService = app(\App\Services\SeatHoldService::class);
@@ -1249,15 +1443,10 @@ class BookingController extends Controller
                 // Ưu tiên 2: Nếu ghế đang bị giữ (Redis)
                 else {
                     $redisStatus = $seatHoldService->getSeatStatus($showtimeId, $seat->id, $currentUserId);
-                    if ($redisStatus === 'hold') {
+                    if ($redisStatus === 'held_by_me' || $redisStatus === 'held_by_other') {
                         $seatStatus = 'hold';
-                        // Lấy thời gian hết hạn giữ nếu cần
-                        $hold = $seatHoldService->getSeatHold($showtimeId, $seat->id);
-                        if ($hold && isset($hold['hold_expires_at'])) {
-                            $holdExpiresAt = Carbon::parse($hold['hold_expires_at'])->toIso8601String();
-                        }
-                    } elseif ($redisStatus === 'sold') {
-                        // Fallback nếu Redis báo sold
+                        // Optionally set hold_expires_at by querying SeatHold if needed (skipped for performance)
+                    } elseif ($redisStatus === 'booked') {
                         $seatStatus = 'sold';
                         $isAvailable = false;
                     }
@@ -1335,15 +1524,14 @@ class BookingController extends Controller
                 ], 400);
             }
 
-            // Validate seat pattern
-            $patternValidator = app(\App\Services\SeatPatternValidator::class);
-            $patternValidation = $patternValidator->validatePattern($data['seats']);
-
-            if (!$patternValidation['valid']) {
+            // Validate No Single Seat Rule
+            $rowStates = $this->buildRowStates((int)$data['showtime'], (array)$data['seats']);
+            $nsr = \App\Services\SeatPatternValidator::validateNoSingleSeatRule($rowStates);
+            if (!$nsr['valid']) {
                 return response()->json([
                     'success' => false,
-                    'message' => $patternValidation['message']
-                ], 400);
+                    'message' => $nsr['message'] ?? 'Không được để ghế trống lẻ.'
+                ], 422);
             }
 
             // Validate showtime exists

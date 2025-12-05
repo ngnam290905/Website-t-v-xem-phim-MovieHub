@@ -32,9 +32,6 @@ class Seat extends Model
         return $this->hasMany(BookingSeat::class);
     }
 
-    public function seatLocks(): HasMany
-    {
-        return $this->hasMany(SeatLock::class);
-    }
+    // SeatLock relationship removed - using SeatHold instead
 }
 

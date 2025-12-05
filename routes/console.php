@@ -15,3 +15,9 @@ Schedule::command('bookings:auto-cancel-expired')
     ->runInBackground();
 Schedule::command('booking:delete-guest-trash')->everyMinute();
 Schedule::command('booking:delete-cancelled')->everyMinute();
+
+// Release expired seat holds every minute
+Schedule::command('seats:release-expired')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();

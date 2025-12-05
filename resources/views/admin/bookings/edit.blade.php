@@ -40,38 +40,7 @@
                                 <p class="text-xs text-gray-400">Đặt lúc
                                     {{ optional($booking->created_at)->format('d/m/Y H:i') }}</p>
                             </div>
-                            <span @class([
-                                'px-3 py-1 rounded-full text-xs font-semibold',
-                                'bg-yellow-900/50 text-yellow-300 border border-yellow-700' =>
-                                    $booking->trang_thai === 0,
-                                'bg-green-900/50 text-green-300 border border-green-700' =>
-                                    $booking->trang_thai === 1,
-                                'bg-orange-900/50 text-orange-200 border border-orange-700' =>
-                                    $booking->trang_thai === 3,
-                                'bg-red-900/50 text-red-300 border border-red-700' =>
-                                    $booking->trang_thai === 2,
-                            ])>
-                                @switch($booking->trang_thai)
-                                    @case(0)
-                                        Chờ xác nhận
-                                    @break
-
-                                    @case(1)
-                                        Đã xác nhận
-                                    @break
-
-                                    @case(3)
-                                        Yêu cầu hủy
-                                    @break
-
-                                    @case(2)
-                                        Đã hủy
-                                    @break
-
-                                    @default
-                                        Không xác định
-                                @endswitch
-                            </span>
+                            
                         </div>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-300">
                             <p><strong>Phim:</strong> {{ $booking->suatChieu?->phim?->ten_phim ?? 'N/A' }}</p>
@@ -204,24 +173,10 @@
                         </div>
                     </div>
 
-                    {{-- Card Trạng thái & Ghi chú --}}
+                    {{-- Card Cập nhật & Ghi chú --}}
                     <div class="p-4 bg-[#1b1e28] rounded-xl border border-[#262833] space-y-4">
                         <h3 class="font-semibold text-base text-white border-b border-[#262833] pb-2">⚙️ Cập nhật</h3>
 
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Trạng thái đơn hàng</label>
-                            <select name="trang_thai"
-                                class="w-full bg-[#10121a] border border-[#262833] rounded-lg px-3 py-2.5 text-sm text-gray-200 outline-none focus:border-blue-500">
-                                <option value="0" {{ old('trang_thai', $booking->trang_thai) == 0 ? 'selected' : '' }}>
-                                    🟡 Chờ xác nhận</option>
-                                <option value="1" {{ old('trang_thai', $booking->trang_thai) == 1 ? 'selected' : '' }}>
-                                    🟢 Đã xác nhận</option>
-                                <option value="3" {{ old('trang_thai', $booking->trang_thai) == 3 ? 'selected' : '' }}>
-                                    🟠 Yêu cầu hủy</option>
-                                <option value="2" {{ old('trang_thai', $booking->trang_thai) == 2 ? 'selected' : '' }}>
-                                    🔴 Đã hủy</option>
-                            </select>
-                        </div>
 
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Ghi chú nội bộ</label>

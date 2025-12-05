@@ -1692,10 +1692,10 @@ section[id] {
     
     /* SELECTED - Đã chọn */
     .seat-selected {
-        background: linear-gradient(135deg, #FF784E, #FFB25E);
-        border-color: #FF784E;
+        background: linear-gradient(135deg, #10B981, #34D399);
+        border-color: #10B981;
         color: #fff;
-        box-shadow: 0 0 0 3px rgba(255, 120, 78, 0.4), 0 6px 20px rgba(255, 120, 78, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 6px 20px rgba(16, 185, 129, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.2);
         transform: scale(1.08) translateY(-2px);
         animation: seatSelected 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
@@ -1703,7 +1703,7 @@ section[id] {
     .seat-selected:hover,
     .seat-selected:focus {
         transform: scale(1.12) translateY(-3px);
-        box-shadow: 0 0 0 4px rgba(255, 120, 78, 0.5), 0 8px 24px rgba(255, 120, 78, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.5), 0 8px 24px rgba(16, 185, 129, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3);
     }
     
     /* LOCKED - Đang được người khác chọn */

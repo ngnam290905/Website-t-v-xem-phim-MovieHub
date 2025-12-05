@@ -276,6 +276,9 @@ class PaymentController extends Controller
         
         $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
         unset($inputData['vnp_SecureHash']);
+        if (isset($inputData['vnp_SecureHashType'])) {
+            unset($inputData['vnp_SecureHashType']);
+        }
         ksort($inputData);
         
         $i = 0;
@@ -290,6 +293,35 @@ class PaymentController extends Controller
         }
         
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+        $matchMethod = 'urlencode';
+
+        // Fallback: some environments require raw (non-urlencoded) hash building
+        if ($secureHash !== $vnp_SecureHash) {
+            $i2 = 0; $hashDataRaw = '';
+            foreach ($inputData as $key => $value) {
+                if ($i2 == 1) {
+                    $hashDataRaw .= '&' . $key . '=' . (string)$value;
+                } else {
+                    $hashDataRaw .= $key . '=' . (string)$value;
+                    $i2 = 1;
+                }
+            }
+            $secureHashRaw = hash_hmac('sha512', $hashDataRaw, $vnp_HashSecret);
+            if ($secureHashRaw === $vnp_SecureHash) {
+                $secureHash = $secureHashRaw; // accept raw method
+                $matchMethod = 'raw';
+            } else {
+                $matchMethod = 'fail';
+            }
+        }
+
+        // TEMP DEBUG LOGS
+        Log::info('VNPAY Return: signature check', [
+            'response_code' => $request->vnp_ResponseCode ?? null,
+            'txn_ref' => $request->vnp_TxnRef ?? null,
+            'match_method' => $matchMethod,
+            'has_secure_hash' => !empty($vnp_SecureHash),
+        ]);
 
         if ($secureHash == $vnp_SecureHash) {
             $parts = explode("_", $request->vnp_TxnRef);
@@ -312,6 +344,11 @@ class PaymentController extends Controller
 
             if ($request->vnp_ResponseCode == '00') {
                 // Payment successful
+                Log::info('VNPAY Return: success branch', [
+                    'booking_id' => $bookingId,
+                    'amount' => ($request->vnp_Amount ?? 0),
+                    'transaction_no' => $request->vnp_TransactionNo ?? null,
+                ]);
                 return $this->handlePaymentSuccess($booking, [
                     'provider' => 'VNPAY',
                     'transaction_id' => $request->vnp_TransactionNo,
@@ -320,6 +357,10 @@ class PaymentController extends Controller
                 ]);
             } else {
                 // Payment failed or cancelled
+                Log::warning('VNPAY Return: failed branch', [
+                    'booking_id' => $bookingId,
+                    'response_code' => $request->vnp_ResponseCode ?? null,
+                ]);
                 return $this->handlePaymentFailure($booking, [
                     'provider' => 'VNPAY',
                     'response_code' => $request->vnp_ResponseCode,
@@ -328,7 +369,9 @@ class PaymentController extends Controller
             }
         } else {
             Log::warning('VNPAY: Invalid secure hash', [
-                'request_data' => $request->all()
+                'txn_ref' => $request->vnp_TxnRef ?? null,
+                'response_code' => $request->vnp_ResponseCode ?? null,
+                'match_method' => $matchMethod,
             ]);
             return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
         }
@@ -425,6 +468,107 @@ class PaymentController extends Controller
     }
 
     /**
+     * VNPAY IPN (Instant Payment Notification) Handler
+     * Handle server-to-server callback from VNPAY
+     */
+    public function vnpayIpn(Request $request)
+    {
+        try {
+            // Prefer new VNPAY_* keys, fallback to legacy VNP_*
+            $vnp_HashSecret = trim((string) env('VNPAY_HASH_SECRET', ''));
+            if ($vnp_HashSecret === '') {
+                $vnp_HashSecret = trim((string) env('VNP_HASH_SECRET', ''));
+            }
+
+            $inputData = [];
+            foreach ($request->all() as $key => $value) {
+                if (substr($key, 0, 4) == 'vnp_') {
+                    $inputData[$key] = $value;
+                }
+            }
+
+            $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+            unset($inputData['vnp_SecureHash']);
+            if (isset($inputData['vnp_SecureHashType'])) {
+                unset($inputData['vnp_SecureHashType']);
+            }
+            ksort($inputData);
+
+            $i = 0;
+            $hashData = '';
+            foreach ($inputData as $key => $value) {
+                if ($i == 1) {
+                    $hashData .= '&' . urlencode($key) . '=' . urlencode((string)$value);
+                } else {
+                    $hashData .= urlencode($key) . '=' . urlencode((string)$value);
+                    $i = 1;
+                }
+            }
+
+            $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+            // Fallback raw hashing if needed
+            if ($secureHash !== $vnp_SecureHash) {
+                $i2 = 0; $hashDataRaw = '';
+                foreach ($inputData as $key => $value) {
+                    if ($i2 == 1) {
+                        $hashDataRaw .= '&' . $key . '=' . (string)$value;
+                    } else {
+                        $hashDataRaw .= $key . '=' . (string)$value;
+                        $i2 = 1;
+                    }
+                }
+                $secureHashRaw = hash_hmac('sha512', $hashDataRaw, $vnp_HashSecret);
+                if ($secureHashRaw !== $vnp_SecureHash) {
+                    Log::warning('VNPAY IPN: Invalid secure hash', ['request_data' => $request->all()]);
+                    return response()->json(['RspCode' => '97', 'Message' => 'Invalid signature'], 200);
+                }
+            }
+
+            // Extract booking id from vnp_TxnRef (format bookingId_timestamp)
+            $parts = explode('_', (string)($request->vnp_TxnRef ?? ''));
+            $bookingId = $parts[0] ?? null;
+
+            if (!$bookingId) {
+                return response()->json(['RspCode' => '01', 'Message' => 'Order not found'], 200);
+            }
+
+            $booking = DatVe::with(['chiTietDatVe.ghe', 'chiTietCombo', 'thanhToan', 'suatChieu'])->find($bookingId);
+            if (!$booking) {
+                Log::error('VNPAY IPN: Booking not found', ['booking_id' => $bookingId]);
+                return response()->json(['RspCode' => '01', 'Message' => 'Order not found'], 200);
+            }
+
+            // Only process if response code success
+            if ((string)($request->vnp_ResponseCode ?? '') === '00') {
+                $this->handlePaymentSuccess($booking, [
+                    'provider' => 'VNPAY',
+                    'transaction_id' => $request->vnp_TransactionNo ?? null,
+                    'amount' => isset($request->vnp_Amount) ? ((int)$request->vnp_Amount) / 100 : null,
+                    'response_code' => $request->vnp_ResponseCode ?? null,
+                ], false);
+
+                return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success'], 200);
+            }
+
+            // Failure or other status
+            $this->handlePaymentFailure($booking, [
+                'provider' => 'VNPAY',
+                'response_code' => $request->vnp_ResponseCode ?? null,
+                'message' => $request->vnp_ResponseCode ?? 'Giao dịch thất bại',
+            ], false);
+
+            return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success'], 200);
+        } catch (\Throwable $e) {
+            Log::error('VNPAY IPN error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['RspCode' => '99', 'Message' => 'Unknown error'], 200);
+        }
+    }
+
+    /**
      * Handle successful payment
      */
     private function handlePaymentSuccess($booking, $paymentData, $shouldRedirect = true)
@@ -488,6 +632,26 @@ class PaymentController extends Controller
                     throw $e;
                 }
 
+                // 2.5. Release seat holds and confirm booking (NEW LOGIC)
+                try {
+                    if ($booking->suatChieu && $booking->chiTietDatVe) {
+                        $seatIds = $booking->chiTietDatVe->pluck('id_ghe')->toArray();
+                        $seatHoldService = app(\App\Services\SeatHoldService::class);
+                        $seatHoldService->confirmBooking($booking->suatChieu->id, $seatIds, $booking->id_nguoi_dung);
+                        Log::info('Seat holds released after payment success', [
+                            'booking_id' => $booking->id,
+                            'showtime_id' => $booking->suatChieu->id,
+                            'seat_ids' => $seatIds
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to release seat holds after payment', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Don't throw - payment is already successful, just log the error
+                }
+
                 // 3. Update payment record
                 try {
                     Log::info('Processing payment record', [
@@ -542,7 +706,12 @@ class PaymentController extends Controller
                                     ],
                                     [
                                         'trang_thai' => 'booked',
-                                        'thoi_gian_het_han' => null
+                                        // Ensure NOT NULL fields are provided for insert cases
+                                        'thoi_gian_giu' => now(),
+                                        // When booked, expiration is irrelevant but column may be NOT NULL -> set to now()
+                                        'thoi_gian_het_han' => now(),
+                                        // Track who booked
+                                        'id_nguoi_dung' => $booking->id_nguoi_dung,
                                     ]
                                 );
                             }
@@ -560,6 +729,7 @@ class PaymentController extends Controller
 
                 Log::info('Payment transaction completed successfully', [
                     'booking_id' => $booking->id,
+                    'booking_user_id' => $booking->id_nguoi_dung,
                     'provider' => $paymentData['provider'] ?? 'Unknown',
                     'transaction_id' => $paymentData['transaction_id'] ?? null
                 ]);
@@ -576,6 +746,12 @@ class PaymentController extends Controller
                     'chiTietCombo.combo',
                     'thanhToan',
                     'nguoiDung'
+                ]);
+                Log::info('Payment post-refresh state', [
+                    'booking_id' => $booking->id,
+                    'booking_user_id' => $booking->id_nguoi_dung,
+                    'status' => $booking->trang_thai,
+                    'has_payment' => $booking->thanhToan ? 1 : 0,
                 ]);
                 $this->sendTicketEmail($booking);
             } catch (\Exception $e) {
@@ -629,16 +805,14 @@ class PaymentController extends Controller
                 if ($booking->suatChieu) {
                     foreach ($booking->chiTietDatVe as $detail) {
                         if ($detail->ghe) {
-                            // Release seat in ShowtimeSeat
+                            // Release seat in ShowtimeSeat (consistent column names)
                             ShowtimeSeat::where('id_suat_chieu', $booking->suatChieu->id)
                                 ->where('id_ghe', $detail->ghe->id)
                                 ->update([
-                                    'status' => 'available',
-                                    'hold_expires_at' => null
+                                    'trang_thai' => 'available',
+                                    // Set to now() to satisfy NOT NULL constraint
+                                    'thoi_gian_het_han' => now()
                                 ]);
-
-                            // Also update seat status in Ghe table if needed
-                            // $detail->ghe->update(['trang_thai' => 1]); // 1 = Available
                         }
                     }
                 }

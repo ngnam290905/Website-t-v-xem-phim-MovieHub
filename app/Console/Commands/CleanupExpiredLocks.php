@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Services\SeatLockService;
+use App\Services\SeatHoldService;
 use App\Services\BookingService;
 
 class CleanupExpiredLocks extends Command
@@ -12,7 +12,7 @@ class CleanupExpiredLocks extends Command
     protected $description = 'Cleanup expired seat locks and bookings';
 
     public function __construct(
-        private SeatLockService $seatLockService,
+        private SeatHoldService $seatLockService,
         private BookingService $bookingService
     ) {
         parent::__construct();
@@ -22,7 +22,7 @@ class CleanupExpiredLocks extends Command
     {
         $this->info('Starting cleanup...');
         
-        $deletedLocks = $this->seatLockService->cleanupExpiredLocks();
+        $deletedLocks = $this->seatLockService->cleanupExpiredHolds();
         $this->info("Deleted {$deletedLocks} expired seat locks");
         
         $expiredBookings = $this->bookingService->expireOldBookings();

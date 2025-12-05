@@ -27,6 +27,18 @@
       </div>
     </div>
 
+    <!-- Alerts -->
+    @if(session('success'))
+      <div class="bg-green-600/20 border border-green-600 text-green-200 px-4 py-3 rounded-lg" role="alert">
+        <span class="font-semibold"><i class="fas fa-check-circle mr-2"></i>{{ session('success') }}</span>
+      </div>
+    @endif
+    @if($errors->has('error'))
+      <div class="bg-red-600/20 border border-red-600 text-red-200 px-4 py-3 rounded-lg" role="alert">
+        <span class="font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>{{ $errors->first('error') }}</span>
+      </div>
+    @endif
+
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-[#151822] border border-[#262833] rounded-xl p-4">
@@ -204,7 +216,8 @@
                     <form action="{{ route('admin.phong-chieu.destroy', $phong) }}" 
                           method="POST" 
                           onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này?')" 
-                          class="inline">
+                          class="room-delete-form inline"
+                          data-room-id="{{ $phong->id }}">
                       @csrf
                       @method('DELETE')
                       <button type="submit" 
