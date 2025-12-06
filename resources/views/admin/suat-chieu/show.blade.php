@@ -97,7 +97,7 @@
         </div>
         <div class="flex justify-between py-3 border-b border-[#262833]">
           <span class="font-medium text-[#a6a6b0]">Thời Lượng:</span>
-          <span class="text-white">{{ $suatChieu->start_time->diffInHours($suatChieu->end_time) }} giờ</span>
+          <span class="text-white">{{ $suatChieu->start_time->diffInMinutes($suatChieu->end_time) }} phút</span>
         </div>
         <div class="flex justify-between py-3">
           <span class="font-medium text-[#a6a6b0]">Trạng Thái:</span>

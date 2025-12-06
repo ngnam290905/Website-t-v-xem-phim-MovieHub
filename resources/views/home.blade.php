@@ -183,9 +183,14 @@
             @forelse($hotMovies as $movie)
                 <div class="group relative">
                     <div class="relative overflow-hidden rounded-xl bg-[#1a1d29]">
-                        <img src="{{ $movie->poster_url }}" 
-                             alt="{{ $movie->ten_phim }}" 
-                             class="w-full h-[300px] object-cover transition-transform duration-300 group-hover:scale-110">
+                        <x-image 
+                            src="{{ $movie->poster_url }}" 
+                            alt="{{ $movie->ten_phim }}"
+                            class="w-full h-[300px] transition-transform duration-300 group-hover:scale-110"
+                            aspectRatio="2/3"
+                            quality="high"
+                            :lazy="false"
+                        />
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         <div class="absolute top-3 left-3 z-10 flex items-center gap-2">
                             <span class="px-2 py-1 rounded bg-black/60 text-white text-xs backdrop-blur">
@@ -244,9 +249,14 @@
                 @forelse($nowShowing as $movie)
                     <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
                         <div class="relative">
-                            <img src="{{ $movie->poster_url }}" 
-                                 alt="{{ $movie->ten_phim }}" 
-                                 class="w-full h-[200px] object-cover">
+                            <x-image 
+                                src="{{ $movie->poster_url }}" 
+                                alt="{{ $movie->ten_phim }}"
+                                class="w-full h-[200px]"
+                                aspectRatio="2/3"
+                                quality="high"
+                                :lazy="false"
+                            />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 <div class="absolute bottom-4 left-4 right-4 flex gap-2">
                                     <a href="{{ route('movies.show', $movie->id) }}" class="flex-1 bg-white/20 backdrop-blur text-white py-2 rounded-lg text-center font-medium hover:bg-white/30 transition">
@@ -301,9 +311,14 @@
             @forelse($comingSoon as $movie)
                 <div class="group bg-[#1a1d29] rounded-xl overflow-hidden hover:transform hover:scale-[1.02] transition-all duration-300 border border-white/5">
                     <div class="relative">
-                        <img src="{{ $movie->poster_url }}" 
-                             alt="{{ $movie->ten_phim }}" 
-                             class="w-full h-[200px] object-cover">
+                        <x-image 
+                            src="{{ $movie->poster_url }}" 
+                            alt="{{ $movie->ten_phim }}"
+                            class="w-full h-[200px]"
+                            aspectRatio="2/3"
+                            quality="high"
+                            :lazy="false"
+                        />
                         <div class="absolute top-3 right-3 bg-yellow-500 text-black px-3 py-1 rounded-full text-xs font-bold">
                             Sắp chiếu
                         </div>
@@ -351,9 +366,14 @@
                 @forelse($allMovies as $movie)
                     <div class="group">
                         <div class="relative overflow-hidden rounded-lg bg-[#1a1d29] border border-white/5">
-                            <img src="{{ $movie->poster_url }}" 
-                                 alt="{{ $movie->ten_phim }}" 
-                                 class="w-full h-[250px] object-cover transition-transform duration-300 group-hover:scale-110">
+                            <x-image 
+                                src="{{ $movie->poster_url }}" 
+                                alt="{{ $movie->ten_phim }}"
+                                class="w-full h-[250px] transition-transform duration-300 group-hover:scale-110"
+                                aspectRatio="2/3"
+                                quality="high"
+                                :lazy="false"
+                            />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 <div class="absolute bottom-3 left-3 right-3">
                                     <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] hover:bg-red-600 text-white py-2 rounded text-center text-sm font-medium transition">
