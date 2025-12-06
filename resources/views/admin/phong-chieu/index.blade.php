@@ -12,7 +12,7 @@
         <h1 class="text-2xl font-bold text-white">Quản lý phòng chiếu</h1>
         <p class="text-[#a6a6b0] mt-1">Quản lý danh sách phòng chiếu và sơ đồ ghế</p>
       </div>
-<<<<<<< HEAD
+
       <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
         <a href="{{ route('admin.phong-chieu.peak-hours') }}" 
            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center">
@@ -26,6 +26,18 @@
         </a>
       </div>
     </div>
+
+    <!-- Alerts -->
+    @if(session('success'))
+      <div class="bg-green-600/20 border border-green-600 text-green-200 px-4 py-3 rounded-lg" role="alert">
+        <span class="font-semibold"><i class="fas fa-check-circle mr-2"></i>{{ session('success') }}</span>
+      </div>
+    @endif
+    @if($errors->has('error'))
+      <div class="bg-red-600/20 border border-red-600 text-red-200 px-4 py-3 rounded-lg" role="alert">
+        <span class="font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>{{ $errors->first('error') }}</span>
+      </div>
+    @endif
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -204,7 +216,8 @@
                     <form action="{{ route('admin.phong-chieu.destroy', $phong) }}" 
                           method="POST" 
                           onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng chiếu này?')" 
-                          class="inline">
+                          class="room-delete-form inline"
+                          data-room-id="{{ $phong->id }}">
                       @csrf
                       @method('DELETE')
                       <button type="submit" 

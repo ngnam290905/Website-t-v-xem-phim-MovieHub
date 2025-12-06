@@ -19,10 +19,12 @@ class ShowtimeSeat extends Model
         'session_id',         // Thêm cái này nếu muốn tracking khách vãng lai
         'gia_giu',            // Thêm cái này để lưu giá vé lúc đặt
         'trang_thai',         // Sửa từ 'status' -> 'trang_thai'
+        'thoi_gian_giu',      // thời điểm bắt đầu giữ
         'thoi_gian_het_han',  // Sửa từ 'hold_expires_at' -> 'thoi_gian_het_han'
     ];
 
     protected $casts = [
+        'thoi_gian_giu' => 'datetime',
         'thoi_gian_het_han' => 'datetime',
         'gia_giu' => 'decimal:2',
     ];
@@ -49,11 +51,12 @@ class ShowtimeSeat extends Model
 
         // Nếu đang giữ (holding/dang_giu)
         if ($this->trang_thai === 'holding' || $this->trang_thai === 'dang_giu') {
-            // Kiểm tra xem đã hết hạn chưa
-            if ($this->thoi_gian_het_han && $this->thoi_gian_het_han->isPast()) {
-                return true; // Đã hết hạn -> coi như Available
+            // Nếu không có thời gian hết hạn hoặc đã hết hạn -> coi như Available
+            if (!$this->thoi_gian_het_han || $this->thoi_gian_het_han->isPast()) {
+                return true;
             }
-            return false; // Chưa hết hạn -> Đang bận
+            // Còn hạn giữ -> không available
+            return false;
         }
 
         // Nếu trạng thái là available -> OK
@@ -64,8 +67,8 @@ class ShowtimeSeat extends Model
     public function isHolding(): bool
     {
         if ($this->trang_thai === 'holding' || $this->trang_thai === 'dang_giu') {
-            // Nếu đã quá giờ giữ -> Không còn là holding nữa
-            if ($this->thoi_gian_het_han && $this->thoi_gian_het_han->isPast()) {
+            // Nếu không có hạn hoặc đã quá hạn -> không còn là holding nữa
+            if (!$this->thoi_gian_het_han || $this->thoi_gian_het_han->isPast()) {
                 return false;
             }
             return true;
@@ -99,10 +102,12 @@ class ShowtimeSeat extends Model
     // Hàm static: Quét và nhả toàn bộ ghế hết hạn của 1 suất chiếu
     public static function releaseExpiredSeats($showtimeId = null)
     {
-        // Tìm các ghế đang giữ (holding hoặc dang_giu)
+        // Tìm các ghế đang giữ (holding hoặc dang_giu) đã hết hạn hoặc không có hạn
         $query = static::whereIn('trang_thai', ['holding', 'dang_giu'])
-            ->whereNotNull('thoi_gian_het_han')
-            ->where('thoi_gian_het_han', '<', Carbon::now());
+            ->where(function ($q) {
+                $q->whereNull('thoi_gian_het_han')
+                  ->orWhere('thoi_gian_het_han', '<', Carbon::now());
+            });
 
         if ($showtimeId) {
             $query->where('id_suat_chieu', $showtimeId);

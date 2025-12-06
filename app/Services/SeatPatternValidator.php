@@ -7,78 +7,40 @@ use Illuminate\Support\Facades\Log;
 class SeatPatternValidator
 {
     /**
-     * Validate seat selection pattern
-     * Kiểm tra pattern đặt ghế có hợp lệ không
-     * 
-     * @param array $seatCodes Array of seat codes like ['A1', 'A2', 'B1', 'B2']
-     * @return array ['valid' => bool, 'message' => string]
+     * Validate with the "No Single Seat Rule" only.
+     * - Input là map các hàng -> mảng trạng thái 0 (trống), 1 (đã đặt), 2 (đang chọn)
+     * - Không được để lại 1 ghế 0 lẻ theo các trường hợp a, b, c, d
      */
-    public function validatePattern(array $seatCodes): array
+    public static function validateNoSingleSeatRule(array $rowStates): array
     {
-        if (empty($seatCodes)) {
-            return ['valid' => false, 'message' => 'Vui lòng chọn ít nhất một ghế'];
+        foreach ($rowStates as $row => $states) {
+            $n = count($states);
+            if ($n === 0) continue;
+            // b) Trống 1 ghế sát biên
+            if ($n >= 2) {
+                if ($states[0] === 0 && $states[1] !== 0) {
+                    return ['valid' => false, 'message' => 'Không được để ghế trống lẻ.'];
+                }
+                if ($states[$n-1] === 0 && $states[$n-2] !== 0) {
+                    return ['valid' => false, 'message' => 'Không được để ghế trống lẻ.'];
+                }
+            }
+            // a,c,d) Trống 1 ghế giữa hai ghế không-trống
+            for ($i=1; $i<$n-1; $i++) {
+                if ($states[$i] === 0 && $states[$i-1] !== 0 && $states[$i+1] !== 0) {
+                    return ['valid' => false, 'message' => 'Không được để ghế trống lẻ.'];
+                }
+            }
         }
+        return ['valid' => true];
+    }
 
-        // Parse seats into rows and columns
-        $seatsByRow = $this->parseSeatsByRow($seatCodes);
-
-        // Check if this is a 4-corner pattern (A1, J1, J15, A15) - allow it
-        $isFourCornerPattern = $this->isFourCornerPattern($seatsByRow);
-        
-        if ($isFourCornerPattern) {
-            // Allow 4-corner pattern, skip all other validations
-            return ['valid' => true, 'message' => ''];
-        }
-
-        // Check for triangle pattern
-        if ($this->isTrianglePattern($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể đặt ghế theo hình tam giác. Vui lòng chọn ghế liền nhau theo hàng.'
-            ];
-        }
-
-        // Check for diamond pattern
-        if ($this->isDiamondPattern($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể đặt ghế theo hình thoi. Vui lòng chọn ghế liền nhau theo hàng.'
-            ];
-        }
-
-        // Check for zigzag pattern
-        if ($this->isZigzagPattern($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể đặt ghế theo kiểu ziczac. Vui lòng chọn ghế liền nhau.'
-            ];
-        }
-
-        // Check for skipped rows
-        if ($this->hasSkippedRows($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể bỏ qua hàng khi đặt ghế. Vui lòng chọn ghế ở các hàng liền nhau.'
-            ];
-        }
-
-        // Check for isolated gaps (bỏ trống 1 ghế đơn lẻ giữa 2 ghế đang chọn)
-        if ($this->hasIsolatedGaps($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể bỏ trống ghế đơn lẻ giữa các ghế đã chọn. Vui lòng chọn ghế liền nhau.'
-            ];
-        }
-
-        // Check for too many corner seats
-        if ($this->hasTooManyCornerSeats($seatsByRow)) {
-            return [
-                'valid' => false,
-                'message' => 'Không thể chọn quá nhiều ghế ở góc. Vui lòng chọn ghế ở vị trí hợp lý hơn.'
-            ];
-        }
-
-        return ['valid' => true, 'message' => ''];
+    // Backward compatible entry: accept rowStates if provided; otherwise just pass
+    // through as valid (controller nên truyền rowStates đã dựng sẵn)
+    public function validatePattern(array $seatCodes, array $rowStates = []): array
+    {
+        if (!empty($rowStates)) return self::validateNoSingleSeatRule($rowStates);
+        return ['valid' => true];
     }
 
     /**

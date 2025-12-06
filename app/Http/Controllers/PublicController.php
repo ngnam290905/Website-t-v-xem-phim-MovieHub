@@ -59,10 +59,10 @@ class PublicController extends Controller
         $date = $request->get('date', now()->format('Y-m-d'));
         $carbonDate = Carbon::parse($date);
 
-        // Get showtimes for the selected date
+        // Get showtimes for the selected date (only those that haven't ended)
         $showtimes = SuatChieu::where('trang_thai', 1)
             ->whereDate('thoi_gian_bat_dau', $date)
-            ->where('thoi_gian_bat_dau', '>', now())
+            ->where('thoi_gian_ket_thuc', '>', now()) // Only showtimes that haven't ended
             ->with(['phim', 'phongChieu'])
             ->orderBy('thoi_gian_bat_dau')
             ->get()

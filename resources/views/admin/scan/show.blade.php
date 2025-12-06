@@ -6,12 +6,20 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">Chi tiết vé #{{ $ticket->id }}</h1>
+        <div class="flex gap-2">
+            <button 
+                onclick="window.print()" 
+                class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
+            >
+                <i class="fas fa-print mr-2"></i>In vé
+            </button>
         <a 
             href="{{ route('admin.scan.index') }}" 
             class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
         >
             <i class="fas fa-arrow-left mr-2"></i>Quay lại
         </a>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -160,6 +168,128 @@
             </div>
         </div>
     @endif
+
+    <!-- QR Code Section -->
+    <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
+        <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <i class="fas fa-qrcode text-[#F53003]"></i>
+            <span>Mã QR Vé</span>
+        </h2>
+        @php
+            $qrData = 'ticket_id=' . $ticket->id;
+            if ($ticket->ticket_code) {
+                $qrData = 'ticket_id=' . $ticket->ticket_code;
+            }
+            $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($qrData);
+        @endphp
+        <div class="flex flex-col items-center justify-center">
+            <div class="bg-white p-4 rounded-lg mb-4" style="min-height: 250px; min-width: 250px; display: flex; align-items: center; justify-center;">
+                <img src="{{ $qrCodeUrl }}" alt="QR Code" id="qrcode-img-admin" style="width: 250px; height: 250px; display: block;" onerror="console.error('QR Image failed to load'); this.style.display='none'; document.getElementById('qrcode-fallback-admin').style.display='block'; generateQRCodeFallbackAdmin('{{ $qrData }}');">
+                <div id="qrcode-fallback-admin" style="display: none; width: 250px; height: 250px;"></div>
+            </div>
+            <p class="text-sm text-[#a6a6b0] text-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                Xuất trình mã QR này tại rạp để vào phòng chiếu
+            </p>
+            <p class="text-xs text-[#a6a6b0] text-center mt-2 font-mono">
+                Mã vé: {{ $ticket->ticket_code ?: sprintf('MV%06d', $ticket->id) }}
+            </p>
+        </div>
+    </div>
 </div>
+
+<!-- QR Code Library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+function generateQRCodeFallbackAdmin(qrData) {
+    const fallbackElement = document.getElementById('qrcode-fallback-admin');
+    const imgElement = document.getElementById('qrcode-img-admin');
+    
+    if (fallbackElement && typeof QRCode !== 'undefined') {
+        imgElement.style.display = 'none';
+        fallbackElement.style.display = 'block';
+        new QRCode(fallbackElement, {
+            text: qrData,
+            width: 250,
+            height: 250,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        script.onload = function() {
+            if (fallbackElement) {
+                imgElement.style.display = 'none';
+                fallbackElement.style.display = 'block';
+                new QRCode(fallbackElement, {
+                    text: qrData,
+                    width: 250,
+                    height: 250,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        };
+        document.head.appendChild(script);
+    }
+}
+</script>
+
+<style>
+@media print {
+    .print-hidden {
+        display: none !important;
+    }
+    
+    body * {
+        visibility: hidden;
+    }
+    
+    .space-y-6, .space-y-6 * {
+        visibility: visible;
+    }
+    
+    .space-y-6 {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    
+    .bg-\[#151822\], .bg-\[#1a1d24\] {
+        background: white !important;
+        border: 1px solid #000 !important;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    .text-\[#a6a6b0\] {
+        color: #666 !important;
+    }
+    
+    /* Ensure QR code is visible when printing */
+    img[alt="QR Code"], #qrcode-img-admin, #qrcode-fallback-admin {
+        visibility: visible !important;
+        display: block !important;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    #qrcode-fallback-admin canvas {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+}
+</style>
 @endsection
 

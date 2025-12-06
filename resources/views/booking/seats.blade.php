@@ -1,4 +1,4 @@
-@extends('layouts.main')
+@extends('layouts.app')
 
 @section('title', 'Chọn ghế - ' . $showtime->phim->ten_phim)
 
@@ -7,23 +7,23 @@
   <div class="max-w-7xl mx-auto px-4">
     <style>
       /* Seat map visual refinements */
-      #seat-map-container .seat-btn-enhanced{width:46px;height:46px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#1a1d24;border:1px solid #2a2f3a;transition:transform .15s ease, box-shadow .15s ease}
+      #seat-map-container .seat-btn-enhanced{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#1a1d24;border:1px solid #2a2f3a;transition:transform .15s ease, box-shadow .15s ease}
       #seat-map-container .seat-btn-enhanced.seat-available:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(255,120,78,.18)}
       #seat-map-container .seat-btn-enhanced.seat-vip{background:linear-gradient(180deg,#3a2a00,#251a00);border-color:#6b4e00}
       #seat-map-container .seat-btn-enhanced.seat-selected{background:linear-gradient(180deg,#FF784E,#FFB25E);color:#fff;border-color:#FF8A5E}
-      #seat-map-container .seat-btn-enhanced.seat-sold{background:#4b5563;border-color:#6b7280;color:#cbd5e1;opacity:.75}
+      #seat-map-container .seat-btn-enhanced.seat-sold{background:#dc2626;border-color:#b91c1c;color:#fee2e2;opacity:1; cursor: not-allowed;}
       #seat-map-container .seat-btn-enhanced.seat-locked{background:#334155;border-color:#475569;color:#cbd5e1}
       #seat-map-container .seat-btn-enhanced.seat-disabled{background:#1f2937;border-color:#374151;opacity:.5}
-      #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff}
+      #seat-map-container .seat-btn-enhanced.seat-couple{background:linear-gradient(180deg,#ec4899,#f43f5e);border-color:#f472b6;color:#fff;width:40px}
       #seat-map-container .seat-number{font-size:12px;font-weight:700;color:#E6E7EB}
       /* Row/column labels */
-      #seat-map-container .col-label{width:46px;height:46px;border-radius:10px}
+      #seat-map-container .col-label{width:40px;height:40px;border-radius:10px}
       #seat-map-container .col-label-text{font-size:13px;font-weight:700}
-      #seat-map-container .row-label{width:46px;height:46px;border-radius:12px}
+      #seat-map-container .row-label{width:40px;height:40px;border-radius:12px}
       /* Grid spacing */
-      #seat-map-container .seat-row-gap{gap:6px}
+      #seat-map-container .seat-row-gap{gap:4px}
       @media (min-width: 1024px){
-        #seat-map-container .seat-row-gap{gap:8px}
+        #seat-map-container .seat-row-gap{gap:6px}
       }
     </style>
     
@@ -107,7 +107,7 @@
               <p class="text-sm text-[#a6a6b0] mb-1">Thời gian giữ ghế</p>
               <div class="flex items-center gap-2">
                 <div id="timer" class="text-2xl font-bold text-[#F53003]">
-                  <span id="timer-minutes">5</span>:<span id="timer-seconds">00</span>
+                  <span id="timer-minutes">10</span>:<span id="timer-seconds">00</span>
                 </div>
                 <span class="text-sm text-[#a6a6b0]">phút</span>
               </div>
@@ -121,7 +121,7 @@
           </div>
 
           <!-- Enhanced Screen Visualization -->
-          <div class="text-center mb-12 relative">
+          <div class="text-center mb-8 relative">
             <!-- Screen 3D Effect -->
             <div class="relative mx-auto max-w-4xl">
               <!-- Screen Shadow -->
@@ -133,7 +133,7 @@
                 <div class="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent"></div>
                 
                 <!-- Screen Content -->
-                <div class="relative px-16 py-8">
+                <div class="relative px-12 py-6">
                   <div class="flex items-center justify-center gap-3 mb-2">
                     <div class="w-2 h-2 rounded-full bg-[#FF784E] animate-pulse"></div>
                     <span class="text-[#FF784E] font-bold text-lg tracking-wider">MÀN HÌNH</span>
@@ -150,14 +150,7 @@
               <div class="mx-auto mt-2 w-32 h-4 bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-b-lg border border-[#FF784E]/20"></div>
             </div>
             
-            <!-- Distance Indicator -->
-            <div class="mt-6 flex items-center justify-center gap-4 text-xs text-[#a6a6b0]">
-              <div class="flex items-center gap-2">
-                <div class="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#FF784E]/50 to-transparent"></div>
-                <span>Khoảng cách tối ưu</span>
-                <div class="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#FF784E]/50 to-transparent"></div>
-              </div>
-            </div>
+            
           </div>
 
           <!-- Seat Map Container -->
@@ -194,27 +187,13 @@
               
               // Tạo danh sách số cột (với spacing cho lối đi)
               $colNumbers = [];
-              $aislePositions = [5, 10]; // Vị trí lối đi (sau cột 5 và 10)
+              $aislePositions = []; // Không tạo lối đi, khoảng cách các cột bằng nhau
               for ($i = 1; $i <= $maxCols; $i++) {
                 $colNumbers[] = $i;
-                if (in_array($i, $aislePositions)) {
-                  $colNumbers[] = 'aisle'; // Marker cho lối đi
-                }
               }
             @endphp
             
-            <div class="flex items-center gap-2 mb-5 pl-14">
-              <div class="w-10"></div>
-              @foreach($colNumbers as $colItem)
-                @if($colItem === 'aisle')
-                  <div class="w-5"></div>
-                @else
-                <div class="col-label flex items-center justify-center text-sm col-label-text text-[#a6a6b0] bg-[#1a1d24] rounded border border-[#2a2d3a]">
-                    {{ $colItem }}
-                </div>
-                @endif
-              @endforeach
-            </div>
+            
             
             <!-- Seat Grid - Ma trận cải tiến -->
             <div id="seat-map-scale" class="inline-block space-y-4" style="transform-origin: top center; display:block; margin: 0 auto;">
@@ -224,11 +203,43 @@
                   $rowIndex = array_search($rowLabel, array_keys($seatMatrix));
                   
                   // Tạo map ghế theo vị trí để align đúng cột
+                  // Gom nhóm ghế đôi theo pair_id
                   $seatMap = [];
+                  $processedSeats = [];
                   foreach($rowSeats as $seat) {
+                    // Skip nếu ghế này đã được xử lý như một phần của cặp
+                    if (in_array($seat->id, $processedSeats)) {
+                      continue;
+                    }
+                    
                     preg_match('/(\d+)/', $seat->so_ghe, $matches);
                     $colNum = (int)($matches[1] ?? 0);
-                    $seatMap[$colNum] = $seat;
+                    
+                    // Kiểm tra nếu là ghế đôi
+                    $isDouble = ($seat->is_double ?? false) || ($seat->id_loai == 3);
+                    $pairId = $seat->pair_id ?? null;
+                    
+                    if ($isDouble && $pairId) {
+                      // Tìm ghế cặp
+                      $pairSeat = $rowSeats->firstWhere('id', $pairId);
+                      if ($pairSeat) {
+                        // Gom nhóm 2 ghế thành 1 entry
+                        $seatMap[$colNum] = [
+                          'type' => 'couple',
+                          'seat1' => $seat,
+                          'seat2' => $pairSeat,
+                          'col' => $colNum
+                        ];
+                        $processedSeats[] = $seat->id;
+                        $processedSeats[] = $pairSeat->id;
+                      } else {
+                        // Không tìm thấy ghế cặp, hiển thị như ghế thường
+                        $seatMap[$colNum] = $seat;
+                      }
+                    } else {
+                      // Ghế thường
+                      $seatMap[$colNum] = $seat;
+                    }
                   }
                 @endphp
                 
@@ -260,87 +271,167 @@
                     <!-- Seats Row - Ma trận với spacing -->
                     <div class="flex seat-row-gap items-center">
                       @for($col = 1; $col <= $maxCols; $col++)
-                        @if(in_array($col, [6, 11])) {{-- Lối đi sau cột 5 và 10 --}}
-                          <div class="w-5"></div>
-                        @endif
                         
                         @if(isset($seatMap[$col]))
                         @php
-                            $seat = $seatMap[$col];
-                          $status = $seat->booking_status ?? 'available';
-                          $seatType = $seat->seatType ?? null;
-                          $seatPrice = $seatType->he_so_gia ?? 1;
-                          $basePrice = 50000;
-                          $price = $basePrice * $seatPrice;
-                          $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
-                            $isVipSeat = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
-                            $isCoupleSeat = $seatType && (
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'doi') !== false ||
-                              strpos(strtolower($seatType->ten_loai ?? ''), 'couple') !== false
-                            );
+                            $seatData = $seatMap[$col];
+                            $isCouplePair = is_array($seatData) && isset($seatData['type']) && $seatData['type'] === 'couple';
+                            
+                            if ($isCouplePair) {
+                              $seat1 = $seatData['seat1'];
+                              $seat2 = $seatData['seat2'];
+                              $seatType1 = $seat1->seatType ?? $seat1->loaiGhe ?? null;
+                              $seatType2 = $seat2->seatType ?? $seat2->loaiGhe ?? null;
+                              $basePrice = 100000;
+                              $heso1 = (float)($seatType1->he_so_gia ?? 1);
+                              $heso2 = (float)($seatType2->he_so_gia ?? 1);
+                              $price1 = $basePrice * $heso1;
+                              $price2 = $basePrice * $heso2;
+                              $totalPrice = $price1 + $price2;
+                              $status1 = $seat1->booking_status ?? 'available';
+                              $status2 = $seat2->booking_status ?? 'available';
+                              $status = ($status1 === 'booked' || $status2 === 'booked') ? 'booked' : 
+                                        (($status1 === 'locked_by_other' || $status2 === 'locked_by_other') ? 'locked_by_other' : 
+                                        (($status1 === 'selected' || $status2 === 'selected' || $status1 === 'locked_by_me' || $status2 === 'locked_by_me') ? 'selected' : 'available'));
+                              $seatNumber1 = preg_replace('/^[A-Z]/', '', $seat1->so_ghe);
+                              $seatNumber2 = preg_replace('/^[A-Z]/', '', $seat2->so_ghe);
+                              $seatCodes = $seat1->so_ghe . '-' . $seat2->so_ghe;
+                            } else {
+                              $seat = $seatData;
+                              $status = $seat->booking_status ?? 'available';
+                              $seatType = $seat->seatType ?? $seat->loaiGhe ?? null;
+                              $isVipSeat = ($seat->id_loai == 2) || ($seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false);
+                              $isCoupleSeat = ($seat->id_loai == 3) || ($seat->is_double ?? false) || ($seatType && (
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'doi') !== false ||
+                                strpos(strtolower($seatType->ten_loai ?? ''), 'couple') !== false
+                              ));
+                              $basePrice = 100000;
+                              $heso = (float)($seatType->he_so_gia ?? 1);
+                              $price = $basePrice * $heso;
+                              $seatNumber = preg_replace('/^[A-Z]/', '', $seat->so_ghe);
+                            }
                         @endphp
                         
-                        <button 
-                          type="button"
-                          class="seat-btn-enhanced relative group
-                          @if($status === 'booked') seat-sold
-                          @elseif($status === 'locked_by_other') seat-locked
-                          @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
-                          @elseif($status === 'disabled') seat-disabled
-                          @elseif($isVipSeat) seat-vip
-                          @elseif($isCoupleSeat) seat-couple
-                          @else seat-available
-                          @endif"
-                          data-seat-id="{{ $seat->id }}"
-                          data-seat-code="{{ $seat->so_ghe }}"
-                          data-seat-price="{{ $price }}"
-                          data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
-                          @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
-                          @endif
-                          onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
-                          aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
-                          tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
-                          
-                          <!-- Seat Glow Effect -->
-                          <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
-                            @if($isVipSeat) bg-yellow-500/30
-                            @elseif($status === 'selected') bg-[#FF784E]/30
-                            @else bg-[#FF784E]/20
-                            @endif"></div>
-                          
-                          <!-- Seat Content -->
-                          <div class="relative z-10 flex flex-col items-center justify-center h-full w-full">
-                            <span class="seat-number block leading-none">{{ $seatNumber }}</span>
-                            @if($isVipSeat && $status !== 'booked' && $status !== 'locked_by_other')
-                              <i class="fas fa-crown text-[9px] text-yellow-300 mt-0.5 drop-shadow-lg"></i>
+                        @if($isCouplePair)
+                          {{-- Couple Seat Pair (render compact like single) --}}
+                          <button 
+                            type="button"
+                            class="seat-btn-enhanced seat-couple relative group
+                            @if($status === 'booked') seat-sold
+                            @elseif($status === 'locked_by_other') seat-locked
+                            @elseif($status === 'selected') seat-selected
+                            @elseif($status === 'disabled') seat-disabled
+                            @endif"
+                            data-seat-id="{{ $seat1->id }}"
+                            data-seat-id-2="{{ $seat2->id }}"
+                            data-seat-code="{{ $seat1->so_ghe }}"
+                            data-seat-code-2="{{ $seat2->so_ghe }}"
+                            data-seat-price="{{ $totalPrice }}"
+                            data-seat-price-1="{{ $price1 }}"
+                            data-seat-price-2="{{ $price2 }}"
+                            data-seat-type="Ghế Đôi"
+                            data-is-couple="true"
+                            @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
                             @endif
-                          </div>
-                          
-                          <!-- Seat Border Glow -->
-                          <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                            @if($isVipSeat) border-yellow-400/50
-                            @elseif($status === 'selected') border-[#FF784E]/50
-                            @else border-[#FF784E]/30
-                            @endif"></div>
-                          
-                          <!-- Enhanced Tooltip -->
-                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
-                            <div class="flex items-center gap-2 mb-2">
-                              <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
-                              <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                            onclick="toggleCoupleSeat({{ $seat1->id }}, '{{ $seat1->so_ghe }}', {{ $price1 }}, {{ $seat2->id }}, '{{ $seat2->so_ghe }}', {{ $price2 }})"
+                            aria-label="Ghế đôi {{ $seatCodes }}"
+                            tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
+                            
+                            <!-- Seat Glow Effect -->
+                            <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
+                              @if($status === 'selected') bg-[#FF784E]/30
+                              @else bg-pink-500/20
+                              @endif"></div>
+                            
+                            <!-- Seat Content (compact) -->
+                            <div class="relative z-10 flex items-center justify-center h-full w-full">
+                              <i class="fas fa-heart text-[10px] text-pink-200"></i>
                             </div>
-                            <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
-                            <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
-                              <i class="fas fa-tag text-[8px]"></i>
-                              <span>{{ $seatType->ten_loai ?? 'Thường' }}</span>
+                            
+                            <!-- Seat Border Glow -->
+                            <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                              @if($status === 'selected') border-[#FF784E]/50
+                              @else border-pink-400/50
+                              @endif"></div>
+                            
+                            <!-- Enhanced Tooltip -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-pink-500/50 pointer-events-none backdrop-blur-sm">
+                              <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 rounded-full bg-pink-500"></div>
+                                <div class="font-bold text-pink-400">Ghế đôi {{ $seatCodes }}</div>
+                              </div>
+                              <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($totalPrice) }}đ</div>
+                              <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
+                                <i class="fas fa-heart text-[8px]"></i>
+                                <span>Ghế Đôi</span>
+                              </div>
+                              <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
                             </div>
-                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
-                          </div>
-                        </button>
+                          </button>
+                        @else
+                          {{-- Single Seat --}}
+                          <button 
+                            type="button"
+                            class="seat-btn-enhanced relative group
+                            @if($status === 'booked') seat-sold
+                            @elseif($status === 'locked_by_other') seat-locked
+                            @elseif($status === 'locked_by_me' || $status === 'selected') seat-selected
+                            @elseif($status === 'disabled') seat-disabled
+                            @elseif($isVipSeat) seat-vip
+                            @elseif($isCoupleSeat) seat-couple
+                            @else seat-available
+                            @endif"
+                            data-seat-id="{{ $seat->id }}"
+                            data-seat-code="{{ $seat->so_ghe }}"
+                            data-seat-price="{{ $price }}"
+                            data-seat-type="{{ $seatType->ten_loai ?? 'Thường' }}"
+                            @if(in_array($status, ['booked', 'locked_by_other', 'disabled'])) disabled
+                            @endif
+                            onclick="toggleSeat({{ $seat->id }}, '{{ $seat->so_ghe }}', {{ $price }}, '{{ $seatType->ten_loai ?? 'Thường' }}')"
+                            aria-label="Ghế {{ $seat->so_ghe }} - {{ $status === 'available' ? 'trống' : ($status === 'selected' ? 'đã chọn' : ($status === 'booked' ? 'đã bán' : ($status === 'locked_by_other' ? 'đang được chọn' : 'vô hiệu'))) }}"
+                            tabindex="{{ in_array($status, ['booked', 'locked_by_other', 'disabled']) ? '-1' : '0' }}">
+                            
+                            <!-- Seat Glow Effect -->
+                            <div class="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm
+                              @if($isVipSeat) bg-yellow-500/30
+                              @elseif($status === 'selected') bg-[#FF784E]/30
+                              @else bg-[#FF784E]/20
+                              @endif"></div>
+                            
+                            <!-- Seat Content -->
+                            <div class="relative z-10 flex flex-col items-center justify-center h-full w-full">
+                              <span class="seat-number block leading-none">{{ $seatNumber }}</span>
+                              @if($isVipSeat && $status !== 'booked' && $status !== 'locked_by_other')
+                                <i class="fas fa-crown text-[9px] text-yellow-300 mt-0.5 drop-shadow-lg"></i>
+                              @endif
+                            </div>
+                            
+                            <!-- Seat Border Glow -->
+                            <div class="absolute inset-0 rounded-lg border-2 border-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                              @if($isVipSeat) border-yellow-400/50
+                              @elseif($status === 'selected') border-[#FF784E]/50
+                              @else border-[#FF784E]/30
+                              @endif"></div>
+                            
+                            <!-- Enhanced Tooltip -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
+                              <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
+                                <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                              </div>
+                              <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
+                              <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">
+                                <i class="fas fa-tag text-[8px]"></i>
+                                <span>{{ $seatType->ten_loai ?? 'Thường' }}</span>
+                              </div>
+                              <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#2a2d3a]"></div>
+                            </div>
+                          </button>
+                        @endif
                         @else
                           {{-- Empty cell để giữ alignment --}}
-                          <div class="w-[46px] h-[46px]"></div>
+                          <div class="w-[40px] h-[40px]"></div>
                         @endif
                       @endfor
                     </div>
@@ -349,15 +440,7 @@
               @endforeach
             </div>
             
-            <!-- Zoom Controls - Enhanced -->
-            <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-20">
-              <button onclick="zoomIn()" class="w-10 h-10 bg-gradient-to-br from-[#1a1d24] to-[#2a2d3a] border border-[#3a3d4a] rounded-lg text-white hover:bg-gradient-to-br hover:from-[#FF784E] hover:to-[#FFB25E] transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-[#FF784E]/50 hover:scale-110">
-                <i class="fas fa-plus text-sm"></i>
-              </button>
-              <button onclick="zoomOut()" class="w-10 h-10 bg-gradient-to-br from-[#1a1d24] to-[#2a2d3a] border border-[#3a3d4a] rounded-lg text-white hover:bg-gradient-to-br hover:from-[#FF784E] hover:to-[#FFB25E] transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-[#FF784E]/50 hover:scale-110">
-                <i class="fas fa-minus text-sm"></i>
-              </button>
-            </div>
+            
           </div>
 
           <!-- Legend (5 types only) -->
@@ -640,7 +723,7 @@
               <i class="fas fa-clock text-[#FF784E]"></i>
               <span class="text-[#A0A6B1]">Thời gian giữ ghế:</span>
               <span id="timer-display" class="font-semibold text-[#E6E7EB]">
-                <span id="timer-minutes">5</span>:<span id="timer-seconds">00</span>
+                <span id="timer-minutes">10</span>:<span id="timer-seconds">00</span>
               </span>
             </div>
           </div>
@@ -694,7 +777,7 @@ const bookingId = {{ $existingBooking ? $existingBooking->id : 'null' }};
       type: '{{ $detail->ghe->seatType->ten_loai ?? 'Thường' }}'
     });
   @endforeach
-  lockExpiresAt = {{ $existingBooking->created_at->addMinutes(5)->timestamp }};
+  lockExpiresAt = {{ $existingBooking->created_at->addMinutes(10)->timestamp }};
   startTimer();
 @endif
 
@@ -706,6 +789,79 @@ function toggleSeat(seatId, seatCode, price, type) {
   }
 }
 
+// Build row states snapshot with a draft selection: 0=empty, 1=booked, 2=selected
+function buildRowStatesWithDraft(draft){
+  const rows = {};
+  document.querySelectorAll('.seat-row-container').forEach(rowEl => {
+    const rowLabel = rowEl.getAttribute('data-row');
+    const states = [];
+    rowEl.querySelectorAll('[data-seat-id]').forEach(btn => {
+      const id = parseInt(btn.getAttribute('data-seat-id'),10);
+      const isSold = btn.classList.contains('seat-sold');
+      if (draft.has(id)) {
+        states.push(2);
+      } else if (isSold) {
+        states.push(1);
+      } else {
+        states.push(0);
+      }
+    });
+    if (states.length) rows[rowLabel] = states;
+  });
+  return rows;
+}
+
+// Validate No Single Seat Rule on snapshot
+function validateNoSingleSeatRule(rowStates){
+  const result = { valid: true };
+  const keys = Object.keys(rowStates);
+  for (const k of keys){
+    const arr = rowStates[k];
+    const n = arr.length;
+    if (n === 0) continue;
+    // b) edge single empty next to non-empty
+    if (n >= 2) {
+      if (arr[0] === 0 && arr[1] !== 0) return { valid: false, message: 'Không được để ghế trống lẻ.' };
+      if (arr[n-1] === 0 && arr[n-2] !== 0) return { valid: false, message: 'Không được để ghế trống lẻ.' };
+    }
+    // a,c,d) single empty between two non-empty
+    for (let i=1;i<n-1;i++){
+      if (arr[i] === 0 && arr[i-1] !== 0 && arr[i+1] !== 0){
+        return { valid: false, message: 'Không được để ghế trống lẻ.' };
+      }
+    }
+  }
+  return result;
+}
+
+function toggleCoupleSeat(seatId1, seatCode1, price1, seatId2, seatCode2, price2) {
+  const isSeat1Selected = selectedSeats.has(seatId1);
+  const isSeat2Selected = selectedSeats.has(seatId2);
+  
+  if (isSeat1Selected || isSeat2Selected) {
+    // Remove both seats if either is selected
+    if (isSeat1Selected) removeSeat(seatId1);
+    if (isSeat2Selected) removeSeat(seatId2);
+  } else {
+    // Add both seats
+    const draft = new Map(selectedSeats);
+    draft.set(seatId1, { code: seatCode1, price: price1, type: 'Ghế Đôi' });
+    draft.set(seatId2, { code: seatCode2, price: price2, type: 'Ghế Đôi' });
+    
+    // Validate No Single Seat Rule
+    const snapshot = buildRowStatesWithDraft(draft);
+    const nsr = validateNoSingleSeatRule(snapshot);
+    if (!nsr.valid) {
+      alert(nsr.message || 'Không được để ghế trống lẻ.');
+      return;
+    }
+    
+    selectedSeats = draft;
+    updateUI();
+    lockSeats();
+  }
+}
+
 // Helpers for contiguity check per row
 function seatRowFromCode(code){
   return (code || '').trim().charAt(0);
@@ -714,25 +870,7 @@ function seatNumFromCode(code){
   const m = String(code || '').match(/(\d+)/);
   return m ? parseInt(m[1], 10) : NaN;
 }
-function isRowContiguous(seatMap){
-  // Build rows => numbers array
-  const rows = {};
-  for (const { code } of seatMap.values()){
-    const r = seatRowFromCode(code);
-    const n = seatNumFromCode(code);
-    if (!r || isNaN(n)) continue;
-    (rows[r] ||= []).push(n);
-  }
-  // Check each row: if >=2, must form a single block: max-min+1 == count
-  for (const r in rows){
-    const arr = rows[r].sort((a,b)=>a-b);
-    if (arr.length >= 2){
-      const contiguous = (arr[arr.length-1] - arr[0] + 1) === arr.length;
-      if (!contiguous) return false;
-    }
-  }
-  return true;
-}
+// (ĐÃ GỠ) Logic liền kề cũ đã bị loại bỏ theo yêu cầu.
 
 // Couple-seat helpers
 function isCoupleTypeText(t){
@@ -776,9 +914,11 @@ function addSeat(seatId, seatCode, price, type) {
     draft.set(seatId, { code: seatCode, price: price, type: type });
   }
 
-  // Enforce contiguity per row
-  if (!isRowContiguous(draft)){
-    alert('Khi chọn từ 2 ghế trở lên trong cùng một hàng, các ghế phải liền nhau (không có khoảng trống).');
+  // Validate No Single Seat Rule
+  const snapshot = buildRowStatesWithDraft(draft);
+  const nsr = validateNoSingleSeatRule(snapshot);
+  if (!nsr.valid) {
+    alert(nsr.message || 'Không được để ghế trống lẻ.');
     return;
   }
 
@@ -1013,7 +1153,7 @@ function toggleCombo(comboId, price, name) {
 async function lockSeats() {
   if (selectedSeats.size === 0) return;
   
-  const seatIds = Array.from(selectedSeats.keys());
+  const seatIds = Array.from(selectedSeats.keys()).map(id => Number(id));
   const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   
   if (!token) {
@@ -1023,7 +1163,8 @@ async function lockSeats() {
   }
 
   try {
-    const response = await fetch(`/shows/${showId}/seats/lock`, {
+    // NEW API: Hold multiple seats at once
+    const response = await fetch(`/shows/${showId}/seats/hold`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1035,21 +1176,41 @@ async function lockSeats() {
       body: JSON.stringify({ seat_ids: seatIds })
     });
 
+    // Try to parse JSON body even on non-2xx
+    let data = null;
+    try { data = await response.json(); } catch (_) { data = null; }
+    
     if (!response.ok) {
       if (response.status === 419) {
         alert('Phiên đăng nhập đã hết hạn. Vui lòng tải lại trang.');
         window.location.reload();
         return;
       }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Show backend message if available
+      const msg = data && data.message;
+      if (msg) {
+        alert(msg);
+        // Remove failed seats
+        if (data.failed_seats && Array.isArray(data.failed_seats)) {
+          data.failed_seats.forEach(failed => {
+            if (failed.seat_id) removeSeat(failed.seat_id);
+          });
+        }
+        return;
+      }
+      console.error('Lock seats failed with HTTP', response.status, data);
+      alert('Có lỗi xảy ra khi giữ ghế. Vui lòng thử lại.');
+      return;
     }
 
-    const data = await response.json();
+    // Success (2xx)
+    if (!data) {
+      alert('Có lỗi xảy ra khi giữ ghế. Vui lòng thử lại.');
+      return;
+    }
     
     if (data.success) {
-      if (data.booking_id) {
-        window.bookingId = data.booking_id;
-      }
+      // NEW: expires_at is now in timestamp format
       if (data.expires_at) {
         lockExpiresAt = data.expires_at;
         startTimer();
@@ -1057,10 +1218,10 @@ async function lockSeats() {
       startRefresh();
     } else {
       alert(data.message || 'Không thể giữ ghế');
-      // Remove conflicting seats
-      if (data.conflicts) {
-        data.conflicts.forEach(conflict => {
-          removeSeat(conflict.seat_id);
+      // Remove failed seats
+      if (data.failed_seats && Array.isArray(data.failed_seats)) {
+        data.failed_seats.forEach(failed => {
+          if (failed.seat_id) removeSeat(failed.seat_id);
         });
       }
     }
@@ -1081,7 +1242,8 @@ async function unlockSeats(seatIds) {
   }
 
   try {
-    const response = await fetch(`/shows/${showId}/seats/unlock`, {
+    // NEW API: Release multiple seats
+    const response = await fetch(`/shows/${showId}/seats/release`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1147,16 +1309,52 @@ function startRefresh() {
       const data = await response.json();
       
       if (data.success && data.seats) {
-        // Update seat statuses
+        // Update seat statuses (NEW LOGIC: status can be 'booked' or 'locked_by_other')
         Object.entries(data.seats).forEach(([seatId, status]) => {
           const btn = document.querySelector(`[data-seat-id="${seatId}"]`);
           if (!btn) return;
-          
+
           const id = parseInt(seatId);
-          if (status === 'booked' || (status === 'locked_by_other' && !selectedSeats.has(id))) {
+
+          // Helper: reset to normal available visual when re-enabled
+          const resetToAvailable = () => {
+            btn.classList.remove('seat-selected', 'seat-locked', 'seat-sold', 'opacity-50');
+            btn.disabled = false;
+            // restore base style classes
+            const typeText = String(btn.dataset.seatType || '').toLowerCase();
+            const isVip = typeText.includes('vip');
+            const isCouple = typeText.includes('đôi') || typeText.includes('doi') || typeText.includes('couple');
+            btn.classList.remove('seat-available', 'seat-vip', 'seat-couple');
+            if (isCouple) {
+              btn.classList.add('seat-couple');
+            } else if (isVip) {
+              btn.classList.add('seat-vip');
+            } else {
+              btn.classList.add('seat-available');
+            }
+          };
+
+          if (status === 'booked') {
+            // Sold: mark as sold and disable
             btn.disabled = true;
-            btn.classList.remove('bg-green-600', 'bg-yellow-500', 'hover:bg-green-700', 'hover:bg-yellow-600');
-            btn.classList.add(status === 'booked' ? 'bg-red-600' : 'bg-gray-700', 'opacity-50');
+            btn.classList.remove('seat-selected', 'seat-available', 'seat-vip', 'seat-couple', 'seat-locked');
+            btn.classList.add('seat-sold', 'opacity-50');
+            return;
+          }
+
+          if (status === 'locked_by_other') {
+            // Held by another user: show as locked but disabled
+            if (!selectedSeats.has(id)) {
+              btn.disabled = true;
+              btn.classList.remove('seat-sold', 'seat-available', 'seat-vip', 'seat-couple', 'seat-selected');
+              btn.classList.add('seat-locked');
+            }
+            return;
+          }
+
+          // Otherwise: available (if not selected by me)
+          if (!selectedSeats.has(id)) {
+            resetToAvailable();
           }
         });
       }
@@ -1206,7 +1404,19 @@ async function continueToAddons() {
     });
 
     if (!res.ok) {
-      throw new Error('HTTP ' + res.status);
+      let data = null;
+      try { data = await res.json(); } catch (_) { /* ignore */ }
+      if (res.status === 410) {
+        alert((data && data.message) || 'Phiên giữ ghế đã hết hạn. Vui lòng chọn lại.');
+        window.location.reload();
+        return;
+      }
+      if (res.status === 422) {
+        alert((data && data.message) || 'Lựa chọn ghế không hợp lệ.');
+        return;
+      }
+      alert((data && data.message) || ('Có lỗi xảy ra (' + res.status + '). Vui lòng thử lại.'));
+      return;
     }
 
     // Redirect to payment step

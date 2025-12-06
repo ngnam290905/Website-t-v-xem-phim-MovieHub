@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\LegacySeatLockService;
+use App\Services\SeatHoldService;
 use Illuminate\Console\Command;
 
 class CleanupExpiredSeatLocks extends Command
@@ -11,7 +11,7 @@ class CleanupExpiredSeatLocks extends Command
     protected $description = 'Cleanup expired seat locks';
 
     public function __construct(
-        private LegacySeatLockService $seatLockService
+        private SeatHoldService $seatLockService
     ) {
         parent::__construct();
     }
@@ -20,7 +20,7 @@ class CleanupExpiredSeatLocks extends Command
     {
         $this->info('Cleaning up expired seat locks...');
         
-        $deleted = $this->seatLockService->cleanupExpiredLocks();
+        $deleted = $this->seatLockService->cleanupExpiredHolds();
         
         $this->info("Cleaned up {$deleted} expired locks.");
         

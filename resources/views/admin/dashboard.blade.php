@@ -167,14 +167,6 @@
               </div>
               <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
             </a>
-          @else
-            <a href="{{ route('admin.suat-chieu.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-              <div class="flex items-center space-x-3">
-                <i class="fas fa-calendar-alt text-green-400"></i>
-                <span class="text-white text-sm">Xem suất chiếu</span>
-              </div>
-              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            </a>
           @endif
           
           <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
@@ -216,14 +208,6 @@
               <div class="flex items-center space-x-3">
                 <i class="fas fa-chart-bar text-yellow-400"></i>
                 <span class="text-white text-sm">Xem báo cáo</span>
-              </div>
-              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            </a>
-          @else
-            <a href="{{ route('admin.ghe.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-              <div class="flex items-center space-x-3">
-                <i class="fas fa-chair text-yellow-400"></i>
-                <span class="text-white text-sm">Xem ghế ngồi</span>
               </div>
               <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
             </a>

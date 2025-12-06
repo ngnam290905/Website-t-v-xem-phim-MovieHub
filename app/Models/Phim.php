@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Phim extends Model
 {
@@ -146,5 +147,41 @@ class Phim extends Model
             ->where('suat_chieu.id_phim', $this->id)
             ->where('thanh_toan.trang_thai', 1)
             ->count();
+    }
+
+    /**
+     * Build full poster URL with robust fallbacks.
+     */
+    public function getPosterUrlAttribute()
+    {
+        $fallback = asset('images/no-poster.svg');
+
+        // If poster already a full URL
+        if (!empty($this->poster) && filter_var($this->poster, FILTER_VALIDATE_URL)) {
+            return $this->poster;
+        }
+
+        // Try storage path: public/posters/{filename} or stored path in column
+        if (!empty($this->poster)) {
+            // If column holds a relative path like posters/abc.jpg
+            $path = $this->poster;
+            if (!str_starts_with($path, 'posters/')) {
+                $candidate = 'posters/' . ltrim($path, '/');
+            } else {
+                $candidate = $path;
+            }
+
+            if (Storage::disk('public')->exists($candidate)) {
+                return Storage::disk('public')->url($candidate);
+            }
+
+            // Try public/images/posters
+            $publicCandidate = public_path('images/' . ltrim($path, '/'));
+            if (file_exists($publicCandidate)) {
+                return asset('images/' . ltrim($path, '/'));
+            }
+        }
+
+        return $fallback;
     }
 }

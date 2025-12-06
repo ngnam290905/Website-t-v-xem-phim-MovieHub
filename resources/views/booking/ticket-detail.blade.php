@@ -20,9 +20,17 @@
             $movie = $showtime->phim ?? null;
             $room = $showtime->phongChieu ?? null;
             $seats = $booking->chiTietDatVe;
-            $combos = $booking->chiTietCombo;
+            $comboItems = isset($comboItems) ? $comboItems : ($booking->chiTietCombo ?? collect());
+            $combos = $comboItems;
             $payment = $booking->thanhToan;
-            $totalPrice = $booking->tong_tien_hien_thi ?? 0;
+            $promo = isset($promo) ? $promo : ($booking->khuyenMai ?? null);
+            $promoDiscount = isset($promoDiscount) ? $promoDiscount : 0;
+            $paidTotal = optional($payment)->so_tien;
+            $storedTotal = $booking->tong_tien ?? null;
+            $comboSum = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); });
+            $seatSum = (float) $booking->chiTietDatVe->sum('gia');
+            $computedTotal = isset($computedTotal) ? $computedTotal : (float) ($seatSum + $comboSum - $promoDiscount);
+            $displayTotal = is_numeric($paidTotal) && $paidTotal > 0 ? (float)$paidTotal : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)max(0,$computedTotal));
             
             $statusMap = [
                 0 => ['label' => 'Đang xử lý', 'bg' => 'bg-yellow-500/20', 'text' => 'text-yellow-400', 'border' => 'border-yellow-500/50', 'icon' => 'clock'],
@@ -123,75 +131,107 @@
                                 <div>
                                     <div class="text-xs text-[#a6a6b0] mb-1">Tổng tiền</div>
                                     <div class="text-[#ffcc00] font-bold text-lg">
-                                        {{ number_format($totalPrice) }}đ
+                                        {{ number_format($displayTotal) }}đ
                                     </div>
                                 </div>
                             </div>
+                            @if($promo)
+                                <div class="mt-3 p-3 rounded-lg bg-[#151822] border border-[#2a2d3a] flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs text-[#a6a6b0] mb-1">Khuyến mãi đã áp dụng</div>
+                                        <div class="text-white font-semibold">
+                                            {{ $promo->ma_km ?? ('KM #' . $promo->id) }}
+                                        </div>
+                                        @if(!empty($promo->mo_ta))
+                                            <div class="text-xs text-[#a6a6b0] mt-1 line-clamp-2">{{ $promo->mo_ta }}</div>
+                                        @endif
+                                    </div>
+                                    <span class="px-2 py-1 text-xs rounded bg-[#1a1d24] border border-[#2a2f3a] text-[#a6a6b0]">
+                                        @php $type = strtolower($promo->loai_giam ?? ''); @endphp
+                                        @if($type === 'phantram')
+                                            -{{ (float)$promo->gia_tri_giam }}%
+                                        @else
+                                            -{{ number_format(((float)($promo->gia_tri_giam ?? 0) >= 1000) ? (float)($promo->gia_tri_giam ?? 0) : ((float)($promo->gia_tri_giam ?? 0)*1000)) }}đ
+                                        @endif
+                                    </span>
+                                </div>
+                            @endif
+
+                            
                         </div>
                     </div>
                 @endif
 
                 <!-- Seats -->
-                @if($seats->count() > 0)
-                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
-                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <i class="fas fa-chair text-[#0077c8]"></i>
-                            <span>Ghế đã chọn ({{ $seats->count() }})</span>
-                        </h3>
-                        <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-                            @foreach($seats as $seatDetail)
-                                @php
-                                    $seat = $seatDetail->ghe;
-                                    $seatType = $seat->seatType ?? null;
-                                    $isVip = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
-                                @endphp
-                                <div class="text-center">
-                                    <div class="px-3 py-2 rounded-lg text-sm font-semibold mb-1 {{ $isVip ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-[#0077c8]/20 text-[#0077c8] border border-[#0077c8]/50' }}">
-                                        <i class="fas fa-{{ $isVip ? 'crown' : 'chair' }} mr-1"></i>
-                                        {{ $seat->so_ghe }}
-                                    </div>
-                                    @if($seatType)
-                                        <div class="text-xs text-[#a6a6b0]">{{ $seatType->ten_loai }}</div>
-                                    @endif
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-chair text-[#0077c8]"></i>
+                        <span>Ghế đã chọn ({{ $seats->count() }})</span>
+                    </h3>
+                    <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                        @forelse($seats as $seatDetail)
+                            @php
+                                $seat = $seatDetail->ghe;
+                                $seatType = $seat->seatType ?? null;
+                                $isVip = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
+                            @endphp
+                            <div class="text-center">
+                                <div class="px-3 py-2 rounded-lg text-sm font-semibold mb-1 {{ $isVip ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-[#0077c8]/20 text-[#0077c8] border border-[#0077c8]/50' }}">
+                                    <i class="fas fa-{{ $isVip ? 'crown' : 'chair' }} mr-1"></i>
+                                    {{ $seat->so_ghe }}
                                 </div>
-                            @endforeach
-                        </div>
+                                @if($seatType)
+                                    <div class="text-xs text-[#a6a6b0]">{{ $seatType->ten_loai }}</div>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="text-sm text-[#a6a6b0]">Chưa có ghế nào.</div>
+                        @endforelse
                     </div>
-                @endif
+                </div>
 
                 <!-- Combos -->
-                @if($combos->count() > 0)
-                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
-                        <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <i class="fas fa-box text-[#ffcc00]"></i>
-                            <span>Combo đã chọn</span>
-                        </h3>
-                        <div class="space-y-3">
-                            @foreach($combos as $comboDetail)
-                                <div class="flex items-center justify-between p-3 bg-[#151822] rounded-lg border border-[#2a2d3a]">
-                                    <div class="flex items-center gap-3">
-                                        @if($comboDetail->combo && $comboDetail->combo->anh)
-                                            <img 
-                                                src="{{ $comboDetail->combo->anh }}" 
-                                                alt="{{ $comboDetail->combo->ten }}"
-                                                class="w-16 h-16 object-cover rounded-lg"
-                                                onerror="this.src='/images/default-combo.jpg'"
-                                            >
-                                        @endif
-                                        <div>
-                                            <div class="text-white font-semibold">{{ $comboDetail->combo->ten ?? 'N/A' }}</div>
-                                            <div class="text-sm text-[#a6a6b0]">Số lượng: {{ $comboDetail->so_luong }}</div>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-[#ffcc00] font-bold">{{ number_format($comboDetail->gia_ap_dung) }}đ</div>
-                                        <div class="text-sm text-[#a6a6b0]">x{{ $comboDetail->so_luong }}</div>
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-box text-[#ffcc00]"></i>
+                        <span>Combo đã chọn</span>
+                    </h3>
+                    <div class="space-y-3">
+                        @forelse($combos as $comboDetail)
+                            @php
+                                $c = $comboDetail->combo;
+                                $comboName = $c->ten ?? $c->ten_combo ?? 'Combo';
+                                $comboImg = null;
+                                if ($c && !empty($c->anh)) { $comboImg = $c->anh; }
+                                elseif ($c && !empty($c->hinh_anh)) { $comboImg = $c->hinh_anh; }
+                                $qty = max(1, (int)($comboDetail->so_luong ?? 1));
+                                $unit = (float)($comboDetail->gia_ap_dung ?? $c->gia ?? 0);
+                                $lineTotal = $unit * $qty;
+                            @endphp
+                            <div class="flex items-center justify-between p-3 bg-[#151822] rounded-lg border border-[#2a2d3a]">
+                                <div class="flex items-center gap-3">
+                                    <img 
+                                        src="{{ $comboImg ?: asset('images/no-poster.svg') }}" 
+                                        alt="{{ $comboName }}"
+                                        class="w-16 h-16 object-cover rounded-lg"
+                                        onerror="this.src='{{ asset('images/no-poster.svg') }}'"
+                                    >
+                                    <div>
+                                        <div class="text-white font-semibold">{{ $comboName }}</div>
+                                        <div class="text-xs text-[#a6a6b0]">Đơn giá: {{ number_format($unit) }}đ</div>
+                                        <div class="text-sm text-[#a6a6b0]">Số lượng: {{ $qty }}</div>
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
+                                <div class="text-right">
+                                    <div class="text-[#ffcc00] font-bold">{{ number_format($lineTotal) }}đ</div>
+                                    <div class="text-xs text-[#a6a6b0]">= {{ number_format($unit) }}đ x {{ $qty }}</div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-sm text-[#a6a6b0]">Chưa có combo nào.</div>
+                        @endforelse
                     </div>
-                @endif
+                </div>
 
                 <!-- Payment Info -->
                 @if($payment)
@@ -258,6 +298,26 @@
                     </div>
                 @endif
 
+                <!-- QR Code for Print (Always visible when printing) -->
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 print-only" style="display: none;">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-qrcode text-[#0077c8]"></i>
+                        <span>Mã QR Vé</span>
+                    </h3>
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="bg-white p-4 rounded-lg mb-4" style="min-height: 200px; min-width: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="{{ $qrCodeUrl }}" alt="QR Code" style="width: 200px; height: 200px; display: block;">
+                        </div>
+                        <p class="text-sm text-[#a6a6b0] text-center">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Vui lòng xuất trình mã QR này tại rạp để vào xem phim
+                        </p>
+                        <p class="text-xs text-[#a6a6b0] text-center mt-2 font-mono">
+                            Mã vé: {{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Booking Info -->
                 <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -286,24 +346,16 @@
                     Vé đã được bảo vệ và xác thực
                 </div>
                 <div class="flex gap-3">
-                    @if($isPaid && $showtime && $showtime->thoi_gian_bat_dau > now())
+                    @if($isPaid)
                         <button 
                             onclick="printTicket()"
-                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2"
+                            class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2 print-hidden"
                         >
                             <i class="fas fa-print"></i>
                             <span>In vé</span>
                         </button>
                     @endif
-                    @if(!$isCancelled && $showtime && $showtime->thoi_gian_bat_dau > now())
-                        <button 
-                            onclick="cancelTicket({{ $booking->id }})"
-                            class="px-6 py-3 bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/50 rounded-lg font-semibold hover:bg-[#ef4444]/30 transition-all flex items-center gap-2"
-                        >
-                            <i class="fas fa-times"></i>
-                            <span>Hủy vé</span>
-                        </button>
-                    @endif
+                    
                 </div>
             </div>
         </div>
@@ -365,15 +417,94 @@ function generateQRCodeFallback(qrData) {
 
 <style>
 @media print {
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+    
     body * {
         visibility: hidden;
     }
-    .bg-gradient-to-br, .bg-gradient-to-r, .bg-gradient-to-br {
+    
+    .min-h-screen, .min-h-screen * {
+        visibility: visible;
+    }
+    
+    .min-h-screen {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        padding: 0 !important;
+    }
+    
+    /* Hide buttons and navigation */
+    button, a[href*="tickets"] {
+        display: none !important;
+    }
+    
+    /* Improve print colors */
+    .bg-gradient-to-br, .bg-gradient-to-r {
         background: white !important;
         color: black !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
+    
+    .bg-[#0a1a2f], .bg-[#1a1d24], .bg-[#151822] {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    .text-[#a6a6b0] {
+        color: #666 !important;
+    }
+    
     .border {
         border-color: #000 !important;
+    }
+    
+    /* Ensure QR code is always visible when printing */
+    img[alt="QR Code"], 
+    img[id*="qrcode"], 
+    #qrcode-img, 
+    #qrcode-fallback,
+    .bg-white img {
+        visibility: visible !important;
+        display: block !important;
+        max-width: 100% !important;
+        height: auto !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    #qrcode-fallback canvas {
+        visibility: visible !important;
+        display: block !important;
+    }
+    
+    /* Force QR code section to be visible */
+    .bg-\[#0a1a2f\]:has(img[alt="QR Code"]),
+    .bg-\[#0a1a2f\]:has(#qrcode-img) {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Show print-only QR code section */
+    .print-only {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Keep status badges visible but readable */
+    .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20 {
+        background: #f0f0f0 !important;
+        border: 1px solid #000 !important;
     }
 }
 </style>

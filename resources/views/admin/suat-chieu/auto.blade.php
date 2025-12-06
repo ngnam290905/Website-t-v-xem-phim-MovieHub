@@ -191,13 +191,31 @@
         const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const valids=rows.filter(r=>!r.conflict); if(!valids.length){ alert('Không có suất hợp lệ.'); return; }
         btnSave.disabled=true; let ok=0, fail=0, conflicts=0;
-        for(const r of valids){
-          try{
-            const res = await fetch('{{ route('admin.suat-chieu.store') }}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token}, body: JSON.stringify({ movie_id:r.movieId, room_id:r.roomId, start_time:r.startISO, end_time:r.endISO }) });
-            if(res.status===302 || res.ok){ ok++; continue; }
-            const text=await res.text(); if(text.includes('trùng')) conflicts++; else fail++;
-          }catch{ fail++; }
+
+        const concurrency = 8; // số request chạy song song tối đa
+        let index = 0;
+        async function worker(){
+          while(index < valids.length){
+            const i = index++;
+            const r = valids[i];
+            try{
+              const res = await fetch('{{ route('admin.suat-chieu.store') }}', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token},
+                body: JSON.stringify({ movie_id:r.movieId, room_id:r.roomId, start_time:r.startISO, end_time:r.endISO })
+              });
+              if(res.status===302 || res.ok){ ok++; }
+              else {
+                const text = await res.text();
+                if(text.includes('trùng')) conflicts++; else fail++;
+              }
+            }catch{ fail++; }
+          }
         }
+
+        const workers = Array.from({length: Math.min(concurrency, valids.length)}, () => worker());
+        await Promise.all(workers);
+
         alert(`Đã tạo thành công ${ok} suất. Trùng lịch: ${conflicts}. Lỗi khác: ${fail}.`);
         window.location.href='{{ route('admin.suat-chieu.index') }}';
       });

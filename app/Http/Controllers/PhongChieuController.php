@@ -23,7 +23,6 @@ class PhongChieuController extends Controller
         if ($request->filled('search')) {
             $query->where('ten_phong', 'like', '%' . $request->search . '%');
         }
-
         // Filter by type (only if column exists)
         if ($request->filled('type')) {
             if (Schema::hasColumn('phong_chieu', 'type')) {
@@ -155,6 +154,124 @@ class PhongChieuController extends Controller
         }
     }
 
+
+    /**
+     * Append rows/columns of seats to the room without removing existing seats
+     */
+    public function appendSeats(Request $request, PhongChieu $phongChieu)
+    {
+        // Block appending seats if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa sơ đồ ghế vì phòng đã có suất chiếu.'], 400);
+        }
+        $request->validate([
+            'add_rows' => 'required|integer|min:0|max:20',
+            'add_cols' => 'required|integer|min:0|max:30',
+            'seat_type' => 'required|string|in:normal,vip,couple'
+        ]);
+
+        $addRows = (int) $request->add_rows;
+        $addCols = (int) $request->add_cols;
+
+        if ($addRows === 0 && $addCols === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không có hàng/cột nào được thêm.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Current dimensions (fallback to counts if null)
+            $currentRows = (int) ($phongChieu->rows ?? max(1, (int) $phongChieu->seats()->max('so_hang')));
+            $currentCols = (int) ($phongChieu->cols ?? max(1, (int) $phongChieu->seats()->selectRaw('MAX(LENGTH(so_ghe)) as len')->value('len')));
+
+            $newRows = $currentRows + $addRows;
+            $newCols = $currentCols + $addCols;
+
+            // Map seat_type string to id_loai
+            $typeIdMap = [ 'normal' => 1, 'vip' => 2, 'couple' => 3 ];
+            $typeId = $typeIdMap[$request->seat_type] ?? 1;
+            $seatType = LoaiGhe::find($typeId) ?: LoaiGhe::first();
+            $typeId = $seatType ? $seatType->id : null;
+
+            $toInsert = [];
+
+            // 1) New rows: rows (currentRows+1 .. newRows) with all columns up to newCols
+            if ($addRows > 0) {
+                for ($r = $currentRows + 1; $r <= $newRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            // 2) New columns: columns (currentCols+1 .. newCols) for existing rows (1 .. currentRows)
+            if ($addCols > 0) {
+                for ($r = 1; $r <= $currentRows; $r++) {
+                    $rowLabel = chr(64 + $r);
+                    for ($c = $currentCols + 1; $c <= $newCols; $c++) {
+                        $toInsert[] = [
+                            'id_phong' => $phongChieu->id,
+                            'id_loai' => $typeId,
+                            'so_hang' => $r,
+                            'so_ghe' => $rowLabel . $c,
+                            'trang_thai' => 1,
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($toInsert)) {
+                // Avoid duplicate seat codes just in case
+                $existingCodes = Ghe::where('id_phong', $phongChieu->id)
+                    ->whereIn('so_ghe', array_map(fn($s) => $s['so_ghe'], $toInsert))
+                    ->pluck('so_ghe')
+                    ->all();
+                if (!empty($existingCodes)) {
+                    $toInsert = array_values(array_filter($toInsert, fn($s) => !in_array($s['so_ghe'], $existingCodes, true)));
+                }
+            }
+
+            if (!empty($toInsert)) {
+                Ghe::insert($toInsert);
+            }
+
+            // Update room dimensions
+            $phongChieu->update([
+                'rows' => $newRows,
+                'cols' => $newCols,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm hàng/cột ghế thành công!',
+                'added_rows' => $addRows,
+                'added_cols' => $addCols,
+                'total_inserted' => count($toInsert),
+                'new_rows' => $newRows,
+                'new_cols' => $newCols,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Display the specified resource.
      */
@@ -226,13 +343,9 @@ class PhongChieuController extends Controller
      */
     public function destroy(PhongChieu $phongChieu)
     {
-        // Check if room has upcoming showtimes
-        $upcomingShowtimes = $phongChieu->showtimes()
-            ->where('thoi_gian_bat_dau', '>', now())
-            ->count();
-
-        if ($upcomingShowtimes > 0) {
-            return back()->withErrors(['error' => 'Không thể xóa phòng chiếu đang có suất chiếu sắp diễn ra!']);
+        // Không cho xóa nếu phòng đã có bất kỳ suất chiếu nào (quá khứ hoặc tương lai)
+        if ($phongChieu->showtimes()->exists()) {
+            return back()->withErrors(['error' => 'Không thể xóa phòng chiếu vì đã có suất chiếu được tạo trong phòng này!']);
         }
 
         DB::beginTransaction();
@@ -278,15 +391,14 @@ class PhongChieuController extends Controller
      */
     public function canModify(PhongChieu $phongChieu)
     {
-        $future = $phongChieu->showtimes()
-            ->where('thoi_gian_bat_dau', '>', now())
-            ->count();
+        // Với quy tắc mới: chỉ cho xóa khi không có bất kỳ suất chiếu nào
+        $anyShowtimes = $phongChieu->showtimes()->count();
         return response()->json([
             'success' => true,
-            'future_showtimes' => (int)$future,
-            'can_pause' => $future === 0,
-            'can_delete' => $future === 0,
-            'message' => $future > 0 ? 'Phòng chiếu đang có suất chiếu sắp diễn ra.' : 'Có thể thao tác.'
+            'future_showtimes' => (int) $phongChieu->showtimes()->where('thoi_gian_bat_dau', '>=', now())->count(),
+            'can_pause' => $anyShowtimes === 0,
+            'can_delete' => $anyShowtimes === 0,
+            'message' => $anyShowtimes > 0 ? 'Phòng chiếu đã có suất chiếu, không thể xóa.' : 'Có thể thao tác.'
         ]);
     }
 
@@ -308,6 +420,12 @@ class PhongChieuController extends Controller
      */
     public function generateSeats(Request $request, PhongChieu $phongChieu)
     {
+        // Block regenerating seats if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa sơ đồ ghế vì phòng đã có suất chiếu.'], 400);
+        }
         $request->validate([
             'rows' => 'required|integer|min:1|max:20',
             'cols' => 'required|integer|min:1|max:30',
@@ -401,8 +519,9 @@ class PhongChieuController extends Controller
     {
         $phongChieu->load(['seats.seatType', 'showtimes.movie']);
         $seatTypes = LoaiGhe::all();
+        $locked = $phongChieu->showtimes()->exists();
         
-        return view('admin.phong-chieu.manage-seats', compact('phongChieu', 'seatTypes'));
+        return view('admin.phong-chieu.manage-seats', compact('phongChieu', 'seatTypes', 'locked'));
     }
 
     /**
@@ -410,6 +529,12 @@ class PhongChieuController extends Controller
      */
     public function storeSeat(Request $request, PhongChieu $phongChieu)
     {
+        // Block adding seat if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể thêm ghế vì phòng đã có suất chiếu.'], 400);
+        }
         $request->validate([
             'row_label' => 'required|string|max:1',
             'so_ghe' => 'required|integer|min:1',
@@ -440,6 +565,12 @@ class PhongChieuController extends Controller
      */
     public function updateSeat(Request $request, PhongChieu $phongChieu, Ghe $ghe)
     {
+        // Block updating seat if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa ghế vì phòng đã có suất chiếu.'], 400);
+        }
         $request->validate([
             'row_label' => 'required|string|max:1',
             'so_ghe' => 'required|integer|min:1',
@@ -470,6 +601,12 @@ class PhongChieuController extends Controller
      */
     public function destroySeat(PhongChieu $phongChieu, Ghe $ghe)
     {
+        // Block deleting seat if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa ghế vì phòng đã có suất chiếu.'], 400);
+        }
         // Check if seat has bookings
         if ($ghe->bookingDetails()->exists()) {
             return response()->json([
@@ -494,6 +631,14 @@ class PhongChieuController extends Controller
         $request->validate([
             'status' => 'required|in:available,booked,locked,unavailable,maintenance'
         ]);
+
+        // Block changing seat status if room has any showtimes
+        $room = PhongChieu::find($ghe->id_phong);
+        if ($room && $room->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa ghế vì phòng đã có suất chiếu.'], 400);
+        }
 
         // Map UI status to legacy numeric column
         $map = [
@@ -521,6 +666,14 @@ class PhongChieuController extends Controller
             'id_loai' => 'required|exists:loai_ghe,id'
         ]);
 
+        // Block changing seat type if room has any showtimes
+        $room = PhongChieu::find($ghe->id_phong);
+        if ($room && $room->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa ghế vì phòng đã có suất chiếu.'], 400);
+        }
+
         $ghe->update([
             'id_loai' => $request->id_loai,
         ]);
@@ -537,6 +690,12 @@ class PhongChieuController extends Controller
      */
     public function bulkSeats(Request $request, PhongChieu $phongChieu)
     {
+        // Block bulk operations if room has any showtimes
+        if ($phongChieu->showtimes()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể chỉnh sửa sơ đồ ghế vì phòng đã có suất chiếu.'], 400);
+        }
         $request->validate([
             'action' => 'required|string|in:lock,unlock,type,delete',
             'seat_ids' => 'required|array|min:1',

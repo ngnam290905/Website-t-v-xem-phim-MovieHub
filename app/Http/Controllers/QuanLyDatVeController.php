@@ -335,9 +335,7 @@ class QuanLyDatVeController extends Controller
 
         $showtimes = SuatChieu::with('phongChieu')
             ->where('id_phim', $movieId)->where('trang_thai', 1)
-            ->where(function ($q) {
-                $q->where('thoi_gian_bat_dau', '>', now()); // Chỉ lấy suất tương lai
-            })
+            ->where('thoi_gian_bat_dau', '>=', now()) // Bao gồm suất chiếu trong ngày hôm nay chưa bắt đầu
             ->orderBy('thoi_gian_bat_dau')->get()
             ->map(fn($s) => [
                 'id' => $s->id,
@@ -350,34 +348,56 @@ class QuanLyDatVeController extends Controller
 
     public function seatsByShowtime($suatChieuId, Request $request)
     {
-        $suat = SuatChieu::with('phongChieu')->findOrFail($suatChieuId);
-        $seats = Ghe::where('id_phong', $suat->id_phong)->orderBy('so_hang')->orderBy('so_ghe')->get();
+        try {
+            $suat = SuatChieu::with('phongChieu')->findOrFail($suatChieuId);
+            $seatQuery = Ghe::where('id_phong', $suat->id_phong)
+                ->orderBy('so_hang');
+            if (\Illuminate\Support\Facades\Schema::hasColumn('ghe', 'pos_x')) {
+                $seatQuery->orderByRaw('COALESCE(pos_x, 0) ASC');
+            }
+            $seats = $seatQuery->orderBy('so_ghe')->get();
 
-        // Lấy ghế đã đặt (trừ đơn hàng hiện tại)
-        $bookedQuery = DB::table('chi_tiet_dat_ve as c')
-            ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
-            ->where('d.id_suat_chieu', $suatChieuId)
-            ->where('d.trang_thai', '!=', 2); // Không tính vé hủy
+            // Lấy ghế đã đặt (trừ đơn hàng hiện tại)
+            $bookedSeatIds = [];
+            try {
+                $bookedQuery = DB::table('chi_tiet_dat_ve as c')
+                    ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
+                    ->where('d.id_suat_chieu', $suatChieuId)
+                    ->where('d.trang_thai', '!=', 2); // Không tính vé hủy
 
-        if ($request->filled('exclude_booking_id')) {
-            $bookedQuery->where('d.id', '!=', $request->exclude_booking_id);
+                if ($request->filled('exclude_booking_id')) {
+                    $bookedQuery->where('d.id', '!=', $request->exclude_booking_id);
+                }
+
+                $bookedSeatIds = $bookedQuery->pluck('c.id_ghe')->toArray();
+            } catch (\Throwable $e) {
+                \Log::error('Failed to load booked seats for showtime '.$suatChieuId.': '.$e->getMessage());
+                $bookedSeatIds = [];
+            }
+
+            return response()->json([
+                'room' => [
+                    'id' => $suat->id_phong,
+                    'ten_phong' => $suat->phongChieu->ten_phong ?? 'N/A',
+                ],
+                'seats' => $seats->map(function ($g) use ($bookedSeatIds) {
+                    // Determine column using explicit position if available; fallback to numeric part of label
+                    $label = (string) $g->so_ghe;
+                    $num = (int) preg_replace('/\D+/', '', $label);
+                    return [
+                        'id' => $g->id,
+                        'label' => $label,
+                        'row' => (int) $g->so_hang,
+                        'col' => is_null($g->pos_x) ? $num : (int) $g->pos_x,
+                        'type' => (int) $g->id_loai,
+                        'booked' => in_array($g->id, $bookedSeatIds),
+                    ];
+                }),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('seatsByShowtime error for showtime '.$suatChieuId.': '.$e->getMessage());
+            return response()->json(['error' => 'Internal error loading seats'], 500);
         }
-
-        $bookedSeatIds = $bookedQuery->pluck('c.id_ghe')->toArray();
-
-        return response()->json([
-            'room' => [
-                'id' => $suat->id_phong,
-                'ten_phong' => $suat->phongChieu->ten_phong ?? 'N/A',
-            ],
-            'seats' => $seats->map(fn($g) => [
-                'id' => $g->id,
-                'label' => $g->so_ghe,
-                'row' => $g->so_hang,
-                'type' => $g->id_loai,
-                'booked' => in_array($g->id, $bookedSeatIds),
-            ]),
-        ]);
     }
 
     // --- HELPERS ---

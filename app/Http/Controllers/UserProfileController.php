@@ -217,6 +217,14 @@ class UserProfileController extends Controller
     }
     
     /**
+     * Booking history page (alias) -> reuse BookingController@index
+     */
+    public function bookingHistory()
+    {
+        return redirect()->route('user.bookings');
+    }
+    
+    /**
      * Cancel a booking.
      */
     public function cancelBooking($id)

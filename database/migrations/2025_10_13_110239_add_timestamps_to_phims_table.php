@@ -12,8 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('phim', function (Blueprint $table) {
-            $table->string('the_loai')->nullable()->after('ten_phim');
-            $table->timestamps();
+            if (!Schema::hasColumn('phim', 'the_loai')) {
+                $table->string('the_loai')->nullable()->after('ten_phim');
+            }
+            $hasCreated = Schema::hasColumn('phim', 'created_at');
+            $hasUpdated = Schema::hasColumn('phim', 'updated_at');
+            if (!$hasCreated && !$hasUpdated) {
+                $table->timestamps();
+            } else {
+                if (!$hasCreated) {
+                    $table->timestamp('created_at')->nullable();
+                }
+                if (!$hasUpdated) {
+                    $table->timestamp('updated_at')->nullable();
+                }
+            }
         });
     }
 
@@ -23,8 +36,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('phim', function (Blueprint $table) {
-            $table->dropColumn(['created_at', 'updated_at']);
-            $table->dropColumn('the_loai');
+            if (Schema::hasColumn('phim', 'created_at')) {
+                $table->dropColumn('created_at');
+            }
+            if (Schema::hasColumn('phim', 'updated_at')) {
+                $table->dropColumn('updated_at');
+            }
+            if (Schema::hasColumn('phim', 'the_loai')) {
+                $table->dropColumn('the_loai');
+            }
         });
     }
 };

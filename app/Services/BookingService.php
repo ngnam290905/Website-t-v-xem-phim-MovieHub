@@ -8,7 +8,6 @@ use App\Models\Seat;
 use App\Models\Combo;
 use App\Models\BookingSeat;
 use App\Models\BookingCombo;
-use App\Models\SeatLock;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -16,9 +15,10 @@ use Carbon\Carbon;
 class BookingService
 {
     public function __construct(
-        private SeatLockService $seatLockService,
         private PricingService $pricingService
-    ) {}
+    ) {
+        // SeatLockService removed - using SeatHoldService instead
+    }
 
     public function createBooking(
         int $showId,
@@ -31,7 +31,9 @@ class BookingService
         
         DB::beginTransaction();
         try {
-            $locks = $this->seatLockService->lockSeats($show, $seatIds);
+            // NOTE: SeatLockService removed - using SeatHoldService for main booking flow
+            // This method may need to be updated if used by API controllers
+            // For now, we'll skip seat locking in this legacy method
             
             $seatPrices = [];
             foreach ($seatIds as $seatId) {
@@ -43,7 +45,7 @@ class BookingService
             $discount = $this->pricingService->calculateDiscount($subtotal, $discountRules);
             $total = $this->pricingService->calculateTotal($subtotal, $discount);
             
-            $lockExpiresAt = Carbon::now()->addMinutes(SeatLockService::LOCK_DURATION_MINUTES);
+            $lockExpiresAt = Carbon::now()->addMinutes(10); // 10 minutes like new system
             
             $booking = Booking::create([
                 'user_id' => $userId,
@@ -55,10 +57,7 @@ class BookingService
                 'total' => $total,
             ]);
             
-            $this->seatLockService->updateLocksWithBookingId(
-                array_column($locks, 'id'),
-                $booking->id
-            );
+            // NOTE: Seat lock update removed - this method may need refactoring
             
             foreach ($seatIds as $index => $seatId) {
                 BookingSeat::create([

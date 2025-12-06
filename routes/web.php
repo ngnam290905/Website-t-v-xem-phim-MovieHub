@@ -23,19 +23,20 @@ use App\Http\Controllers\ThanhVienController;
 use App\Http\Controllers\BookingController;
 
 
+// Middleware alias 'block.admin.staff' is registered in bootstrap/app.php
+
 // Main routes
-Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/ve', function(){ return View::make('tickets.check'); })->name('tickets.check');
+Route::get('/', [HomeController::class, 'index'])->middleware('block.admin.staff')->name('home');
+Route::get('/ve', function(){ return View::make('tickets.check'); })->middleware('block.admin.staff')->name('tickets.check');
 
 // Movie listing pages (must be before /movies/{movie} to avoid route conflict)
-Route::get('/movies/category/{category}', [MovieController::class, 'category'])->name('movies.category');
+Route::get('/movies/category/{category}', [MovieController::class, 'category'])->middleware('block.admin.staff')->name('movies.category');
 
 // Movie detail routes
-Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movie-detail');
-Route::get('/phim/{movie}', [MovieController::class, 'show']); // Legacy route
+Route::get('/movies/{movie}', [MovieController::class, 'show'])->middleware('block.admin.staff')->name('movie-detail');
 
 // Client Movie Routes
-Route::prefix('phim')->name('movies.')->group(function () {
+Route::prefix('phim')->name('movies.')->middleware('block.admin.staff')->group(function () {
     // Static routes first
     Route::get('/', [MovieController::class, 'list'])->name('index');
     Route::get('/dang-chieu', [MovieController::class, 'nowShowing'])->name('now-showing');
@@ -64,41 +65,82 @@ Route::get('/showtime-seats/{showtimeId}', [BookingController::class, 'getShowti
 Route::post('/api/showtimes/{id}/select-seats', [BookingController::class, 'selectSeats'])->name('api.showtimes.select-seats');
 // VNPAY return is handled by PaymentController below (single source of truth)
 // Booking routes (new user flow)
-Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->name('booking.index');
-Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->name('booking.showtimes');
-Route::get('/api/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'getShowtimesByDate'])->name('api.booking.showtimes');
-Route::get('/api/booking/movie/{movieId}/dates', [App\Http\Controllers\BookingFlowController::class, 'getAvailableDates'])->name('api.booking.dates');
+Route::get('/booking', [App\Http\Controllers\BookingFlowController::class, 'index'])->middleware('block.admin.staff')->name('booking.index');
+Route::get('/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'showtimes'])->middleware('block.admin.staff')->name('booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/showtimes', [App\Http\Controllers\BookingFlowController::class, 'getShowtimesByDate'])->middleware('block.admin.staff')->name('api.booking.showtimes');
+Route::get('/api/booking/movie/{movieId}/dates', [App\Http\Controllers\BookingFlowController::class, 'getAvailableDates'])->middleware('block.admin.staff')->name('api.booking.dates');
 
 // Booking data display routes
-Route::get('/booking-data', [App\Http\Controllers\BookingDataController::class, 'index'])->name('booking.data');
-Route::get('/booking-data/movie/{id}', [App\Http\Controllers\BookingDataController::class, 'movie'])->name('booking.data.movie');
-Route::get('/booking-data/room/{id}', [App\Http\Controllers\BookingDataController::class, 'room'])->name('booking.data.room');
-Route::get('/booking-data/showtime/{id}', [App\Http\Controllers\BookingDataController::class, 'showtime'])->name('booking.data.showtime');
-Route::get('/booking-data/booking/{id}', [App\Http\Controllers\BookingDataController::class, 'booking'])->name('booking.data.booking');
+Route::get('/booking-data', [App\Http\Controllers\BookingDataController::class, 'index'])->middleware('block.admin.staff')->name('booking.data');
+Route::get('/booking-data/movie/{id}', [App\Http\Controllers\BookingDataController::class, 'movie'])->middleware('block.admin.staff')->name('booking.data.movie');
+Route::get('/booking-data/room/{id}', [App\Http\Controllers\BookingDataController::class, 'room'])->middleware('block.admin.staff')->name('booking.data.room');
+Route::get('/booking-data/showtime/{id}', [App\Http\Controllers\BookingDataController::class, 'showtime'])->middleware('block.admin.staff')->name('booking.data.showtime');
+Route::get('/booking-data/booking/{id}', [App\Http\Controllers\BookingDataController::class, 'booking'])->middleware('block.admin.staff')->name('booking.data.booking');
 
 // Public pages
 // Route::get('/phim', [PublicController::class, 'movies'])->name('public.movies'); // Commented out - using movies.index instead
-Route::get('/lich-chieu', [PublicController::class, 'schedule'])->name('public.schedule');
-Route::get('/combo', [PublicController::class, 'combos'])->name('public.combos');
-Route::get('/tin-tuc', [PublicController::class, 'news'])->name('public.news');
-Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->name('public.news.detail');
+Route::get('/lich-chieu', [PublicController::class, 'schedule'])->middleware('block.admin.staff')->name('public.schedule');
+Route::get('/combo', [PublicController::class, 'combos'])->middleware('block.admin.staff')->name('public.combos');
+Route::get('/tin-tuc', [PublicController::class, 'news'])->middleware('block.admin.staff')->name('public.news');
+Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->middleware('block.admin.staff')->name('public.news.detail');
+Route::get('/gioi-thieu', function(){ return View::make('about'); })->middleware('block.admin.staff')->name('about');
 
 // Debug route (remove in production)
 Route::get('/debug/showtimes', [App\Http\Controllers\DebugController::class, 'checkShowtimes'])->name('debug.showtimes');
+Route::get('/test/showtimes-today', function() {
+    $today = \Carbon\Carbon::today()->format('Y-m-d');
+    $now = now();
+    
+    $allToday = \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', $today)
+        ->where('trang_thai', 1)
+        ->get();
+    
+    $notEnded = \App\Models\SuatChieu::whereDate('thoi_gian_bat_dau', $today)
+        ->where('trang_thai', 1)
+        ->where('thoi_gian_ket_thuc', '>', $now)
+        ->get();
+    
+    return response()->json([
+        'today' => $today,
+        'now' => $now->format('Y-m-d H:i:s'),
+        'all_today_count' => $allToday->count(),
+        'not_ended_count' => $notEnded->count(),
+        'all_today' => $allToday->map(function($st) {
+            return [
+                'id' => $st->id,
+                'movie_id' => $st->id_phim,
+                'start' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                'end' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
+                'is_ended' => $st->thoi_gian_ket_thuc->lt(now()),
+            ];
+        }),
+        'not_ended' => $notEnded->map(function($st) {
+            return [
+                'id' => $st->id,
+                'movie_id' => $st->id_phim,
+                'start' => $st->thoi_gian_bat_dau->format('Y-m-d H:i:s'),
+                'end' => $st->thoi_gian_ket_thuc->format('Y-m-d H:i:s'),
+            ];
+        }),
+    ], 200, [], JSON_PRETTY_PRINT);
+});
 
 // Booking store route - requires authentication
-Route::post('/booking/store', [BookingController::class, 'store'])->middleware('auth')->name('booking.store.public');
+Route::post('/booking/store', [BookingController::class, 'store'])->middleware('auth')->middleware('block.admin.staff')->name('booking.store.public');
 
 // New booking system routes
-Route::middleware('auth')->prefix('booking')->name('booking.')->group(function () {
+Route::middleware('auth')->middleware('block.admin.staff')->prefix('booking')->name('booking.')->group(function () {
     Route::post('/store', [BookingController::class, 'store'])->name('store');
 });
 
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
     Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
-    Route::post('/shows/{showId}/seats/lock', [App\Http\Controllers\BookingController::class, 'lockSeats'])->name('booking.seats.lock');
-    Route::post('/shows/{showId}/seats/unlock', [App\Http\Controllers\BookingController::class, 'unlockSeats'])->name('booking.seats.unlock');
+    // New seat hold endpoints
+    Route::post('/shows/{showId}/seats/hold', [App\Http\Controllers\BookingController::class, 'holdSeat'])->name('booking.seats.hold');
+    Route::post('/shows/{showId}/seats/release', [App\Http\Controllers\BookingController::class, 'releaseSeat'])->name('booking.seats.release');
+    Route::post('/shows/{showId}/seats/confirm-booking', [App\Http\Controllers\BookingController::class, 'confirmBooking'])->name('booking.seats.confirm');
+    // Legacy endpoints removed: lock/unlock (frontend switched to hold/release)
     Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
     Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
     Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
@@ -115,18 +157,22 @@ Route::middleware('auth')->group(function () {
 });
 
 // Legacy booking routes
-Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->name('booking');
+Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->middleware('block.admin.staff')->name('booking');
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
-})->name('booking-dynamic');
+})->middleware('block.admin.staff')->name('booking-dynamic');
 
 
 Route::get('/payment/vnpay-return', [\App\Http\Controllers\PaymentController::class, 'vnpayReturn'])->name('payment.vnpay_return');
+// VNPAY IPN (server-to-server) callback (no CSRF)
+Route::post('/payment/vnpay-ipn', [\App\Http\Controllers\PaymentController::class, 'vnpayIpn'])
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+    ->name('payment.vnpay_ipn');
 
 // Mini game route
 Route::get('/mini-game', function () {
     return view('mini-game');
-})->name('mini-game');
+})->middleware('block.admin.staff')->name('mini-game');
 
 // Auth routes
 Route::middleware('guest')->group(function () {
@@ -142,23 +188,23 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 // User profile routes
-Route::middleware('auth')->prefix('user')->name('user.')->group(function () {
+Route::middleware('auth')->middleware('block.admin.staff')->prefix('user')->name('user.')->group(function () {
     Route::get('/profile', [UserProfileController::class, 'index'])->name('profile');
     Route::get('/edit-profile', [UserProfileController::class, 'edit'])->name('edit-profile');
     Route::put('/update-profile', [UserProfileController::class, 'update'])->name('update-profile');
     Route::get('/change-password', [UserProfileController::class, 'showChangePasswordForm'])->name('change-password');
     Route::post('/change-password', [UserProfileController::class, 'changePassword'])->name('change-password');
     Route::get('/booking-history', [UserProfileController::class, 'bookingHistory'])->name('booking-history');
-    Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking');
+    // Route::post('/cancel-booking/{id}', [UserProfileController::class, 'cancelBooking'])->name('cancel-booking'); // disabled
     
     // Additional routes from master
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings');
     Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
-    Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel');
+    // Route::post('/bookings/{id}/cancel', [UserProfileController::class, 'cancelBooking'])->name('bookings.cancel'); // disabled
 });
 
 // Thành viên routes (loyalty program)
-Route::middleware('auth')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
+Route::middleware('auth')->middleware('block.admin.staff')->prefix('thanh-vien')->name('thanh-vien.')->group(function () {
     Route::get('/profile', [ThanhVienController::class, 'profile'])->name('profile');
 });
 
@@ -210,9 +256,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         });
     });
 
-    // Quản lý suất chiếu
+    // Quản lý suất chiếu (Admin only)
     // Chỉ Admin: CRUD & thao tác thay đổi trạng thái/nhân bản (đặt trước show để tránh nuốt '/create')
-    Route::middleware('role:admin,staff')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
@@ -222,9 +268,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
         Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     });
-    // Staff & Admin: chỉ xem danh sách/chi tiết
-    Route::resource('suat-chieu', SuatChieuController::class)->only(['index', 'show']);
-    Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->name('suat-chieu.by-movie-date');
+    // Admin only: xem danh sách/chi tiết
+    Route::resource('suat-chieu', SuatChieuController::class)->only(['index', 'show'])->middleware('role:admin');
+    Route::get('suat-chieu-by-movie-date', [SuatChieuController::class, 'getByMovieAndDate'])->middleware('role:admin')->name('suat-chieu.by-movie-date');
 
     // Quản lý phòng chiếu
     // Staff & Admin: chỉ xem danh sách
@@ -252,6 +298,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
         Route::post('phong-chieu/{phongChieu}/seats/bulk-create', [PhongChieuController::class, 'bulkCreateSeats'])->name('phong-chieu.seats.bulk-create');
         Route::post('phong-chieu/{phongChieu}/seats/positions', [PhongChieuController::class, 'updateSeatPositions'])->name('phong-chieu.seats.positions');
+        Route::post('phong-chieu/{phongChieu}/seats/append', [PhongChieuController::class, 'appendSeats'])->name('phong-chieu.seats.append');
         // Peak hours configuration routes
         Route::get('phong-chieu/peak-hours', [PhongChieuController::class, 'showPeakHoursConfig'])->name('phong-chieu.peak-hours');
         Route::post('phong-chieu/peak-hours', [PhongChieuController::class, 'createPeakHoursShowtimes'])->name('phong-chieu.peak-hours.store');
@@ -259,12 +306,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
     // Staff & Admin: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->whereNumber('phongChieu')->name('phong-chieu.show');
 
-    // Quản lý ghế (legacy)
-    // Staff & Admin: chỉ xem danh sách
-    Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
-    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
+    // Quản lý ghế (Admin only)
+    // Admin: chỉ xem danh sách
+    Route::get('ghe', [GheController::class, 'index'])->middleware('role:admin')->name('ghe.index');
+    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->middleware('role:admin')->name('ghe.by-room');
     // Chỉ Admin: CRUD & thao tác
-    Route::middleware('role:admin,staff')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         Route::get('ghe/create', [GheController::class, 'create'])->name('ghe.create');
         Route::post('ghe', [GheController::class, 'store'])->name('ghe.store');
         Route::get('ghe/{ghe}/edit', [GheController::class, 'edit'])->name('ghe.edit');
@@ -274,8 +321,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('ghe/generate', [GheController::class, 'generateSeats'])->name('ghe.generate');
         Route::post('ghe/bulk', [GheController::class, 'bulk'])->name('ghe.bulk');
     });
-    // Staff & Admin: chi tiết (ràng buộc số để không nuốt '/create')
-    Route::get('ghe/{ghe}', [GheController::class, 'show'])->whereNumber('ghe')->name('ghe.show');
+    // Staff & Admin: bỏ trang xem chi tiết ghế
 
     // Quản lý đặt vé
     Route::prefix('bookings')->name('bookings.')->group(function () {
@@ -283,7 +329,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
         Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
-        Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel');
+        // Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
 
@@ -354,29 +400,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     });
 });
 
-// ==================== STAFF ROUTES (chỉ xem) ====================
-Route::prefix('staff')->name('staff.')->middleware(['auth', 'role:staff'])->group(function () {
-    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+// ==================== STAFF ROUTES REMOVED ====================
+// Redirect all /staff URLs to /admin
+Route::permanentRedirect('/staff', '/admin');
+Route::permanentRedirect('/staff/{any}', '/admin')->where('any', '.*');
 
-    Route::get('suat-chieu', [SuatChieuController::class, 'index'])->name('suat-chieu.index');
-    Route::get('suat-chieu/{suatChieu}', [SuatChieuController::class, 'show'])->name('suat-chieu.show');
-
-    Route::get('phong-chieu', [PhongChieuController::class, 'index'])->name('phong-chieu.index');
-    Route::get('phong-chieu/{phongChieu}', [PhongChieuController::class, 'show'])->name('phong-chieu.show');
-    Route::get('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'getByRoom'])->name('phong-chieu.seats');
-
-    Route::get('ghe', [GheController::class, 'index'])->name('ghe.index');
-    Route::get('ghe/{ghe}', [GheController::class, 'show'])->name('ghe.show');
-    Route::get('ghe-by-room', [GheController::class, 'getByRoom'])->name('ghe.by-room');
-    
-    // Scan ticket routes
-    Route::get('scan', [\App\Http\Controllers\Staff\ScanController::class, 'index'])->name('scan');
-    Route::post('scan/check', [\App\Http\Controllers\Staff\ScanController::class, 'checkTicket'])->name('scan.check');
-    Route::post('scan/confirm', [\App\Http\Controllers\Staff\ScanController::class, 'confirmCheckIn'])->name('scan.confirm');
-});
-
-Route::post('/seat-price', [BookingController::class, 'getSeatPrice']);
-Route::post('/showtimes/{suatChieuId}/select-seats-temp', [BookingController::class, 'selectSeatsTemp']);
+Route::post('/seat-price', [BookingController::class, 'getSeatPrice'])->middleware('block.admin.staff');
+Route::post('/showtimes/{suatChieuId}/select-seats-temp', [BookingController::class, 'selectSeatsTemp'])->middleware('block.admin.staff');
 
 // Test route
 use Illuminate\Support\Facades\Auth;

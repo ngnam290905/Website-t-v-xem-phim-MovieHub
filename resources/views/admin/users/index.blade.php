@@ -104,18 +104,7 @@
                        title="Chỉnh sửa">
                       <i class="fas fa-edit text-xs"></i>
                     </a>
-                    <form action="{{ route('admin.users.destroy', $user->id) }}" 
-                          method="POST" 
-                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa người dùng này?');">
-                      @csrf
-                      @method('DELETE')
-                      <button type="submit" 
-                              class="btn-table-action btn-table-delete"
-                              title="Xóa">
-                        <i class="fas fa-trash text-xs"></i>
-                      </button>
-                    </form>
-                  </form>
+                  
                 </td>
               </tr>
             @empty

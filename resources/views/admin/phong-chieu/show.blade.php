@@ -6,6 +6,18 @@
 
 @section('content')
   <div class="space-y-6">
+    @php $locked = ($phongChieu->showtimes_count ?? $phongChieu->showtimes->count()) > 0; @endphp
+    @if($locked)
+      <div class="bg-yellow-900/40 border border-yellow-600 text-yellow-200 px-4 py-3 rounded-lg" role="alert">
+        <div class="flex items-start">
+          <i class="fas fa-exclamation-triangle mt-0.5 mr-2"></i>
+          <div>
+            <p class="font-semibold">Phòng đã có suất chiếu.</p>
+            <p class="text-sm">Không thể chỉnh sửa sơ đồ ghế (thêm/xóa/đổi loại/khóa ghế hoặc tạo lại sơ đồ).</p>
+          </div>
+        </div>
+      </div>
+    @endif
     <!-- Header Actions -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
       <div>
@@ -14,7 +26,8 @@
       </div>
       <div class="flex space-x-3">
         <a href="{{ route('admin.phong-chieu.manage-seats', $phongChieu) }}" 
-           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center">
+           class="{{ $locked ? 'bg-blue-900/50 text-white/60 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white' }} px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
+           @if($locked) onclick="event.preventDefault(); alert('Phòng đã có suất chiếu, không thể chỉnh sửa sơ đồ ghế.');" title="Không thể chỉnh sửa khi đã có suất chiếu" @endif>
           <i class="fas fa-chair mr-2"></i>Quản lý ghế
         </a>
         <a href="{{ route('admin.phong-chieu.edit', $phongChieu) }}" 
@@ -134,11 +147,13 @@
         </div>
         <div class="flex space-x-3 mt-4 sm:mt-0">
           <button onclick="regenerateSeats()" 
-                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center">
+                  class="{{ $locked ? 'bg-blue-900/50 text-white/60 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white' }} px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
+                  @if($locked) disabled title="Không thể tạo lại sơ đồ khi đã có suất chiếu" @endif>
             <i class="fas fa-sync-alt mr-2"></i>Tạo lại sơ đồ
           </button>
           <button onclick="toggleSeatEdit()" 
-                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center">
+                  class="{{ $locked ? 'bg-green-900/50 text-white/60 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white' }} px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center"
+                  @if($locked) disabled title="Không thể chỉnh sửa ghế khi đã có suất chiếu" @endif>
             <i class="fas fa-edit mr-2"></i>Chỉnh sửa ghế
           </button>
         </div>
@@ -299,6 +314,7 @@
 </div>
 
 <script>
+const ROOM_LOCKED = {{ $locked ? 'true' : 'false' }};
 let selectedSeatId = null;
 let isEditMode = false;
 
@@ -312,6 +328,7 @@ function selectSeat(seatId, status, seatType) {
 }
 
 function toggleSeatEdit() {
+    if (ROOM_LOCKED) { alert('Phòng đã có suất chiếu, không thể chỉnh sửa ghế.'); return; }
     isEditMode = !isEditMode;
     const btn = event.target;
     if (isEditMode) {
@@ -371,6 +388,7 @@ function saveSeatEdit() {
 }
 
 function regenerateSeats() {
+    if (ROOM_LOCKED) { alert('Phòng đã có suất chiếu, không thể tạo lại sơ đồ ghế.'); return; }
     if (confirm('Bạn có chắc chắn muốn tạo lại sơ đồ ghế? Tất cả ghế hiện tại sẽ bị xóa!')) {
         const rows = {{ $phongChieu->rows }};
         const cols = {{ $phongChieu->cols }};

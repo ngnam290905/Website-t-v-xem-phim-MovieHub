@@ -263,36 +263,59 @@
 
       function renderSeatMap(data) {
         roomInfo.textContent = 'Phòng: ' + (data.room?.ten_phong || data.room?.id || 'N/A');
-        const seats = data.seats || [];
-        // Group by row
+        const seats = Array.isArray(data.seats) ? data.seats : [];
+
+        // Group seats by row; index by explicit 'col' if provided, else parse from label
         const byRow = {};
+        const rowMax = {}; // max col per row
         seats.forEach(s => {
-          const r = s.row || 0; if (!byRow[r]) byRow[r] = []; byRow[r].push(s);
+          const r = parseInt(s.row, 10) || 0;
+          let c = parseInt(s.col, 10);
+          if (!Number.isInteger(c) || c <= 0) {
+            const m = String(s.label || '').match(/(\d+)/);
+            c = m ? parseInt(m[1], 10) : 0;
+          }
+          (byRow[r] ||= [])[c] = s;
+          rowMax[r] = Math.max(rowMax[r] || 0, c);
         });
-        // Sort rows asc and seats by label asc
-        const rows = Object.keys(byRow).map(n => parseInt(n,10)).sort((a,b)=>a-b);
+
+        const rows = Object.keys(byRow).map(n => parseInt(n, 10)).sort((a, b) => a - b);
         const container = document.createElement('div');
         container.className = 'inline-block p-3 bg-[#0f0f12] rounded-lg border border-[#262833]';
+
         rows.forEach(r => {
           const rowWrap = document.createElement('div');
           rowWrap.className = 'flex items-center mb-2';
+
           const label = document.createElement('div');
           label.className = 'w-8 text-right pr-2 text-[#a6a6b0] text-xs';
-          label.textContent = String.fromCharCode(64 + r);
+          label.textContent = String.fromCharCode(64 + Math.min(Math.max(r,1),26));
           rowWrap.appendChild(label);
+
           const seatLine = document.createElement('div');
-          seatLine.className = 'flex gap-1 flex-wrap';
-          byRow[r].sort((a,b)=> (a.label||'').localeCompare(b.label||''));
-          byRow[r].forEach(s => {
+          seatLine.className = 'flex gap-1';
+
+          const maxCol = rowMax[r] || 0;
+          for (let c = 1; c <= maxCol; c++) {
+            const s = byRow[r][c];
+            if (!s) {
+              // Spacer for aisles/missing seats to preserve layout
+              const spacer = document.createElement('div');
+              spacer.className = 'w-6 h-6';
+              seatLine.appendChild(spacer);
+              continue;
+            }
             const seat = document.createElement('div');
             seat.className = 'w-6 h-6 rounded flex items-center justify-center text-[10px] select-none ' + (s.booked ? 'bg-gray-600 text-white' : 'bg-green-600/50 text-white');
             seat.title = s.label;
-            seat.textContent = (s.label||'').replace(/^[A-Z]/,'');
+            seat.textContent = String(s.label || '').replace(/^[A-Z]+/, '');
             seatLine.appendChild(seat);
-          });
+          }
+
           rowWrap.appendChild(seatLine);
           container.appendChild(rowWrap);
         });
+
         grid.innerHTML = '';
         grid.appendChild(container);
       }
@@ -302,13 +325,19 @@
           const url = this.getAttribute('data-seat-url');
           if (!url) return;
           try {
-            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (res.statusText || ''));
+            let data;
+            try {
+              data = await res.json();
+            } catch (_) {
+              const txt = await res.text();
+              throw new Error('Invalid JSON: ' + (txt ? txt.slice(0, 200) + '...' : 'no body'));
+            }
             renderSeatMap(data);
             openModal();
           } catch (e) {
-            grid.innerHTML = '<div class="text-red-400">Không tải được sơ đồ ghế. Vui lòng thử lại.</div>';
+            grid.innerHTML = '<div class="text-red-400">Không tải được sơ đồ ghế. Vui lòng thử lại.' + (e && e.message ? ' (' + e.message + ')' : '') + '</div>';
             openModal();
           }
         });
