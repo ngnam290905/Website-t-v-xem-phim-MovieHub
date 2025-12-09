@@ -13,16 +13,47 @@ use App\Models\Ghe;
 use App\Models\KhuyenMai;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
+    /**
+     * Handle dashboard routing based on user role
+     */
+    public function handleDashboard(Request $request)
+    {
+        $user = Auth::user();
+        $role = optional($user->vaiTro)->ten;
+        $norm = is_string($role) ? mb_strtolower(trim($role)) : '';
+        
+        Log::info('Handling dashboard', [
+            'user_id' => $user->id,
+            'role' => $role,
+            'normalized' => $norm
+        ]);
+        
+        if (in_array($norm, ['admin'])) {
+            Log::info('Admin user - showing dashboard');
+            return $this->dashboard();
+        }
+        
+        // Staff: show movies list instead of dashboard
+        Log::info('Staff user - showing movies list', [
+            'attempting_redirect' => route('admin.movies.index')
+        ]);
+        
+        // Render movies page directly without redirect to avoid issues
+        return (new MovieController())->adminIndex($request);
+    }
+
     /**
      * Display the admin dashboard.
      */
     public function dashboard()
     {
         // Both admin and staff use the same dashboard
-        $user = auth()->user();
+        $user = Auth::user();
         
         // Thống kê doanh thu
         $todayRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
