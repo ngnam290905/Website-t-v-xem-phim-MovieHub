@@ -2,9 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\SeatHold;
+use App\Models\SeatHold; // Đảm bảo Model này đã trỏ đúng bảng 'tam_giu_ghe'
 use App\Models\Ghe;
-use App\Models\SuatChieu;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -15,88 +14,62 @@ class SeatHoldService
 
     /**
      * Hold a seat for a user
-     * 
-     * @param int $showtimeId
-     * @param int $seatId
-     * @param int|null $userId
-     * @param string|null $sessionId
-     * @return array ['success' => bool, 'hold' => SeatHold|null, 'message' => string]
      */
     public function holdSeat(int $showtimeId, int $seatId, ?int $userId = null, ?string $sessionId = null): array
     {
         try {
             return DB::transaction(function () use ($showtimeId, $seatId, $userId, $sessionId) {
-                // 1. Kiểm tra ghế có tồn tại và available không
+                // 1. Kiểm tra ghế có tồn tại
                 $seat = Ghe::find($seatId);
                 if (!$seat) {
-                    return [
-                        'success' => false,
-                        'hold' => null,
-                        'message' => 'Ghế không tồn tại'
-                    ];
+                    return ['success' => false, 'hold' => null, 'message' => 'Ghế không tồn tại'];
                 }
 
-                // 2. Kiểm tra ghế đã được đặt (booked) chưa
+                // 2. Kiểm tra ghế đã được đặt (booked - đã thanh toán)
                 if ($this->isSeatBooked($showtimeId, $seatId)) {
-                    return [
-                        'success' => false,
-                        'hold' => null,
-                        'message' => 'Ghế đã được đặt'
-                    ];
+                    return ['success' => false, 'hold' => null, 'message' => 'Ghế đã được đặt'];
                 }
 
-                // 3. Kiểm tra ghế đang được giữ bởi người khác
-                $existingHold = SeatHold::forShowtime($showtimeId)
-                    ->forSeat($seatId)
-                    ->active()
+                // 3. Kiểm tra ghế đang được giữ bởi người khác (Query tên cột Tiếng Việt)
+                $existingHold = SeatHold::where('id_suat_chieu', $showtimeId)
+                    ->where('id_ghe', $seatId)
+                    ->where('thoi_gian_het_han', '>', Carbon::now())
+                    ->whereIn('trang_thai', ['dang_giu', 'holding'])
                     ->first();
 
                 if ($existingHold) {
-                    // Nếu cùng user/session → auto-extend
-                    if (($userId && $existingHold->user_id == $userId) || 
+                    // Nếu cùng user/session -> Gia hạn thời gian
+                    if (($userId && $existingHold->id_nguoi_dung == $userId) || 
                         ($sessionId && $existingHold->session_id == $sessionId)) {
-                        // Gia hạn thời gian giữ
-                        $existingHold->expires_at = Carbon::now()->addMinutes(self::HOLD_DURATION_MINUTES);
+                        
+                        $existingHold->thoi_gian_het_han = Carbon::now()->addMinutes(self::HOLD_DURATION_MINUTES);
                         $existingHold->save();
 
-                        Log::info('Seat hold extended', [
-                            'showtime_id' => $showtimeId,
-                            'seat_id' => $seatId,
-                            'user_id' => $userId,
-                            'expires_at' => $existingHold->expires_at
-                        ]);
+                        Log::info('Seat hold extended', ['seat_id' => $seatId, 'user_id' => $userId]);
 
                         return [
-                            'success' => true,
-                            'hold' => $existingHold,
+                            'success' => true, 
+                            'hold' => $existingHold, 
                             'message' => 'Ghế đã được gia hạn'
                         ];
                     } else {
-                        // Người khác đang giữ
-                        return [
-                            'success' => false,
-                            'hold' => null,
-                            'message' => 'Ghế đang được người khác chọn'
-                        ];
+                        return ['success' => false, 'hold' => null, 'message' => 'Ghế đang được người khác chọn'];
                     }
                 }
 
-                // 4. Tạo hold mới
+                // 4. Tạo hold mới (Insert dùng key Tiếng Việt để tránh lỗi field default value)
                 $hold = SeatHold::create([
-                    'showtime_id' => $showtimeId,
-                    'seat_id' => $seatId,
-                    'user_id' => $userId,
+                    'id_suat_chieu' => $showtimeId,
+                    'id_ghe' => $seatId,
+                    'id_nguoi_dung' => $userId,
                     'session_id' => $sessionId,
-                    'expires_at' => Carbon::now()->addMinutes(self::HOLD_DURATION_MINUTES),
+                    'gia_giu' => 0, 
+                    'trang_thai' => 'dang_giu',
+                    'thoi_gian_giu' => Carbon::now(),
+                    'thoi_gian_het_han' => Carbon::now()->addMinutes(self::HOLD_DURATION_MINUTES),
                 ]);
 
-                Log::info('Seat held', [
-                    'showtime_id' => $showtimeId,
-                    'seat_id' => $seatId,
-                    'user_id' => $userId,
-                    'session_id' => $sessionId,
-                    'expires_at' => $hold->expires_at
-                ]);
+                Log::info('Seat held', ['seat_id' => $seatId, 'user_id' => $userId]);
 
                 return [
                     'success' => true,
@@ -110,23 +83,12 @@ class SeatHoldService
                 'seat_id' => $seatId,
                 'error' => $e->getMessage()
             ]);
-
-            return [
-                'success' => false,
-                'hold' => null,
-                'message' => 'Có lỗi xảy ra khi giữ ghế: ' . $e->getMessage()
-            ];
+            return ['success' => false, 'hold' => null, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()];
         }
     }
 
     /**
      * Hold multiple seats at once
-     * 
-     * @param int $showtimeId
-     * @param array $seatIds
-     * @param int|null $userId
-     * @param string|null $sessionId
-     * @return array ['success' => bool, 'holds' => array, 'failed_seats' => array, 'message' => string]
      */
     public function holdSeats(int $showtimeId, array $seatIds, ?int $userId = null, ?string $sessionId = null): array
     {
@@ -141,11 +103,12 @@ class SeatHoldService
             } else {
                 $failedSeats[] = [
                     'seat_id' => $seatId,
-                    'message' => $result['message']
+                    'message' => $result['message'] ?? 'Lỗi'
                 ];
             }
         }
 
+        // Nếu không giữ được ghế nào
         if (empty($holds)) {
             return [
                 'success' => false,
@@ -155,22 +118,30 @@ class SeatHoldService
             ];
         }
 
+        // Nếu giữ được một số ghế nhưng thất bại một số -> Rollback (nhả các ghế đã giữ)
         if (!empty($failedSeats)) {
-            // Nếu một số ghế thất bại, release các ghế đã hold
             foreach ($holds as $hold) {
-                $this->releaseSeat($showtimeId, $hold->seat_id, $userId, $sessionId);
+                // $hold->id_ghe vì dùng Model tiếng Việt
+                $this->releaseSeat($showtimeId, $hold->id_ghe, $userId, $sessionId);
             }
 
             return [
                 'success' => false,
                 'holds' => [],
                 'failed_seats' => $failedSeats,
-                'message' => 'Một số ghế không thể giữ được'
+                'message' => 'Một số ghế không thể giữ được (đã hủy toàn bộ yêu cầu)'
             ];
         }
 
+        // Tạo booking_hold_id ảo để controller dùng
+        $firstHold = $holds[0];
+        $bookingHoldId = 'hold_' . $showtimeId . '_' . uniqid(); 
+
         return [
             'success' => true,
+            'booking_hold_id' => $bookingHoldId, // Dữ liệu controller cần
+            'hold_expires_at' => $firstHold->thoi_gian_het_han,
+            'expires_in_seconds' => self::HOLD_DURATION_MINUTES * 60,
             'holds' => $holds,
             'failed_seats' => [],
             'message' => 'Tất cả ghế đã được giữ thành công'
@@ -179,57 +150,36 @@ class SeatHoldService
 
     /**
      * Release a seat hold
-     * 
-     * @param int $showtimeId
-     * @param int $seatId
-     * @param int|null $userId Only release if held by this user
-     * @param string|null $sessionId Only release if held by this session
-     * @return bool
      */
     public function releaseSeat(int $showtimeId, int $seatId, ?int $userId = null, ?string $sessionId = null): bool
     {
         try {
-            $query = SeatHold::forShowtime($showtimeId)
-                ->forSeat($seatId)
-                ->active();
+            // Query bằng tên cột Tiếng Việt
+            $query = SeatHold::where('id_suat_chieu', $showtimeId)
+                ->where('id_ghe', $seatId)
+                ->whereIn('trang_thai', ['dang_giu', 'holding']);
 
-            // Chỉ release nếu là của user/session này
             if ($userId) {
-                $query->forUser($userId);
+                $query->where('id_nguoi_dung', $userId);
             } elseif ($sessionId) {
-                $query->forSession($sessionId);
+                $query->where('session_id', $sessionId);
             }
 
             $deleted = $query->delete();
 
             if ($deleted > 0) {
-                Log::info('Seat hold released', [
-                    'showtime_id' => $showtimeId,
-                    'seat_id' => $seatId,
-                    'user_id' => $userId,
-                    'session_id' => $sessionId
-                ]);
+                Log::info('Seat hold released', ['seat_id' => $seatId, 'user_id' => $userId]);
             }
 
             return $deleted > 0;
         } catch (\Exception $e) {
-            Log::error('Error releasing seat hold', [
-                'showtime_id' => $showtimeId,
-                'seat_id' => $seatId,
-                'error' => $e->getMessage()
-            ]);
+            Log::error('Error releasing seat hold', ['error' => $e->getMessage()]);
             return false;
         }
     }
 
     /**
      * Release multiple seats
-     * 
-     * @param int $showtimeId
-     * @param array $seatIds
-     * @param int|null $userId
-     * @param string|null $sessionId
-     * @return int Number of seats released
      */
     public function releaseSeats(int $showtimeId, array $seatIds, ?int $userId = null, ?string $sessionId = null): int
     {
@@ -244,27 +194,23 @@ class SeatHoldService
 
     /**
      * Get seat hold status
-     * 
-     * @param int $showtimeId
-     * @param int $seatId
-     * @param int|null $currentUserId
-     * @return string 'available'|'held_by_me'|'held_by_other'|'booked'
      */
     public function getSeatStatus(int $showtimeId, int $seatId, ?int $currentUserId = null): string
     {
-        // 1. Kiểm tra booked trước
+        // 1. Kiểm tra đã bán cứng chưa
         if ($this->isSeatBooked($showtimeId, $seatId)) {
             return 'booked';
         }
 
-        // 2. Kiểm tra hold
-        $hold = SeatHold::forShowtime($showtimeId)
-            ->forSeat($seatId)
-            ->active()
+        // 2. Kiểm tra đang giữ (Tiếng Việt)
+        $hold = SeatHold::where('id_suat_chieu', $showtimeId)
+            ->where('id_ghe', $seatId)
+            ->where('thoi_gian_het_han', '>', Carbon::now())
+            ->whereIn('trang_thai', ['dang_giu', 'holding'])
             ->first();
 
         if ($hold) {
-            if ($currentUserId && $hold->user_id == $currentUserId) {
+            if ($currentUserId && $hold->id_nguoi_dung == $currentUserId) {
                 return 'held_by_me';
             }
             return 'held_by_other';
@@ -274,98 +220,70 @@ class SeatHoldService
     }
 
     /**
+     * Confirm booking: Release holds (called after payment success)
+     */
+    public function confirmBooking(int $showtimeId, array $seatIds, int $userId): bool
+    {
+        try {
+            return $this->releaseSeats($showtimeId, $seatIds, $userId) > 0;
+        } catch (\Exception $e) {
+            Log::error('Error confirming booking', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Helper: Check if seat is booked (paid booking in chi_tiet_dat_ve)
+     */
+    private function isSeatBooked(int $showtimeId, int $seatId): bool
+    {
+        try {
+            return \App\Models\ChiTietDatVe::whereHas('datVe', function($query) use ($showtimeId) {
+                    $query->where('id_suat_chieu', $showtimeId)
+                          ->where('trang_thai', 1); // 1 = Đã thanh toán
+                })
+                ->where('id_ghe', $seatId)
+                ->exists();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    // --- CÁC HÀM BỔ SUNG (Đã map sang cột Tiếng Việt) ---
+
+    /**
      * Get all holds for a showtime
-     * 
-     * @param int $showtimeId
-     * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getHoldsForShowtime(int $showtimeId)
     {
-        return SeatHold::forShowtime($showtimeId)
-            ->active()
+        return SeatHold::where('id_suat_chieu', $showtimeId)
+            ->where('thoi_gian_het_han', '>', Carbon::now())
+            ->whereIn('trang_thai', ['dang_giu', 'holding'])
             ->with(['seat', 'user'])
             ->get();
     }
 
     /**
      * Get holds for a user
-     * 
-     * @param int $userId
-     * @param int|null $showtimeId
-     * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getHoldsForUser(int $userId, ?int $showtimeId = null)
     {
-        $query = SeatHold::forUser($userId)->active();
+        $query = SeatHold::where('id_nguoi_dung', $userId)
+            ->where('thoi_gian_het_han', '>', Carbon::now())
+            ->whereIn('trang_thai', ['dang_giu', 'holding']);
         
         if ($showtimeId) {
-            $query->forShowtime($showtimeId);
+            $query->where('id_suat_chieu', $showtimeId);
         }
         
         return $query->with(['seat', 'showtime'])->get();
     }
 
     /**
-     * Confirm booking: Convert holds to booked status
-     * This should be called when payment succeeds
-     * 
-     * @param int $showtimeId
-     * @param array $seatIds
-     * @param int $userId
-     * @return bool
-     */
-    public function confirmBooking(int $showtimeId, array $seatIds, int $userId): bool
-    {
-        try {
-            // Release all holds for these seats (they will be marked as booked in booking_seats table)
-            return $this->releaseSeats($showtimeId, $seatIds, $userId) > 0;
-        } catch (\Exception $e) {
-            Log::error('Error confirming booking', [
-                'showtime_id' => $showtimeId,
-                'seat_ids' => $seatIds,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
-    }
-
-    /**
      * Cleanup expired holds (called by cron job)
-     * 
-     * @return int Number of expired holds cleaned up
      */
     public function cleanupExpiredHolds(): int
     {
-        return SeatHold::releaseExpired();
-    }
-
-    /**
-     * Check if seat is booked (paid booking)
-     * 
-     * @param int $showtimeId
-     * @param int $seatId
-     * @return bool
-     */
-    private function isSeatBooked(int $showtimeId, int $seatId): bool
-    {
-        // Check in ChiTietDatVe - only PAID bookings (trang_thai = 1)
-        try {
-            $hasPaidBooking = \App\Models\ChiTietDatVe::whereHas('datVe', function($query) use ($showtimeId) {
-                    $query->where('id_suat_chieu', $showtimeId)
-                          ->where('trang_thai', 1); // Only PAID
-                })
-                ->where('id_ghe', $seatId)
-                ->exists();
-            
-            return $hasPaidBooking;
-        } catch (\Exception $e) {
-            Log::warning('Error checking if seat is booked', [
-                'showtime_id' => $showtimeId,
-                'seat_id' => $seatId,
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
+        return SeatHold::where('thoi_gian_het_han', '<=', Carbon::now())->delete();
     }
 }
