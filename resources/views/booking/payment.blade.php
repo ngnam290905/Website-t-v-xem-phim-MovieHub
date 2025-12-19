@@ -17,11 +17,18 @@
     .row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:12px; background:#1a1d24; border:1px solid #2a2f3a; }
     .muted { color:#a0a6b1; font-size:14px; }
     .total { font-weight:700; font-size:18px; }
-    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; border:none; cursor:pointer; color:#fff; background: linear-gradient(90deg, #FF784E, #FFB25E); font-weight:700; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; border-radius:12px; border:none; cursor:pointer; color:#fff; background: linear-gradient(90deg, #FF784E, #FFB25E); font-weight:700; text-decoration: none; font-size: 14px;}
     .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .btn-secondary { background: #2a2f3a; color: #e6e7eb; }
     .section-title { font-weight:700; font-size:16px; margin: 0 0 8px; }
     .header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
     .pill { background:#1a1d24; border:1px solid #2a2f3a; border-radius:999px; padding:6px 10px; font-size:12px; color:#a0a6b1; }
+    
+    /* Style cho radio thanh toán */
+    .payment-option { cursor:pointer; align-items:center; gap:12px; justify-content: flex-start; transition: all 0.2s; }
+    .payment-option:hover { border-color: #FF784E; }
+    .payment-option input[type="radio"] { accent-color:#FF784E; width: 18px; height: 18px; }
+    .payment-icon { width: 40px; height: 28px; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;}
   </style>
 </head>
 <body>
@@ -44,125 +51,154 @@
         @endif
       </div>
 
-      <div class="grid">
-        <div>
-          <h2 class="section-title">Ghế đã chọn</h2>
-          @forelse($seatDetails as $s)
-            <div class="row">
-              <div>
-                <div>{{ $s['code'] }}</div>
-                <div class="muted">{{ $s['type'] }}</div>
-              </div>
-              <div>{{ number_format($s['price'], 0, ',', '.') }}đ</div>
-            </div>
-          @empty
-            <div class="muted">Chưa có ghế nào.</div>
-          @endforelse
-        </div>
+      <form method="POST" action="{{ url('/checkout/' . $holdId . '/payment') }}" id="payForm">
+        @csrf
+        <input type="hidden" name="promo_id" id="promo_id" value="" />
+        <input type="hidden" name="promo_code" id="promo_code" value="" />
 
-        @if(isset($comboDetails) && count($comboDetails) > 0)
-        <div>
-          <h2 class="section-title">Combo đã chọn</h2>
-          @foreach($comboDetails as $c)
-            <div class="row">
-              <div>
-                <div>{{ $c['name'] }} x{{ $c['qty'] }}</div>
-                <div class="muted">{{ number_format($c['price'], 0, ',', '.') }}đ / combo</div>
-              </div>
-              <div>{{ number_format($c['total'], 0, ',', '.') }}đ</div>
-            </div>
-          @endforeach
-        </div>
-        @endif
-
-
-        @if(isset($khuyenmais))
-        <div>
-          <h2 class="section-title">Khuyến mãi</h2>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <label class="row" style="cursor:pointer;">
-              <div>
-                <div>Không áp dụng</div>
-                <div class="muted">Thanh toán không dùng khuyến mãi</div>
-              </div>
-              <input type="radio" name="promo_pick" value="" checked style="accent-color:#FF784E;"/>
-            </label>
-            @foreach($khuyenmais as $km)
-              @php
-                $type = strtolower($km->loai_giam);
-                $now = \Carbon\Carbon::now();
-                $start = $km->ngay_bat_dau ? \Carbon\Carbon::parse($km->ngay_bat_dau) : null;
-                $end = $km->ngay_ket_thuc ? \Carbon\Carbon::parse($km->ngay_ket_thuc) : null;
-                $active = ($km->trang_thai == 1) && (!$start || $start->lte($now)) && (!$end || $end->gte($now));
-              @endphp
-              <label class="row" style="cursor:pointer; align-items:flex-start; gap:12px; opacity: {{ $active ? '1' : '.6' }};">
-                <div style="flex:1;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                    <div style="font-weight:600;">{{ $km->ten_khuyen_mai ?? ('KM #' . $km->id) }}</div>
-                    <span class="pill">Mã: {{ strtoupper($km->ma_km ?? '—') }}</span>
-                  </div>
-                  <div class="muted" style="margin-top:4px;">
-                    @if($type === 'phantram')
-                      Giảm {{ (float)$km->gia_tri_giam }}%
-                    @else
-                      Giảm {{ number_format(((float)$km->gia_tri_giam >= 1000) ? (float)$km->gia_tri_giam : ((float)$km->gia_tri_giam*1000), 0, ',', '.') }}đ
-                    @endif
-                    @if($start && $end)
-                      • Hiệu lực: {{ $start->format('d/m/Y') }} - {{ $end->format('d/m/Y') }}
-                    @endif
-                  </div>
-                  @if(!empty($km->mo_ta))
-                    <div class="muted" style="margin-top:4px;">{{ $km->mo_ta }}</div>
-                  @endif
-                  @if(!empty($km->dieu_kien))
-                    <div class="muted" style="margin-top:4px;">Điều kiện: {{ $km->dieu_kien }}</div>
-                  @endif
+        <div class="grid">
+            <div>
+            <h2 class="section-title">Ghế đã chọn</h2>
+            @forelse($seatDetails as $s)
+                <div class="row">
+                <div>
+                    <div>{{ $s['code'] }}</div>
+                    <div class="muted">{{ $s['type'] }}</div>
                 </div>
-                <input type="radio" name="promo_pick" value="{{ $km->id }}"
-                       data-type="{{ strtolower($km->loai_giam) }}"
-                       data-val="{{ (float)$km->gia_tri_giam }}"
-                       data-code="{{ strtoupper($km->ma_km ?? '') }}"
-                       {{ $active ? '' : 'disabled' }}
-                       style="accent-color:#FF784E; margin-top:4px;"/>
-              </label>
+                <div>{{ number_format($s['price'], 0, ',', '.') }}đ</div>
+                </div>
+            @empty
+                <div class="muted">Chưa có ghế nào.</div>
+            @endforelse
+            </div>
+
+            @if(isset($comboDetails) && count($comboDetails) > 0)
+            <div>
+            <h2 class="section-title">Combo đã chọn</h2>
+            @foreach($comboDetails as $c)
+                <div class="row">
+                <div>
+                    <div>{{ $c['name'] }} x{{ $c['qty'] }}</div>
+                    <div class="muted">{{ number_format($c['price'], 0, ',', '.') }}đ / combo</div>
+                </div>
+                <div>{{ number_format($c['total'], 0, ',', '.') }}đ</div>
+                </div>
             @endforeach
-          </div>
-        </div>
-        @endif
+            </div>
+            @endif
 
 
-        <div class="row" style="margin-top:8px;">
-          <div class="total">Tổng tiền ghế</div>
-          <div class="total" id="seatTotal" data-seat-total="{{ (int)($totalSeatPrice ?? 0) }}">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
-        </div>
+            @if(isset($khuyenmais))
+            <div>
+            <h2 class="section-title">Khuyến mãi</h2>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <label class="row" style="cursor:pointer;">
+                <div>
+                    <div>Không áp dụng</div>
+                    <div class="muted">Thanh toán không dùng khuyến mãi</div>
+                </div>
+                <input type="radio" name="promo_pick" value="" checked style="accent-color:#FF784E;"/>
+                </label>
+                @foreach($khuyenmais as $km)
+                @php
+                    $type = strtolower($km->loai_giam);
+                    $now = \Carbon\Carbon::now();
+                    $start = $km->ngay_bat_dau ? \Carbon\Carbon::parse($km->ngay_bat_dau) : null;
+                    $end = $km->ngay_ket_thuc ? \Carbon\Carbon::parse($km->ngay_ket_thuc) : null;
+                    $active = ($km->trang_thai == 1) && (!$start || $start->lte($now)) && (!$end || $end->gte($now));
+                @endphp
+                <label class="row" style="cursor:pointer; align-items:flex-start; gap:12px; opacity: {{ $active ? '1' : '.6' }};">
+                    <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <div style="font-weight:600;">{{ $km->ten_khuyen_mai ?? ('KM #' . $km->id) }}</div>
+                        <span class="pill">Mã: {{ strtoupper($km->ma_km ?? '—') }}</span>
+                    </div>
+                    <div class="muted" style="margin-top:4px;">
+                        @if($type === 'phantram')
+                        Giảm {{ (float)$km->gia_tri_giam }}%
+                        @else
+                        Giảm {{ number_format(((float)$km->gia_tri_giam >= 1000) ? (float)$km->gia_tri_giam : ((float)$km->gia_tri_giam*1000), 0, ',', '.') }}đ
+                        @endif
+                        @if($start && $end)
+                        • Hiệu lực: {{ $start->format('d/m/Y') }} - {{ $end->format('d/m/Y') }}
+                        @endif
+                    </div>
+                    @if(!empty($km->mo_ta))
+                        <div class="muted" style="margin-top:4px;">{{ $km->mo_ta }}</div>
+                    @endif
+                    @if(!empty($km->dieu_kien))
+                        <div class="muted" style="margin-top:4px;">Điều kiện: {{ $km->dieu_kien }}</div>
+                    @endif
+                    </div>
+                    <input type="radio" name="promo_pick" value="{{ $km->id }}"
+                        data-type="{{ strtolower($km->loai_giam) }}"
+                        data-val="{{ (float)$km->gia_tri_giam }}"
+                        data-code="{{ strtoupper($km->ma_km ?? '') }}"
+                        {{ $active ? '' : 'disabled' }}
+                        style="accent-color:#FF784E; margin-top:4px;"/>
+                </label>
+                @endforeach
+            </div>
+            </div>
+            @endif
 
-        @if(isset($comboTotal))
-        <div class="row">
-          <div class="total">Tổng tiền combo</div>
-          <div class="total" id="comboTotal" data-combo-total="{{ (int)($comboTotal ?? 0) }}">{{ number_format($comboTotal ?? 0, 0, ',', '.') }}đ</div>
-        </div>
-        @endif
+            <div>
+                <h2 class="section-title" style="border-top:1px solid #2a2f3a; padding-top:16px;">Phương thức thanh toán</h2>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="row payment-option">
+                        <input type="radio" name="payment_method" value="online" checked />
+                        <div class="payment-icon">
+                            <img src="https://vnpay.vn/assets/img/logo-primary.svg" alt="VNPAY" style="height:16px;">
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;">Ví VNPAY / Ngân hàng</div>
+                            <div class="muted">Thanh toán ngay qua cổng VNPAY</div>
+                        </div>
+                    </label>
 
-        <div class="row" id="discountRow" style="display:none;">
-          <div class="muted">Khuyến mãi</div>
-          <div id="discountAmount">-0đ</div>
-        </div>
+                    <label class="row payment-option">
+                        <input type="radio" name="payment_method" value="offline" />
+                        <div class="payment-icon" style="background:#2a2f3a;">
+                            🏪
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;">Thanh toán tại quầy</div>
+                            <div class="muted">Đặt vé và thanh toán tại rạp trong 30 phút</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+            <div class="total">Tổng tiền ghế</div>
+            <div class="total" id="seatTotal" data-seat-total="{{ (int)($totalSeatPrice ?? 0) }}">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
+            </div>
 
-        <div class="row" id="finalRow" style="margin-top:8px;">
-          <div class="total">Tổng thanh toán</div>
-          <div class="total" id="finalTotal">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
-        </div>
+            @if(isset($comboTotal))
+            <div class="row">
+            <div class="total">Tổng tiền combo</div>
+            <div class="total" id="comboTotal" data-combo-total="{{ (int)($comboTotal ?? 0) }}">{{ number_format($comboTotal ?? 0, 0, ',', '.') }}đ</div>
+            </div>
+            @endif
 
-        <div style="display:flex; justify-content:flex-end; margin-top:12px; gap:8px;">
-          <a href="{{ url()->previous() }}" class="btn" style="background:#2a2f3a; color:#e6e7eb;">Quay lại</a>
-          <form method="POST" action="{{ url('/checkout/' . $holdId . '/payment') }}" id="payForm">
-            @csrf
-            <input type="hidden" name="promo_id" id="promo_id" value="" />
-            <input type="hidden" name="promo_code" id="promo_code" value="" />
-            <button type="submit" class="btn">Thanh toán VNPAY</button>
-          </form>
+            <div class="row" id="discountRow" style="display:none;">
+            <div class="muted">Khuyến mãi</div>
+            <div id="discountAmount">-0đ</div>
+            </div>
+
+            <div class="row" id="finalRow" style="margin-top:8px; background:#2a2f3a; border-color:#FF784E;">
+            <div class="total" style="color:#FF784E;">Tổng thanh toán</div>
+            <div class="total" id="finalTotal" style="color:#FF784E; font-size:20px;">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-top:16px; gap:8px;">
+            <a href="{{ url()->previous() }}" class="btn btn-secondary">Quay lại</a>
+            
+            <button type="submit" class="btn" id="btnSubmit">
+                Thanh toán VNPAY
+            </button>
+            </div>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 
@@ -179,9 +215,10 @@
       const promoIdInput = document.getElementById('promo_id');
       const promoCodeHidden = document.getElementById('promo_code');
       const radios = document.querySelectorAll('input[name="promo_pick"]');
-      const promoSelect = document.getElementById('promo_select');
-      const promoCodeInput = document.getElementById('promo_code_input');
-      const applyPromoBtn = document.getElementById('apply_promo_btn');
+      
+      // Elements cho thanh toán
+      const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+      const btnSubmit = document.getElementById('btnSubmit');
 
       function fmt(n){
         return (n||0).toLocaleString('vi-VN');
@@ -208,49 +245,26 @@
           discountRow.style.display = 'none';
           discountAmountEl.textContent = '-0đ';
           promoIdInput.value = '';
-          // keep promo_code as last entered free text
         }
         const final = Math.max(0, baseTotal - discount);
         finalTotalEl.textContent = fmt(final) + 'đ';
       }
 
+      // Logic thay đổi nút bấm khi chọn phương thức thanh toán
+      function updateButtonText() {
+        const method = document.querySelector('input[name="payment_method"]:checked').value;
+        if (method === 'online') {
+            btnSubmit.textContent = 'Thanh toán VNPAY';
+        } else {
+            btnSubmit.textContent = 'Đặt vé giữ chỗ';
+        }
+      }
+
       radios.forEach(r => r.addEventListener('change', recalc));
-      if (promoSelect) {
-        promoSelect.addEventListener('change', function(){
-          const val = this.value;
-          if (!val) {
-            const none = document.querySelector('input[name="promo_pick"][value=""]');
-            if (none) none.checked = true;
-          } else {
-            const target = document.querySelector(`input[name="promo_pick"][value="${val}"]`);
-            if (target) target.checked = true;
-          }
-          recalc();
-        });
-      }
-      if (applyPromoBtn) {
-        applyPromoBtn.addEventListener('click', function(){
-          const code = (promoCodeInput?.value || '').trim().toUpperCase();
-          if (!code) {
-            alert('Vui lòng nhập mã khuyến mãi.');
-            return;
-          }
-          const choices = Array.from(document.querySelectorAll('input[name="promo_pick"][data-code]'));
-          const target = choices.find(r => (r.getAttribute('data-code') || '').toUpperCase() === code);
-          if (target) {
-            target.checked = true;
-            recalc();
-          } else {
-            // No preloaded promo matches: send code to backend, preview discount not available
-            promoIdInput.value = '';
-            promoCodeHidden.value = code;
-            discountRow.style.display = 'none';
-            discountAmountEl.textContent = '-0đ';
-            alert('Đã áp dụng mã. Giảm giá sẽ được tính khi thanh toán.');
-          }
-        });
-      }
+      paymentRadios.forEach(r => r.addEventListener('change', updateButtonText));
+
       recalc();
+      updateButtonText(); // Chạy lần đầu
     })();
   </script>
 </body>

@@ -27,9 +27,8 @@ class DatVe extends Model
         'trang_thai',
         'checked_in',
         'expires_at',
-        // Ensure these fields can be mass-assigned during payment updates
         'ticket_code',
-        'phuong_thuc_thanh_toan'
+        'phuong_thuc_thanh_toan',
     ];
 
     protected $casts = [

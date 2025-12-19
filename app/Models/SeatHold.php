@@ -11,60 +11,88 @@ class SeatHold extends Model
 {
     use HasFactory;
 
-    protected $table = 'seat_holds';
+    // 1. Map đúng tên bảng trong SQL
+    protected $table = 'tam_giu_ghe';
 
+    // 2. Map đúng tên cột trong SQL (Tiếng Việt)
     protected $fillable = [
-        'showtime_id',
-        'seat_id',
-        'user_id',
+        'id_suat_chieu',    // Thay cho showtime_id
+        'id_ghe',           // Thay cho seat_id
+        'id_nguoi_dung',    // Thay cho user_id
         'session_id',
-        'expires_at',
+        'gia_giu',
+        'trang_thai',       // Thay cho status
+        'thoi_gian_giu',
+        'thoi_gian_het_han', // Thay cho expires_at
     ];
 
     protected $casts = [
-        'expires_at' => 'datetime',
+        'thoi_gian_giu' => 'datetime',
+        'thoi_gian_het_han' => 'datetime',
+        'gia_giu' => 'decimal:2',
     ];
 
-    // Relationships
+    // --- ALIAS (QUAN TRỌNG) ---
+    // Giúp code Service dùng key tiếng Anh vẫn tự động map sang cột tiếng Việt khi Create/Update
+
+    public function setShowtimeIdAttribute($value) { $this->attributes['id_suat_chieu'] = $value; }
+    public function getShowtimeIdAttribute() { return $this->getAttribute('id_suat_chieu'); }
+
+    public function setSeatIdAttribute($value) { $this->attributes['id_ghe'] = $value; }
+    public function getSeatIdAttribute() { return $this->getAttribute('id_ghe'); }
+
+    public function setUserIdAttribute($value) { $this->attributes['id_nguoi_dung'] = $value; }
+    public function getUserIdAttribute() { return $this->getAttribute('id_nguoi_dung'); }
+
+    public function setExpiresAtAttribute($value) { $this->attributes['thoi_gian_het_han'] = $value; }
+    public function getExpiresAtAttribute() { return $this->getAttribute('thoi_gian_het_han'); }
+
+    // --- RELATIONSHIPS ---
+
     public function showtime(): BelongsTo
     {
-        return $this->belongsTo(SuatChieu::class, 'showtime_id');
+        return $this->belongsTo(SuatChieu::class, 'id_suat_chieu');
     }
 
     public function seat(): BelongsTo
     {
-        return $this->belongsTo(Ghe::class, 'seat_id');
+        return $this->belongsTo(Ghe::class, 'id_ghe');
     }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(NguoiDung::class, 'user_id');
+        return $this->belongsTo(NguoiDung::class, 'id_nguoi_dung');
     }
 
-    // Scopes
+    // --- SCOPES (Đây là phần gây lỗi, cần sửa tên cột trong where) ---
+
     public function scopeActive($query)
     {
-        return $query->where('expires_at', '>', Carbon::now());
+        // Sửa 'expires_at' -> 'thoi_gian_het_han'
+        return $query->where('thoi_gian_het_han', '>', Carbon::now());
     }
 
     public function scopeExpired($query)
     {
-        return $query->where('expires_at', '<=', Carbon::now());
+        return $query->where('thoi_gian_het_han', '<=', Carbon::now());
     }
 
     public function scopeForShowtime($query, $showtimeId)
     {
-        return $query->where('showtime_id', $showtimeId);
+        // Sửa 'showtime_id' -> 'id_suat_chieu'
+        return $query->where('id_suat_chieu', $showtimeId);
     }
 
     public function scopeForSeat($query, $seatId)
     {
-        return $query->where('seat_id', $seatId);
+        // Sửa 'seat_id' -> 'id_ghe'
+        return $query->where('id_ghe', $seatId);
     }
 
     public function scopeForUser($query, $userId)
     {
-        return $query->where('user_id', $userId);
+        // Sửa 'user_id' -> 'id_nguoi_dung'
+        return $query->where('id_nguoi_dung', $userId);
     }
 
     public function scopeForSession($query, $sessionId)
@@ -72,10 +100,12 @@ class SeatHold extends Model
         return $query->where('session_id', $sessionId);
     }
 
-    // Helper methods
+    // --- HELPER METHODS ---
+
     public function isExpired(): bool
     {
-        return $this->expires_at->isPast();
+        if (!$this->thoi_gian_het_han) return true;
+        return $this->thoi_gian_het_han->isPast();
     }
 
     public function isActive(): bool
@@ -83,25 +113,18 @@ class SeatHold extends Model
         return !$this->isExpired();
     }
 
-    /**
-     * Release expired holds (static method for cron job)
-     */
+    // --- STATIC METHODS ---
+
     public static function releaseExpired(): int
     {
         return static::expired()->delete();
     }
 
-    /**
-     * Release holds for a specific showtime
-     */
     public static function releaseForShowtime(int $showtimeId): int
     {
         return static::forShowtime($showtimeId)->delete();
     }
 
-    /**
-     * Release holds for a specific seat
-     */
     public static function releaseForSeat(int $showtimeId, int $seatId): int
     {
         return static::forShowtime($showtimeId)
@@ -109,9 +132,6 @@ class SeatHold extends Model
             ->delete();
     }
 
-    /**
-     * Release holds for a user
-     */
     public static function releaseForUser(int $userId, ?int $showtimeId = null): int
     {
         $query = static::forUser($userId);
@@ -121,4 +141,3 @@ class SeatHold extends Model
         return $query->delete();
     }
 }
-
