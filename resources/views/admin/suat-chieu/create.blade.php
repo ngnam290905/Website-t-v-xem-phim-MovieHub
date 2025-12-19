@@ -146,10 +146,79 @@
     document.addEventListener('DOMContentLoaded', function() {
       const startTimeInput = document.getElementById('start_time');
       const endTimeInput = document.getElementById('end_time');
+      const movieSelect = document.getElementById('id_phim');
+      const form = startTimeInput.closest('form');
       
-      // Set minimum date to today
-      const today = new Date().toISOString().slice(0, 16);
-      startTimeInput.min = today;
+      // Tạo thẻ hiển thị lỗi
+      let startErrorDiv = document.createElement('div');
+      startErrorDiv.id = 'start_time_error';
+      startErrorDiv.className = 'mt-1 text-sm text-red-500 hidden';
+      startTimeInput.parentElement.appendChild(startErrorDiv);
+      
+      let endErrorDiv = document.createElement('div');
+      endErrorDiv.id = 'end_time_error';
+      endErrorDiv.className = 'mt-1 text-sm text-red-500 hidden';
+      endTimeInput.parentElement.appendChild(endErrorDiv);
+      
+      // Set minimum date/time to now (không cho phép chọn thời gian quá khứ)
+      const now = new Date();
+      // Thêm 1 phút để tránh vấn đề về thời gian chính xác
+      now.setMinutes(now.getMinutes() + 1);
+      const minDateTime = now.toISOString().slice(0, 16);
+      startTimeInput.min = minDateTime;
+      
+      // Kiểm tra thời gian quá khứ
+      function checkPastTime(element, isStart) {
+        if (!element.value) return true;
+        const selectedTime = new Date(element.value);
+        const now = new Date();
+        
+        if (selectedTime <= now) {
+          const message = isStart 
+            ? 'Không thể tạo suất chiếu vào thời gian quá khứ.' 
+            : 'Không thể tạo suất chiếu kết thúc trong quá khứ.';
+          showError(element, message);
+          return false;
+        } else {
+          hideError(element);
+          return true;
+        }
+      }
+      
+      // Kiểm tra giờ hoạt động: 8:00 - 24:00
+      function checkBusinessHours(dateTimeString, isStart) {
+        if (!dateTimeString) return true;
+        const date = new Date(dateTimeString);
+        const hour = date.getHours();
+        const minute = date.getMinutes();
+        
+        // Giờ hoạt động: 8:00 - 24:00 (00:00 ngày hôm sau)
+        if (hour < 8 || (hour >= 24 && minute > 0)) {
+          return false;
+        }
+        // Cho phép kết thúc đúng lúc 24:00 (00:00 ngày hôm sau)
+        if (!isStart && hour === 24 && minute === 0) {
+          return true;
+        }
+        return hour < 24 || (hour === 24 && minute === 0);
+      }
+      
+      function showError(element, message) {
+        const errorDiv = document.getElementById(element.id + '_error');
+        if (errorDiv) {
+          errorDiv.textContent = message;
+          errorDiv.classList.remove('hidden');
+        }
+        element.classList.add('border-red-500');
+      }
+      
+      function hideError(element) {
+        const errorDiv = document.getElementById(element.id + '_error');
+        if (errorDiv) {
+          errorDiv.classList.add('hidden');
+        }
+        element.classList.remove('border-red-500');
+      }
       
       // Function to round duration (làm tròn thời lượng)
       // 1-15 phút -> 30 phút
@@ -179,6 +248,13 @@
           const endDate = new Date(startDate.getTime() + (roundedDuration * 60 * 1000));
           endTimeInput.value = endDate.toISOString().slice(0, 16);
           
+          // Kiểm tra giờ hoạt động cho end time
+          if (!checkBusinessHours(endTimeInput.value, false)) {
+            showError(endTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          } else {
+            hideError(endTimeInput);
+          }
+          
           // Show rounded duration info
           if (roundedDuration !== duration) {
             console.log(`Thời lượng gốc: ${duration} phút → Làm tròn: ${roundedDuration} phút`);
@@ -186,14 +262,108 @@
         }
       }
       
+      // Kiểm tra thời lượng suất chiếu >= thời lượng phim
+      function checkDuration() {
+        if (!startTimeInput.value || !endTimeInput.value || !movieSelect.value) {
+          return true;
+        }
+        
+        const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+        const movieDuration = parseInt(selectedOption.getAttribute('data-duration')) || 0;
+        
+        if (movieDuration > 0) {
+          const startDate = new Date(startTimeInput.value);
+          const endDate = new Date(endTimeInput.value);
+          const showtimeDuration = Math.round((endDate - startDate) / (1000 * 60)); // phút
+          
+          if (showtimeDuration < movieDuration) {
+            showError(endTimeInput, `Thời gian suất chiếu (${showtimeDuration} phút) không thể nhỏ hơn thời lượng phim (${movieDuration} phút).`);
+            return false;
+          } else {
+            hideError(endTimeInput);
+            return true;
+          }
+        }
+        return true;
+      }
+      
+      // Validate start time
+      startTimeInput.addEventListener('change', function() {
+        if (this.value) {
+          // Kiểm tra thời gian quá khứ trước
+          if (!checkPastTime(this, true)) {
+            return;
+          }
+          
+          endTimeInput.min = this.value;
+          if (!checkBusinessHours(this.value, true)) {
+            showError(this, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          } else {
+            hideError(this);
+            calculateEndTime();
+            checkDuration();
+          }
+        }
+      });
+      
+      // Validate end time
+      endTimeInput.addEventListener('change', function() {
+        if (this.value) {
+          // Kiểm tra thời gian quá khứ trước
+          if (!checkPastTime(this, false)) {
+            return;
+          }
+          
+          if (!checkBusinessHours(this.value, false)) {
+            showError(this, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          } else {
+            hideError(this);
+            checkDuration();
+          }
+        }
+      });
+      
+      // Validate khi chọn phim
+      movieSelect.addEventListener('change', function() {
+        if (startTimeInput.value && endTimeInput.value) {
+          checkDuration();
+        }
+      });
+      
       // Auto calculate when movie is selected
       movieSelect.addEventListener('change', calculateEndTime);
       
-      // Auto calculate when start time changes
-      startTimeInput.addEventListener('change', function() {
-        if (this.value) {
-          endTimeInput.min = this.value;
-          calculateEndTime();
+      // Validate form before submit
+      form.addEventListener('submit', function(e) {
+        let hasError = false;
+        
+        // Kiểm tra thời gian quá khứ
+        if (startTimeInput.value && !checkPastTime(startTimeInput, true)) {
+          hasError = true;
+        }
+        
+        if (endTimeInput.value && !checkPastTime(endTimeInput, false)) {
+          hasError = true;
+        }
+        
+        if (startTimeInput.value && !checkBusinessHours(startTimeInput.value, true)) {
+          showError(startTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          hasError = true;
+        }
+        
+        if (endTimeInput.value && !checkBusinessHours(endTimeInput.value, false)) {
+          showError(endTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          hasError = true;
+        }
+        
+        // Kiểm tra thời lượng
+        if (!checkDuration()) {
+          hasError = true;
+        }
+        
+        if (hasError) {
+          e.preventDefault();
+          alert('Vui lòng kiểm tra lại thông tin. Thời gian suất chiếu phải trong tương lai, >= thời lượng phim và trong giờ hoạt động 08:00–24:00.');
         }
       });
     });
