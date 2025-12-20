@@ -102,20 +102,46 @@ class BookingFlowController extends Controller
             })->toArray(),
         ]);
 
-        $mapped = $showtimes->map(function ($showtime) {
+        $mapped = $showtimes->map(function ($showtime) use ($movie) {
             $isPast = $showtime->thoi_gian_bat_dau->lt(now());
             $isOngoing = $showtime->thoi_gian_bat_dau->lte(now()) && $showtime->thoi_gian_ket_thuc->gt(now());
+            
+            // Calculate available seats
+            $totalSeats = $showtime->phongChieu->seats()->where('trang_thai', 1)->count();
+            $bookedSeats = \DB::table('chi_tiet_dat_ve')
+                ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+                ->where('dat_ve.id_suat_chieu', $showtime->id)
+                ->where('dat_ve.trang_thai', 1)
+                ->count();
+            $availableSeats = max(0, $totalSeats - $bookedSeats);
+            
+            // Determine seat status color
+            $seatStatus = 'good'; // green
+            if ($availableSeats === 0) {
+                $seatStatus = 'sold_out'; // red
+            } elseif ($availableSeats <= 10) {
+                $seatStatus = 'low'; // yellow
+            }
+            
+            // Calculate base price
+            $basePrice = $movie->gia_co_ban ?? 100000;
             
                 return [
                     'id' => $showtime->id,
                     'time' => $showtime->thoi_gian_bat_dau->format('H:i'),
                     'end_time' => $showtime->thoi_gian_ket_thuc->format('H:i'),
                     'room_name' => $showtime->phongChieu->ten_phong ?? $showtime->phongChieu->name ?? 'Phòng chiếu',
-                    'room_type' => $showtime->phongChieu->loai_phong ?? 'normal',
+                    'room_type' => $showtime->phongChieu->loai_phong ?? $showtime->phongChieu->type ?? '2D',
                     'date' => $showtime->thoi_gian_bat_dau->format('Y-m-d'),
                     'datetime' => $showtime->thoi_gian_bat_dau->toIso8601String(),
                 'is_past' => $isPast,
                 'is_ongoing' => $isOngoing,
+                'total_seats' => $totalSeats,
+                'booked_seats' => $bookedSeats,
+                'available_seats' => $availableSeats,
+                'seat_status' => $seatStatus,
+                'base_price' => $basePrice,
+                'formatted_price' => number_format($basePrice, 0, ',', '.') . ' đ',
                 ];
             });
 

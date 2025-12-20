@@ -279,7 +279,7 @@
         @foreach($topMovies as $movie)
           <div class="bg-[#1a1d24] rounded-lg overflow-hidden hover:scale-105 transition-transform">
             @if($movie->poster)
-              <img src="{{ asset('storage/' . $movie->poster) }}" alt="{{ $movie->ten_phim }}" class="w-full h-48 object-cover">
+              <img src="{{ $movie->poster_url ?? asset('storage/' . $movie->poster) ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-full h-48 object-cover" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
             @else
               <div class="w-full h-48 bg-gray-700 flex items-center justify-center">
                 <i class="fas fa-film text-4xl text-gray-500"></i>

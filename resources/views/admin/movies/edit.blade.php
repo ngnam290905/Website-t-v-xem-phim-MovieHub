@@ -164,7 +164,7 @@
             @if($movie->poster)
               <div class="space-y-2">
                 <div class="text-xs text-[#a6a6b0]">Poster hiện tại:</div>
-                <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full max-h-96 object-cover rounded-lg border border-[#262833]">
+                <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full max-h-96 object-cover rounded-lg border border-[#262833]" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
               </div>
             @endif
 

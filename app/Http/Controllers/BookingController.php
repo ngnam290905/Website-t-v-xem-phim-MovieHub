@@ -587,6 +587,9 @@ class BookingController extends Controller
         // Check which view exists and use it
         $viewName = view()->exists('booking.ticket-detail') ? 'booking.ticket-detail' : 'user.ticket-detail';
 
+        $isPaid = $booking->trang_thai == 1;
+        $isPrinted = $booking->da_in ?? false;
+
         return view($viewName, compact(
             'booking',
             'showtime',
@@ -598,8 +601,40 @@ class BookingController extends Controller
             'promoDiscount',
             'computedTotal',
             'pt',
-            'qrCodeData'
+            'qrCodeData',
+            'isPaid',
+            'isPrinted'
         ));
+    }
+
+    /**
+     * Mark ticket as printed (only once)
+     */
+    public function markAsPrinted($id)
+    {
+        $booking = DatVe::where('id', $id)
+            ->where('id_nguoi_dung', Auth::id())
+            ->firstOrFail();
+
+        // Chỉ đánh dấu nếu chưa in
+        if (!$booking->da_in) {
+            $booking->update([
+                'da_in' => true,
+                'thoi_gian_in' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vé đã được đánh dấu là đã in',
+                'printed_at' => $booking->thoi_gian_in->format('d/m/Y H:i:s')
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Vé này đã được in rồi',
+            'printed_at' => $booking->thoi_gian_in ? $booking->thoi_gian_in->format('d/m/Y H:i:s') : null
+        ], 400);
     }
 
     /**
@@ -706,9 +741,26 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập'], 401);
         }
 
+        // Validate showtime exists
+        $showtime = \App\Models\SuatChieu::find($showId);
+        if (!$showtime) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Suất chiếu không tồn tại'
+            ], 404);
+        }
+
         $seatId = $request->input('seat_id');
         $seatIds = $request->input('seat_ids');
         $sessionId = $request->session()->getId();
+
+        // Validate that at least one seat is provided
+        if (empty($seatIds) && empty($seatId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng chọn ít nhất một ghế'
+            ], 400);
+        }
 
         try {
             $seatHoldService = app(\App\Services\SeatHoldService::class);
@@ -750,6 +802,13 @@ class BookingController extends Controller
             }
 
             // Single mode
+            if (empty($seatId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn ít nhất một ghế'
+                ], 400);
+            }
+
             $result = $seatHoldService->holdSeat($showId, intval($seatId), $userId, $sessionId);
 
             if (!$result['success']) {
@@ -782,6 +841,8 @@ class BookingController extends Controller
             \Log::error('holdSeat error: ' . $e->getMessage(), [
                 'show_id' => $showId,
                 'seat_id' => $seatId,
+                'seat_ids' => $seatIds,
+                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,

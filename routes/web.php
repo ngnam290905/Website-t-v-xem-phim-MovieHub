@@ -83,6 +83,7 @@ Route::get('/lich-chieu', [PublicController::class, 'schedule'])->middleware('bl
 Route::get('/combo', [PublicController::class, 'combos'])->middleware('block.admin.staff')->name('public.combos');
 Route::get('/tin-tuc', [PublicController::class, 'news'])->middleware('block.admin.staff')->name('public.news');
 Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->middleware('block.admin.staff')->name('public.news.detail');
+Route::get('/gia-ve', [PublicController::class, 'pricing'])->middleware('block.admin.staff')->name('public.pricing');
 Route::get('/gioi-thieu', function(){ return View::make('about'); })->middleware('block.admin.staff')->name('about');
 
 // Debug route (remove in production)
@@ -150,6 +151,7 @@ Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingControl
     Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
     Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
     Route::get('/tickets/{id}', [App\Http\Controllers\BookingController::class, 'ticketDetail'])->name('booking.ticket.detail');
+    Route::post('/tickets/{id}/mark-printed', [App\Http\Controllers\BookingController::class, 'markAsPrinted'])->name('booking.ticket.mark-printed');
 
     // Continue to payment from seat selection
     Route::post('/booking/continue', [App\Http\Controllers\BookingController::class, 'continueToPayment'])->name('booking.continue');
@@ -373,6 +375,7 @@ Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::get('/{id}', [ScanController::class, 'show'])->whereNumber('id')->name('show');
         Route::post('/check', [ScanController::class, 'check'])->name('check');
         Route::post('/confirm', [ScanController::class, 'confirm'])->name('confirm');
+        Route::post('/{id}/mark-printed', [ScanController::class, 'markAsPrinted'])->name('mark-printed');
     });
 });
 
@@ -390,6 +393,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
         Route::get('/hot-movies', [AdminReportController::class, 'hotMoviesReport'])->name('hot-movies');
         Route::get('/peak-booking-hours', [AdminReportController::class, 'peakBookingHoursReport'])->name('peak-booking-hours');
+        
+        // Thống kê theo phim
+        Route::get('/movies-dashboard', [AdminReportController::class, 'moviesStatisticsDashboard'])->name('movies-dashboard');
+        Route::get('/movies/{movie}/statistics', [AdminReportController::class, 'movieStatistics'])->name('movie-statistics');
     });
 });
 

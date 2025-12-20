@@ -16,7 +16,7 @@
             @endphp
             <div class="bg-[#222533] border border-[#2f3240] rounded-lg p-4 mb-4">
                 <div class="flex gap-4">
-                    <img src="{{ $movie->poster ?? asset('images/logo.png') }}" alt="{{ $movie->ten_phim ?? 'Movie' }}" class="w-20 h-28 object-cover rounded hidden md:block">
+                    <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim ?? 'Movie' }}" class="w-20 h-28 object-cover rounded hidden md:block" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                     <div class="flex-1">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-4">

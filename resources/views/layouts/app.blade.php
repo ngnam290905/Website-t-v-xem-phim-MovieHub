@@ -41,5 +41,68 @@
     </div>
     @include('partials.footer')
     @include('partials.chatbot')
-  </body>
+
+    <!-- Global Trailer Modal -->
+    <div id="global-trailer-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/90">
+        <div class="relative w-full max-w-5xl mx-4">
+            <button onclick="closeGlobalTrailer()" class="absolute -top-10 right-0 text-white hover:text-[#F53003] text-2xl z-10">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-lg">
+                <iframe id="global-trailer-iframe" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Trailer Modal Functions
+        function openTrailer(trailerUrl, movieTitle) {
+            const modal = document.getElementById('global-trailer-modal');
+            const iframe = document.getElementById('global-trailer-iframe');
+            
+            if (!modal || !iframe) return;
+            
+            // Convert YouTube URL to embed format
+            let embedUrl = trailerUrl;
+            if (trailerUrl.includes('youtube.com/watch')) {
+                const videoId = trailerUrl.split('v=')[1]?.split('&')[0];
+                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            } else if (trailerUrl.includes('youtu.be/')) {
+                const videoId = trailerUrl.split('youtu.be/')[1]?.split('?')[0];
+                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            }
+            
+            iframe.src = embedUrl;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeGlobalTrailer() {
+            const modal = document.getElementById('global-trailer-modal');
+            const iframe = document.getElementById('global-trailer-iframe');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            if (iframe) {
+                iframe.src = '';
+            }
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on outside click
+        document.getElementById('global-trailer-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeGlobalTrailer();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeGlobalTrailer();
+            }
+        });
+    </script>
  </html>

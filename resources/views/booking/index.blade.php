@@ -17,7 +17,8 @@
                     <div class="relative overflow-hidden">
                         <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" 
                              alt="{{ $movie->ten_phim }}" 
-                             class="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300">
+                             class="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+                             onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         <div class="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                             <p class="text-white text-sm font-semibold line-clamp-2">{{ $movie->ten_phim }}</p>

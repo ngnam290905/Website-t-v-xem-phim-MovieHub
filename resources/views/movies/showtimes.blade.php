@@ -103,7 +103,7 @@
             <div class="p-6">
                 <div class="flex flex-col md:flex-row">
                     <div class="flex-shrink-0 mb-4 md:mb-0 md:mr-6 relative">
-                        <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full md:w-40 h-56 object-cover rounded-lg">
+                        <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-full md:w-40 h-56 object-cover rounded-lg" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                         @if($movie->trang_thai === 'sap_chieu')
                             <span class="coming-soon-badge">Sắp chiếu</span>
                         @endif

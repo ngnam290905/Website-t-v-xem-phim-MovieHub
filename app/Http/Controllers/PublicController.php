@@ -6,8 +6,10 @@ use App\Models\Phim;
 use App\Models\SuatChieu;
 use App\Models\Combo;
 use App\Models\TinTuc;
+use App\Models\LoaiGhe;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PublicController extends Controller
 {
@@ -177,6 +179,49 @@ class PublicController extends Controller
             ->get();
 
         return view('public.news-detail', compact('article', 'relatedNews'));
+    }
+
+    /**
+     * Display pricing page
+     */
+    public function pricing()
+    {
+        // Get seat types with prices
+        $seatTypes = LoaiGhe::orderBy('he_so_gia', 'asc')->get();
+        
+        // Get base price from a sample movie (or use default)
+        $sampleMovie = Phim::where('trang_thai', 'dang_chieu')->first();
+        $basePrice = $sampleMovie->gia_co_ban ?? 100000;
+        
+        // Calculate prices for each seat type
+        $pricing = $seatTypes->map(function($seatType) use ($basePrice) {
+            return [
+                'name' => $seatType->ten_loai,
+                'coefficient' => $seatType->he_so_gia ?? 1.0,
+                'price' => round($basePrice * ($seatType->he_so_gia ?? 1.0)),
+            ];
+        });
+        
+        // Get time-based pricing rules
+        $timeRules = DB::table('cau_hinh_he_so_thoi_gian')
+            ->where('trang_thai', true)
+            ->orderBy('he_so')
+            ->get();
+        
+        // Get combo prices
+        $combos = Combo::where('trang_thai', 1)
+            ->where(function($query) {
+                $query->whereNull('ngay_bat_dau')
+                      ->orWhere('ngay_bat_dau', '<=', now());
+            })
+            ->where(function($query) {
+                $query->whereNull('ngay_ket_thuc')
+                      ->orWhere('ngay_ket_thuc', '>=', now());
+            })
+            ->orderBy('gia', 'asc')
+            ->get();
+        
+        return view('public.pricing', compact('pricing', 'basePrice', 'timeRules', 'combos'));
     }
 }
 

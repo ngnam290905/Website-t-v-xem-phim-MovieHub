@@ -68,11 +68,21 @@ class HomeController extends Controller
         }
         $comingSoon = $soonQuery->take(6)->get();
 
+        // Get featured movies for hero slider (hot movies or top rated)
+        $featuredMovies = $hotMovies->take(5);
+        if ($featuredMovies->isEmpty()) {
+            $featuredMovies = Phim::where('trang_thai', 'dang_chieu')
+                ->orderBy('diem_danh_gia', 'desc')
+                ->take(5)
+                ->get();
+        }
+
         return view('home', [
             'allMovies' => $allMovies,
             'hotMovies' => $hotMovies,
             'nowShowing' => $nowShowing,
-            'comingSoon' => $comingSoon
+            'comingSoon' => $comingSoon,
+            'featuredMovies' => $featuredMovies
         ]);
     }
 }

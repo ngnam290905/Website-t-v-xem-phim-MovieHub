@@ -96,7 +96,37 @@ class ScanController extends Controller
             ];
         });
 
-        return view('admin.scan.show', compact('ticket', 'seats'));
+        $isPrinted = $ticket->da_in ?? false;
+
+        return view('admin.scan.show', compact('ticket', 'seats', 'isPrinted'));
+    }
+
+    /**
+     * Mark ticket as printed (Admin can also mark)
+     */
+    public function markAsPrinted($id)
+    {
+        $ticket = DatVe::findOrFail($id);
+
+        // Chỉ đánh dấu nếu chưa in
+        if (!$ticket->da_in) {
+            $ticket->update([
+                'da_in' => true,
+                'thoi_gian_in' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vé đã được đánh dấu là đã in',
+                'printed_at' => $ticket->thoi_gian_in->format('d/m/Y H:i:s')
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Vé này đã được in rồi',
+            'printed_at' => $ticket->thoi_gian_in ? $ticket->thoi_gian_in->format('d/m/Y H:i:s') : null
+        ], 400);
     }
 
     /**

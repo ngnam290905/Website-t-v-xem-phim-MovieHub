@@ -103,8 +103,9 @@
                 <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
                     <h3 class="text-lg font-semibold text-white mb-4 border-b border-[#262833] pb-3">🎬 Thông tin Phim</h3>
                     <div class="flex gap-4">
-                        <img src="{{ $booking->suatChieu?->phim?->poster ?? 'https://via.placeholder.com/150x225' }}" 
-                             alt="Poster" 
+                        <img src="{{ $booking->suatChieu?->phim?->poster_url ?? $booking->suatChieu?->phim?->poster ?? asset('images/no-poster.svg') }}" 
+                             alt="Poster"
+                             onerror="this.src='{{ asset('images/no-poster.svg') }}'" 
                              class="w-24 h-36 object-cover rounded-lg shadow-lg">
                         <div>
                             <h4 class="text-xl font-bold text-blue-400">{{ $booking->suatChieu?->phim?->ten_phim ?? 'Phim không tồn tại' }}</h4>

@@ -114,7 +114,7 @@ class SeatHoldService
                 'success' => false,
                 'holds' => [],
                 'failed_seats' => $failedSeats,
-                'message' => 'Không thể giữ bất kỳ ghế nào'
+                'message' => 'Không thể giữ ghế. Vui lòng thử lại.'
             ];
         }
 
@@ -143,7 +143,7 @@ class SeatHoldService
             'hold_expires_at' => $firstHold->thoi_gian_het_han,
             'expires_in_seconds' => self::HOLD_DURATION_MINUTES * 60,
             'holds' => $holds,
-            'failed_seats' => [],
+            'failed_seats' => $failedSeats,
             'message' => 'Tất cả ghế đã được giữ thành công'
         ];
     }

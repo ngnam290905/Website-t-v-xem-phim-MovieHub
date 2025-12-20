@@ -8,7 +8,7 @@
       <!-- Left: Poster + trailer -->
       <div class="lg:col-span-1">
         <div class="bg-[#111214] border border-[#262833] rounded-lg overflow-hidden p-4">
-          <img src="{{ $movie->poster ? (Str::startsWith($movie->poster, ['http','/']) ? (Str::startsWith($movie->poster, ['/']) ? asset(ltrim($movie->poster,'/')) : $movie->poster) : asset('storage/' . $movie->poster)) : asset('images/placeholder-poster.png') }}" alt="{{ $movie->ten_phim }}" class="w-full rounded">
+          <img src="{{ $movie->poster_url ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-full rounded" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
         </div>
 
         @if(!empty($movie->trailer))

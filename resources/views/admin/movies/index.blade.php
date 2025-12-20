@@ -91,7 +91,7 @@
         @foreach($movies as $movie)
           <div class="bg-[#151822] border border-[#262833] rounded-xl overflow-hidden flex flex-col">
             <div class="relative">
-              <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full aspect-[2/3] object-cover">
+              <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full aspect-[2/3] object-cover" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
               <span class="absolute top-3 left-3 text-[10px] uppercase px-2 py-1 rounded-full font-semibold {{ $movie->trang_thai==='dang_chieu' ? 'bg-green-500/20 text-green-300' : ($movie->trang_thai==='sap_chieu' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-gray-500/20 text-gray-300') }}">
                 @switch($movie->trang_thai)
                   @case('dang_chieu') Đang chiếu @break

@@ -12,6 +12,7 @@ use App\Models\PhongChieu;
 use App\Models\Ghe;
 use App\Models\LoaiGhe;
 use App\Models\KhuyenMai;
+use App\Services\MovieStatisticsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -645,5 +646,58 @@ class AdminReportController extends Controller
             'group_by' => $groupBy,
             'generated_at' => Carbon::now()->toISOString()
         ]);
+    }
+
+    /**
+     * Thống kê chi tiết theo phim
+     */
+    public function movieStatistics(Request $request, Phim $movie)
+    {
+        $period = $request->get('period', 'all');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        $service = new MovieStatisticsService();
+        $statistics = $service->getMovieStatistics(
+            $movie->id,
+            $period,
+            $startDate,
+            $endDate
+        );
+
+        if ($request->expectsJson()) {
+            return response()->json($statistics);
+        }
+
+        return view('admin.reports.movie-statistics', compact('statistics', 'movie'));
+    }
+
+    /**
+     * Thống kê tổng hợp tất cả phim (Dashboard)
+     */
+    public function moviesStatisticsDashboard(Request $request)
+    {
+        $period = $request->get('period', 'all');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        $sortBy = $request->get('sort_by', 'revenue');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $limit = $request->get('limit');
+
+        $service = new MovieStatisticsService();
+        $data = $service->getAllMoviesStatistics(
+            $period,
+            $startDate,
+            $endDate,
+            $sortBy,
+            $sortOrder,
+            $limit
+        );
+
+        if ($request->expectsJson()) {
+            return response()->json($data);
+        }
+
+        return view('admin.reports.movies-dashboard', compact('data'));
     }
 }

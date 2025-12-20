@@ -4,35 +4,213 @@
 
 @section('content')
 <div class="min-h-screen bg-[#0d0f14]">
-    <!-- Hero Section -->
-    <section class="relative h-[70vh] overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-[#1a1d29] via-[#151822] to-[#0d0f14]"></div>
-        <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(ellipse at 20% 10%, #F53003 0%, transparent 35%), radial-gradient(circle at 80% 30%, #ff7a5f 0%, transparent 25%), radial-gradient(circle at 50% 80%, #ffb199 0%, transparent 25%);"></div>
-        <div class="relative max-w-7xl mx-auto px-4 h-full flex items-center">
-            <div class="max-w-2xl text-white animate-fade-in">
-                <h1 class="text-5xl md:text-6xl font-extrabold mb-6">
-                    <span class="bg-gradient-to-r from-[#F53003] via-[#ff7a5f] to-[#ffa07a] bg-clip-text text-transparent">MovieHub</span>
-                </h1>
-                <p class="text-lg md:text-xl mb-8 text-gray-300 leading-relaxed">
-                    Trải nghiệm điện ảnh đỉnh cao với hệ thống rạp hiện đại, ưu đãi hấp dẫn và thao tác đặt vé cực nhanh.
-                </p>
-                <div class="flex flex-wrap gap-3">
-                    <a href="{{ route('movies.now-showing') }}" class="px-6 py-3 bg-[#F53003] hover:bg-[#e02a00] rounded-lg font-semibold transition-all duration-200 shadow-md shadow-[#F53003]/30">
-                        Đặt vé ngay
-                    </a>
-                    <a href="{{ route('movies.showtimes') }}" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all">
-                        Lịch chiếu
-                    </a>
+    <!-- Hero Slider Section -->
+    <section class="relative h-[80vh] overflow-hidden">
+        @if(isset($featuredMovies) && $featuredMovies->count() > 0)
+            <!-- Movie Slider -->
+            <div id="hero-slider" class="relative h-full">
+                @foreach($featuredMovies as $index => $movie)
+                    <div class="hero-slide absolute inset-0 transition-opacity duration-1000 {{ $index === 0 ? 'opacity-100' : 'opacity-0' }}" data-index="{{ $index }}">
+                        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{ $movie->poster_url }}');"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/50"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#0d0f14] via-transparent to-transparent"></div>
+                        
+                        <div class="relative max-w-7xl mx-auto px-4 h-full flex items-center">
+                            <div class="max-w-2xl text-white">
+                                <div class="mb-4 flex items-center gap-3">
+                                    @if($movie->hot)
+                                        <span class="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-xs font-bold rounded uppercase">🔥 HOT</span>
+                                    @endif
+                                    @if($movie->trang_thai === 'dang_chieu')
+                                        <span class="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded">🔴 Đang chiếu</span>
+                                    @elseif($movie->trang_thai === 'sap_chieu')
+                                        <span class="px-3 py-1 bg-yellow-500 text-black text-xs font-bold rounded">🟡 Sắp chiếu</span>
+                                    @endif
+                                </div>
+                                
+                                <h1 class="text-4xl md:text-6xl font-extrabold mb-4 animate-fade-in">
+                                    {{ $movie->ten_phim }}
+                                </h1>
+                                
+                                <div class="flex items-center gap-4 mb-4 text-sm text-gray-300">
+                                    <span class="flex items-center gap-1">
+                                        <i class="far fa-clock text-[#F53003]"></i>
+                                        {{ $movie->do_dai ?? 120 }} phút
+                                    </span>
+                                    <span>•</span>
+                                    <span>{{ $movie->do_tuoi ?? 'P' }}</span>
+                                    <span>•</span>
+                                    <span>{{ $movie->the_loai ?? 'N/A' }}</span>
+                                    @if($movie->ngay_khoi_chieu)
+                                        <span>•</span>
+                                        <span>Khởi chiếu: {{ $movie->ngay_khoi_chieu->format('d/m/Y') }}</span>
+                                    @endif
+                                </div>
+                                
+                                <p class="text-lg mb-6 text-gray-300 line-clamp-2">
+                                    {{ $movie->mo_ta_ngan ?? substr($movie->mo_ta ?? '', 0, 150) . '...' }}
+                                </p>
+                                
+                                <div class="flex flex-wrap gap-3">
+                                    @if($movie->trang_thai === 'dang_chieu')
+                                        <a href="{{ route('booking.index') }}?movie={{ $movie->id }}" class="px-6 py-3 bg-[#F53003] hover:bg-[#e02a00] rounded-lg font-semibold transition-all duration-200 shadow-md shadow-[#F53003]/30 flex items-center gap-2">
+                                            <i class="fas fa-ticket-alt"></i>
+                                            Đặt vé ngay
+                                        </a>
+                                    @endif
+                                    @if($movie->trailer)
+                                        <button onclick="openTrailer('{{ $movie->trailer }}', '{{ $movie->ten_phim }}')" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all flex items-center gap-2">
+                                            <i class="fab fa-youtube"></i>
+                                            Xem trailer
+                                        </button>
+                                    @endif
+                                    <a href="{{ route('movie-detail', $movie->id) }}" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all">
+                                        Chi tiết
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+                
+                <!-- Slider Controls -->
+                <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+                    @foreach($featuredMovies as $index => $movie)
+                        <button 
+                            onclick="goToSlide({{ $index }})"
+                            class="slider-dot w-3 h-3 rounded-full transition-all {{ $index === 0 ? 'bg-[#F53003] w-8' : 'bg-white/30 hover:bg-white/50' }}"
+                            data-slide="{{ $index }}"
+                        ></button>
+                    @endforeach
                 </div>
-                <div class="mt-8 flex flex-wrap gap-2 text-xs">
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Phim mới cập nhật</span>
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Ưu đãi mỗi ngày</span>
-                    <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">Thanh toán nhanh</span>
+                
+                <!-- Navigation Arrows -->
+                <button onclick="prevSlide()" class="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-all">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button onclick="nextSlide()" class="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-all">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        @else
+            <!-- Fallback Hero -->
+            <div class="absolute inset-0 bg-gradient-to-br from-[#1a1d29] via-[#151822] to-[#0d0f14]"></div>
+            <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(ellipse at 20% 10%, #F53003 0%, transparent 35%), radial-gradient(circle at 80% 30%, #ff7a5f 0%, transparent 25%), radial-gradient(circle at 50% 80%, #ffb199 0%, transparent 25%);"></div>
+            <div class="relative max-w-7xl mx-auto px-4 h-full flex items-center">
+                <div class="max-w-2xl text-white animate-fade-in">
+                    <h1 class="text-5xl md:text-6xl font-extrabold mb-6">
+                        <span class="bg-gradient-to-r from-[#F53003] via-[#ff7a5f] to-[#ffa07a] bg-clip-text text-transparent">MovieHub</span>
+                    </h1>
+                    <p class="text-lg md:text-xl mb-8 text-gray-300 leading-relaxed">
+                        Trải nghiệm điện ảnh đỉnh cao với hệ thống rạp hiện đại, ưu đãi hấp dẫn và thao tác đặt vé cực nhanh.
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{{ route('movies.now-showing') }}" class="px-6 py-3 bg-[#F53003] hover:bg-[#e02a00] rounded-lg font-semibold transition-all duration-200 shadow-md shadow-[#F53003]/30">
+                            Đặt vé ngay
+                        </a>
+                        <a href="{{ route('movies.showtimes') }}" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all">
+                            Lịch chiếu
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0d0f14] to-transparent"></div>
+        @endif
+        <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0d0f14] to-transparent z-10"></div>
     </section>
+
+    <!-- Trailer Modal -->
+    <div id="trailer-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/90">
+        <div class="relative w-full max-w-5xl mx-4">
+            <button onclick="closeTrailer()" class="absolute -top-10 right-0 text-white hover:text-[#F53003] text-2xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-lg">
+                <iframe id="trailer-iframe" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Hero Slider
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.hero-slide');
+        const dots = document.querySelectorAll('.slider-dot');
+        const totalSlides = slides.length;
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('opacity-100', i === index);
+                slide.classList.toggle('opacity-0', i !== index);
+            });
+            
+            dots.forEach((dot, i) => {
+                if (i === index) {
+                    dot.classList.add('bg-[#F53003]', 'w-8');
+                    dot.classList.remove('bg-white/30');
+                } else {
+                    dot.classList.remove('bg-[#F53003]', 'w-8');
+                    dot.classList.add('bg-white/30');
+                }
+            });
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            showSlide(currentSlide);
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            showSlide(currentSlide);
+        }
+
+        // Auto-play slider
+        if (totalSlides > 1) {
+            setInterval(nextSlide, 5000);
+        }
+
+        // Trailer Modal
+        function openTrailer(trailerUrl, movieTitle) {
+            const modal = document.getElementById('trailer-modal');
+            const iframe = document.getElementById('trailer-iframe');
+            
+            // Convert YouTube URL to embed format
+            let embedUrl = trailerUrl;
+            if (trailerUrl.includes('youtube.com/watch')) {
+                const videoId = trailerUrl.split('v=')[1]?.split('&')[0];
+                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            } else if (trailerUrl.includes('youtu.be/')) {
+                const videoId = trailerUrl.split('youtu.be/')[1]?.split('?')[0];
+                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            }
+            
+            iframe.src = embedUrl;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeTrailer() {
+            const modal = document.getElementById('trailer-modal');
+            const iframe = document.getElementById('trailer-iframe');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            iframe.src = '';
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on outside click
+        document.getElementById('trailer-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTrailer();
+            }
+        });
+    </script>
     
 <!-- Ticket Check Section (#ve) -->
 <section id="ticket-check" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70">

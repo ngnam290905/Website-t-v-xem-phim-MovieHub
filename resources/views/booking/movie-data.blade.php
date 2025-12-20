@@ -12,7 +12,7 @@
 
         <div class="bg-[#161A23] border border-[#2A2F3A] rounded-xl p-6 mb-6">
             <div class="flex gap-6">
-                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-32 h-48 object-cover rounded-lg">
+                <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-32 h-48 object-cover rounded-lg" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                 <div class="flex-1">
                     <h1 class="text-3xl font-bold text-white mb-2">{{ $movie->ten_phim }}</h1>
                     <p class="text-[#a6a6b0] mb-4">

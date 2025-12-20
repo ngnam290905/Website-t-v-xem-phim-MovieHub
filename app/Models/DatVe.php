@@ -26,6 +26,8 @@ class DatVe extends Model
         'tong_tien',
         'trang_thai',
         'checked_in',
+        'da_in',
+        'thoi_gian_in',
         'expires_at',
         'ticket_code',
         'phuong_thuc_thanh_toan',
@@ -36,7 +38,9 @@ class DatVe extends Model
         'trang_thai' => 'integer',
         'phuong_thuc_thanh_toan' => 'integer',
         'checked_in' => 'boolean',
+        'da_in' => 'boolean',
         'created_at' => 'datetime',
+        'thoi_gian_in' => 'datetime',
         'expires_at' => 'datetime',
     ];
 
