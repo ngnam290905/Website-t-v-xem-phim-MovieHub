@@ -10,6 +10,7 @@ use App\Models\LoaiGhe;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PublicController extends Controller
 {
@@ -203,10 +204,18 @@ class PublicController extends Controller
         });
         
         // Get time-based pricing rules
-        $timeRules = DB::table('cau_hinh_he_so_thoi_gian')
-            ->where('trang_thai', true)
-            ->orderBy('he_so')
-            ->get();
+        $timeRules = collect([]);
+        try {
+            if (Schema::hasTable('cau_hinh_he_so_thoi_gian')) {
+                $timeRules = DB::table('cau_hinh_he_so_thoi_gian')
+                    ->where('trang_thai', true)
+                    ->orderBy('he_so')
+                    ->get();
+            }
+        } catch (\Exception $e) {
+            // Table doesn't exist, use empty collection
+            $timeRules = collect([]);
+        }
         
         // Get combo prices
         $combos = Combo::where('trang_thai', 1)

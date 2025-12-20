@@ -158,8 +158,14 @@ Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingControl
     Route::get('/booking/payment', [App\Http\Controllers\BookingController::class, 'showPaymentPage'])->name('booking.payment');
 });
 
-// Legacy booking routes
-Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->middleware('block.admin.staff')->name('booking');
+// Legacy booking routes - Redirect to new booking flow
+Route::get('/dat-ve/{id?}', function ($id = null) {
+    if ($id) {
+        return redirect()->route('booking.showtimes', $id);
+    }
+    return redirect()->route('booking.index');
+})->middleware('block.admin.staff')->name('booking');
+
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->middleware('block.admin.staff')->name('booking-dynamic');

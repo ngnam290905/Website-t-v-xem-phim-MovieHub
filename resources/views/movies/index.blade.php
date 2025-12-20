@@ -42,7 +42,7 @@
                   <span class="ml-1 text-sm text-white">{{ number_format($movie->diem_danh_gia, 1) }}</span>
                 </div>
                 @if($movie->trang_thai === 'dang_chieu')
-                <a href="{{ route('booking', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
+                <a href="{{ route('booking.showtimes', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
                   Đặt vé
                 </a>
                 @else

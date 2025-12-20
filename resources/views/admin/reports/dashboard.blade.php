@@ -242,6 +242,137 @@
             </div>
         </div>
 
+        <!-- Thống kê phim -->
+        <div class="mb-8">
+            <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-white">📊 Thống kê phim</h3>
+                    </div>
+                    <a href="{{ route('admin.reports.movies-dashboard') }}" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-chart-bar mr-1"></i>Xem chi tiết
+                    </a>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <!-- Tổng suất chiếu -->
+                    <div class="bg-gradient-to-br from-blue-600/20 to-blue-800/20 border border-blue-500/30 rounded-xl p-5 hover:border-blue-500/50 transition-all">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-calendar-alt text-blue-400 text-xl"></i>
+                            </div>
+                            <span class="text-2xl">🎬</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">{{ number_format($totalShowtimes, 0, ',', '.') }}</div>
+                        <div class="text-sm text-gray-400">Tổng suất chiếu</div>
+                    </div>
+                    
+                    <!-- Tổng vé đã bán -->
+                    <div class="bg-gradient-to-br from-green-600/20 to-green-800/20 border border-green-500/30 rounded-xl p-5 hover:border-green-500/50 transition-all">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-ticket-alt text-green-400 text-xl"></i>
+                            </div>
+                            <span class="text-2xl">🎟️</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">{{ number_format($totalTickets, 0, ',', '.') }}</div>
+                        <div class="text-sm text-gray-400">Tổng vé đã bán</div>
+                    </div>
+                    
+                    <!-- Tổng doanh thu -->
+                    <div class="bg-gradient-to-br from-yellow-600/20 to-orange-800/20 border border-yellow-500/30 rounded-xl p-5 hover:border-yellow-500/50 transition-all">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-money-bill-wave text-yellow-400 text-xl"></i>
+                            </div>
+                            <span class="text-2xl">💰</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1">{{ number_format($totalRevenue, 0, ',', '.') }}đ</div>
+                        <div class="text-sm text-gray-400">Tổng doanh thu</div>
+                    </div>
+                </div>
+                
+                <!-- Bảng thống kê phim -->
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-[#262833]">
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">STT</th>
+                                <th class="text-left py-4 px-6 font-semibold text-gray-300">Tên phim</th>
+                                <th class="text-center py-4 px-6 font-semibold text-gray-300">Suất chiếu</th>
+                                <th class="text-center py-4 px-6 font-semibold text-gray-300">Vé đã bán</th>
+                                <th class="text-right py-4 px-6 font-semibold text-gray-300">Doanh thu</th>
+                                <th class="text-center py-4 px-6 font-semibold text-gray-300">Tỷ lệ lấp đầy</th>
+                                <th class="text-center py-4 px-6 font-semibold text-gray-300">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#262833]">
+                            @foreach($moviesStatistics as $index => $movie)
+                            <tr class="hover:bg-slate-800/60 transition-colors duration-200 group">
+                                <td class="py-4 px-6">
+                                    <span class="bg-slate-700 text-gray-300 px-3 py-1 rounded-full text-sm font-mono">#{{ $loop->iteration }}</span>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-12 h-16 bg-gradient-to-br from-gray-700 to-gray-800 rounded overflow-hidden flex-shrink-0">
+                                            <img src="{{ $movie['poster_url'] ?? asset('images/no-poster.svg') }}" 
+                                                 alt="{{ $movie['ten_phim'] }}" 
+                                                 class="w-full h-full object-cover"
+                                                 onerror="this.src='{{ asset('images/no-poster.svg') }}'">
+                                        </div>
+                                        <div>
+                                            <div class="text-white font-semibold group-hover:text-pink-300 transition-colors">{{ $movie['ten_phim'] }}</div>
+                                            <div class="text-gray-500 text-sm">{{ $movie['the_loai'] ?? 'N/A' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <span class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm font-semibold">
+                                        {{ $movie['total_showtimes'] }}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <span class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-semibold">
+                                        {{ $movie['total_tickets'] }}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6 text-right">
+                                    <div class="text-yellow-400 font-bold">{{ number_format($movie['total_revenue'], 0, ',', '.') }}đ</div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <div class="w-24 bg-gray-700 rounded-full h-2">
+                                            <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-1000" 
+                                                 style="width: {{ min(100, $movie['occupancy_rate']) }}%"></div>
+                                        </div>
+                                        <span class="text-sm text-gray-400 font-medium">{{ number_format($movie['occupancy_rate'], 1) }}%</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <a href="{{ route('admin.reports.movie-statistics', $movie['id']) }}" 
+                                       class="inline-flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <i class="fas fa-chart-line"></i>
+                                        Chi tiết
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                            @if($moviesStatistics->isEmpty())
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-gray-400">
+                                    <i class="fas fa-film text-4xl mb-3 block"></i>
+                                    Chưa có dữ liệu thống kê phim
+                                </td>
+                            </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Đặt vé gần đây -->
         <div class="mb-8">
             <div class="bg-[#1a1d29] border border-[#262833] rounded-2xl p-6 shadow-lg">

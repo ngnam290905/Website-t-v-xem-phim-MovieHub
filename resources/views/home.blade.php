@@ -10,26 +10,35 @@
             <!-- Movie Slider -->
             <div id="hero-slider" class="relative h-full">
                 @foreach($featuredMovies as $index => $movie)
-                    <div class="hero-slide absolute inset-0 transition-opacity duration-1000 {{ $index === 0 ? 'opacity-100' : 'opacity-0' }}" data-index="{{ $index }}">
-                        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{ $movie->poster_url }}');"></div>
+                    <div class="hero-slide absolute inset-0 transition-all duration-1000 ease-in-out {{ $index === 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-105' }}" data-index="{{ $index }}">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-[3000ms] ease-out hero-bg-image" style="background-image: url('{{ $movie->poster_url }}');"></div>
                         <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/50"></div>
                         <div class="absolute inset-0 bg-gradient-to-t from-[#0d0f14] via-transparent to-transparent"></div>
+                        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#F53003]/20 via-transparent to-transparent opacity-50"></div>
                         
                         <div class="relative max-w-7xl mx-auto px-4 h-full flex items-center">
-                            <div class="max-w-2xl text-white">
-                                <div class="mb-4 flex items-center gap-3">
+                            <div class="max-w-2xl text-white hero-content">
+                                <div class="mb-6 flex items-center gap-3 hero-badges">
                                     @if($movie->hot)
-                                        <span class="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-xs font-bold rounded uppercase">🔥 HOT</span>
+                                        <span class="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-sm font-bold rounded-lg uppercase shadow-lg transform hover:scale-105 transition-transform">🔥 HOT</span>
                                     @endif
                                     @if($movie->trang_thai === 'dang_chieu')
-                                        <span class="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded">🔴 Đang chiếu</span>
+                                        <span class="px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-lg shadow-lg">🔴 Đang chiếu</span>
                                     @elseif($movie->trang_thai === 'sap_chieu')
-                                        <span class="px-3 py-1 bg-yellow-500 text-black text-xs font-bold rounded">🟡 Sắp chiếu</span>
+                                        <span class="px-4 py-2 bg-yellow-500 text-black text-sm font-bold rounded-lg shadow-lg">🟡 Sắp chiếu</span>
+                                    @endif
+                                    @if($movie->diem_danh_gia)
+                                        <span class="px-4 py-2 bg-yellow-500/90 backdrop-blur-sm text-black text-sm font-bold rounded-lg flex items-center gap-1 shadow-lg">
+                                            <i class="fas fa-star"></i>
+                                            {{ number_format($movie->diem_danh_gia, 1) }}
+                                        </span>
                                     @endif
                                 </div>
                                 
-                                <h1 class="text-4xl md:text-6xl font-extrabold mb-4 animate-fade-in">
-                                    {{ $movie->ten_phim }}
+                                <h1 class="text-5xl md:text-7xl font-extrabold mb-6 hero-title leading-tight">
+                                    <span class="bg-gradient-to-r from-white via-white to-gray-300 bg-clip-text text-transparent drop-shadow-2xl">
+                                        {{ $movie->ten_phim }}
+                                    </span>
                                 </h1>
                                 
                                 <div class="flex items-center gap-4 mb-4 text-sm text-gray-300">
@@ -53,18 +62,19 @@
                                 
                                 <div class="flex flex-wrap gap-3">
                                     @if($movie->trang_thai === 'dang_chieu')
-                                        <a href="{{ route('booking.index') }}?movie={{ $movie->id }}" class="px-6 py-3 bg-[#F53003] hover:bg-[#e02a00] rounded-lg font-semibold transition-all duration-200 shadow-md shadow-[#F53003]/30 flex items-center gap-2">
-                                            <i class="fas fa-ticket-alt"></i>
-                                            Đặt vé ngay
+                                        <a href="{{ route('booking.index') }}?movie={{ $movie->id }}" class="group/btn px-8 py-4 bg-gradient-to-r from-[#F53003] to-[#ff5c3a] hover:from-[#ff5c3a] hover:to-[#F53003] rounded-xl font-bold text-lg transition-all duration-300 shadow-lg shadow-[#F53003]/50 hover:shadow-xl hover:shadow-[#F53003]/70 flex items-center gap-3 transform hover:scale-105 relative overflow-hidden">
+                                            <span class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></span>
+                                            <i class="fas fa-ticket-alt relative z-10 text-xl"></i>
+                                            <span class="relative z-10">Đặt vé ngay</span>
                                         </a>
                                     @endif
                                     @if($movie->trailer)
-                                        <button onclick="openTrailer('{{ $movie->trailer }}', '{{ $movie->ten_phim }}')" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all flex items-center gap-2">
-                                            <i class="fab fa-youtube"></i>
+                                        <button onclick="openTrailer('{{ $movie->trailer }}', '{{ $movie->ten_phim }}')" class="px-8 py-4 border-2 border-white/30 hover:border-white/60 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white rounded-xl font-bold text-lg transition-all duration-300 flex items-center gap-3 transform hover:scale-105">
+                                            <i class="fab fa-youtube text-2xl"></i>
                                             Xem trailer
                                         </button>
                                     @endif
-                                    <a href="{{ route('movie-detail', $movie->id) }}" class="px-6 py-3 border border-white/20 hover:border-white/40 text-white/90 hover:text-white rounded-lg font-semibold transition-all">
+                                    <a href="{{ route('movie-detail', $movie->id) }}" class="px-8 py-4 border-2 border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white/90 hover:text-white rounded-xl font-semibold transition-all transform hover:scale-105">
                                         Chi tiết
                                     </a>
                                 </div>
@@ -139,16 +149,43 @@
 
         function showSlide(index) {
             slides.forEach((slide, i) => {
-                slide.classList.toggle('opacity-100', i === index);
-                slide.classList.toggle('opacity-0', i !== index);
+                if (i === index) {
+                    slide.classList.remove('opacity-0', 'scale-105');
+                    slide.classList.add('opacity-100', 'scale-100');
+                    // Animate content
+                    const content = slide.querySelector('.hero-content');
+                    const badges = slide.querySelector('.hero-badges');
+                    const title = slide.querySelector('.hero-title');
+                    const bgImage = slide.querySelector('.hero-bg-image');
+                    
+                    if (content) {
+                        content.style.animation = 'fadeInUp 0.8s ease-out';
+                    }
+                    if (badges) {
+                        badges.style.animation = 'fadeInLeft 0.6s ease-out';
+                    }
+                    if (title) {
+                        title.style.animation = 'fadeInUp 0.8s ease-out 0.2s both';
+                    }
+                    if (bgImage) {
+                        bgImage.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            bgImage.style.transition = 'transform 8s ease-out';
+                            bgImage.style.transform = 'scale(1)';
+                        }, 100);
+                    }
+                } else {
+                    slide.classList.remove('opacity-100', 'scale-100');
+                    slide.classList.add('opacity-0', 'scale-105');
+                }
             });
             
             dots.forEach((dot, i) => {
                 if (i === index) {
-                    dot.classList.add('bg-[#F53003]', 'w-8');
+                    dot.classList.add('bg-[#F53003]', 'w-8', 'ring-2', 'ring-[#F53003]/50');
                     dot.classList.remove('bg-white/30');
                 } else {
-                    dot.classList.remove('bg-[#F53003]', 'w-8');
+                    dot.classList.remove('bg-[#F53003]', 'w-8', 'ring-2', 'ring-[#F53003]/50');
                     dot.classList.add('bg-white/30');
                 }
             });
@@ -169,10 +206,26 @@
             showSlide(currentSlide);
         }
 
-        // Auto-play slider
-        if (totalSlides > 1) {
-            setInterval(nextSlide, 5000);
+        // Auto-play slider with pause on hover
+        let autoPlayInterval;
+        function startAutoPlay() {
+            if (totalSlides > 1) {
+                autoPlayInterval = setInterval(nextSlide, 6000);
+            }
         }
+        function stopAutoPlay() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+            }
+        }
+        
+        const slider = document.getElementById('hero-slider');
+        if (slider) {
+            slider.addEventListener('mouseenter', stopAutoPlay);
+            slider.addEventListener('mouseleave', startAutoPlay);
+        }
+        
+        startAutoPlay();
 
         // Trailer Modal
         function openTrailer(trailerUrl, movieTitle) {
@@ -211,6 +264,46 @@
             }
         });
     </script>
+    
+    <style>
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .hero-slide {
+            will-change: opacity, transform;
+        }
+        
+        .hero-bg-image {
+            will-change: transform;
+        }
+        
+        .slider-dot {
+            transition: all 0.3s ease;
+        }
+        
+        .slider-dot:hover {
+            transform: scale(1.2);
+        }
+    </style>
     
 <!-- Ticket Check Section (#ve) -->
 <section id="ticket-check" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70">
@@ -440,7 +533,7 @@
                                     <a href="{{ route('movies.show', $movie->id) }}" class="flex-1 bg-white/20 backdrop-blur text-white py-2 rounded-lg text-center font-medium hover:bg-white/30 transition">
                                         Xem chi tiết
                                     </a>
-                                    <a href="{{ route('booking', $movie->id) }}" class="flex-1 bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg text-center font-medium transition">
+                                    <a href="{{ route('booking.showtimes', $movie->id) }}" class="flex-1 bg-[#F53003] hover:bg-red-600 text-white py-2 rounded-lg text-center font-medium transition">
                                         Đặt vé
                                     </a>
                                 </div>

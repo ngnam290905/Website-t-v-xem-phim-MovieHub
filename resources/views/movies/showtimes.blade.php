@@ -136,7 +136,7 @@
                                         $showTime = \Carbon\Carbon::parse($showtime->thoi_gian_bat_dau);
                                         $isPastShowtime = $showTime->lt($now);
                                     @endphp
-                                    <a href="{{ !$isPastShowtime ? route('booking', ['movie' => $movie->id, 'showtime' => $showtime->id]) : '#' }}" 
+                                    <a href="{{ !$isPastShowtime ? route('booking.showtimes', $movie->id) : '#' }}" 
                                        class="time-btn px-4 py-2 border rounded-md text-sm font-medium {{ $isPastShowtime ? 'border-gray-700 text-gray-500 bg-gray-800 cursor-not-allowed disabled' : 'border-gray-600 text-white hover:bg-[#F53003] hover:border-[#F53003]' }} transition-colors"
                                        @if($isPastShowtime) title="Suất chiếu đã qua" @endif>
                                         {{ $showTime->format('H:i') }}
