@@ -94,6 +94,46 @@ class Phim extends Model
 
         return 'Chưa có dữ liệu';
     }
+    
+    /**
+     * Lấy đường dẫn đầy đủ đến poster
+     *
+     * @return string
+     */
+    public function getPosterUrlAttribute()
+    {
+        $fallback = asset('images/no-poster.svg');
+
+        // Nếu không có poster, trả về ảnh mặc định
+        if (empty($this->poster)) {
+            return $fallback;
+        }
+
+        // Nếu poster là URL đầy đủ
+        if (filter_var($this->poster, FILTER_VALIDATE_URL)) {
+            return $this->poster;
+        }
+
+        // Nếu bắt đầu bằng storage/
+        if (strpos($this->poster, 'storage/') === 0) {
+            return asset($this->poster);
+        }
+
+        // Kiểm tra nếu file tồn tại trong storage
+        $storagePath = 'posters/' . ltrim($this->poster, '/');
+        if (Storage::disk('public')->exists($storagePath)) {
+            return asset('storage/' . $storagePath);
+        }
+
+        // Kiểm tra trong thư mục public/images
+        $publicPath = 'images/posters/' . ltrim($this->poster, '/');
+        if (file_exists(public_path($publicPath))) {
+            return asset($publicPath);
+        }
+
+        // Nếu không tìm thấy file, trả về ảnh mặc định
+        return $fallback;
+    }
 
     /**
      * Tính tổng doanh thu từ tất cả các vé đã thanh toán thành công.
@@ -149,39 +189,4 @@ class Phim extends Model
             ->count();
     }
 
-    /**
-     * Build full poster URL with robust fallbacks.
-     */
-    public function getPosterUrlAttribute()
-    {
-        $fallback = asset('images/no-poster.svg');
-
-        // If poster already a full URL
-        if (!empty($this->poster) && filter_var($this->poster, FILTER_VALIDATE_URL)) {
-            return $this->poster;
-        }
-
-        // Try storage path: public/posters/{filename} or stored path in column
-        if (!empty($this->poster)) {
-            // If column holds a relative path like posters/abc.jpg
-            $path = $this->poster;
-            if (!str_starts_with($path, 'posters/')) {
-                $candidate = 'posters/' . ltrim($path, '/');
-            } else {
-                $candidate = $path;
-            }
-
-            if (Storage::disk('public')->exists($candidate)) {
-                return Storage::disk('public')->url($candidate);
-            }
-
-            // Try public/images/posters
-            $publicCandidate = public_path('images/' . ltrim($path, '/'));
-            if (file_exists($publicCandidate)) {
-                return asset('images/' . ltrim($path, '/'));
-            }
-        }
-
-        return $fallback;
-    }
 }
