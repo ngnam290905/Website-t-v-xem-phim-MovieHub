@@ -1,12 +1,12 @@
-<header id="main-header" class="bg-[#1b1d24] border-b border-[#262833] sticky top-0 z-50 transition-all duration-300">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
-    <a href="{{ route('home') }}" class="flex items-center gap-3 shrink-0">
-      <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-20 w-20 object-contain rounded">
-      <span class="text-2xl font-semibold">MovieHub</span>
+<header id="main-header" class="bg-transparent sticky top-0 z-50 transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-4">
+    <a href="{{ route('home') }}" class="flex items-center gap-2 shrink-0">
+      <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+      <span class="text-xl font-semibold whitespace-nowrap">MovieHub</span>
     </a>
 
     <!-- Search Bar -->
-    <div class="hidden lg:flex flex-1 max-w-md mx-6">
+    <div class="hidden lg:flex flex-1 max-w-md mx-4">
       <form action="{{ route('movies.index') }}" method="GET" class="w-full relative">
         <input 
           type="text" 
@@ -14,31 +14,31 @@
           id="header-search"
           value="{{ request('search') }}"
           placeholder="Tìm kiếm phim, đạo diễn, diễn viên..." 
-          class="w-full px-4 py-2 pl-10 bg-[#151822] border border-[#262833] rounded-lg text-white placeholder-[#a6a6b0] focus:outline-none focus:border-[#F53003] transition-colors"
+          class="w-full px-3 py-1.5 pl-9 bg-[#151822] border border-[#262833] rounded-lg text-white text-sm placeholder-[#a6a6b0] focus:outline-none focus:border-[#F53003] transition-colors"
         >
-        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-[#a6a6b0]"></i>
+        <i class="fas fa-search absolute left-2.5 top-1/2 transform -translate-y-1/2 text-[#a6a6b0] text-sm"></i>
       </form>
     </div>
 
     <!-- Desktop Navigation -->
-    <nav class="hidden lg:flex items-center gap-6 xl:gap-8 text-[15px]">
-      <a href="{{ route('home') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+    <nav class="hidden lg:flex items-center gap-4 text-sm whitespace-nowrap">
+      <a href="{{ route('home') }}" class="hover:text-[#F53003] transition flex items-center gap-1">
         <i class="fas fa-home text-xs"></i>
         <span>Trang chủ</span>
       </a>
-      <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+      <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition flex items-center gap-1">
         <i class="fas fa-calendar-alt text-xs"></i>
         <span>Lịch chiếu</span>
       </a>
-      <a href="{{ route('public.news') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+      <a href="{{ route('public.news') }}" class="hover:text-[#F53003] transition flex items-center gap-1">
         <i class="fas fa-newspaper text-xs"></i>
         <span>Tin tức</span>
       </a>
-      <a href="{{ route('public.pricing') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+      <a href="{{ route('public.pricing') }}" class="hover:text-[#F53003] transition flex items-center gap-1">
         <i class="fas fa-tags text-xs"></i>
         <span>Giá vé</span>
       </a>
-      <a href="{{ route('about') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+      <a href="{{ route('about') }}" class="hover:text-[#F53003] transition flex items-center gap-1">
         <i class="fas fa-info-circle text-xs"></i>
         <span>Giới thiệu</span>
       </a>
@@ -49,37 +49,32 @@
       <i class="fas fa-bars text-xl"></i>
     </button>
 
-    <div class="flex items-center gap-4 text-[15px]">
+    <div class="flex items-center gap-2 text-sm whitespace-nowrap">
       <!-- Mobile Search Button -->
       <button id="mobile-search-btn" class="lg:hidden text-[#a6a6b0] hover:text-[#F53003] transition">
         <i class="fas fa-search text-xl"></i>
       </button>
 
       <!-- Quick Booking Button -->
-      <a href="{{ route('booking.index') }}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F53003] to-[#ff7849] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#F53003]/50 transition-all">
-        <i class="fas fa-ticket-alt"></i>
+      <a href="{{ route('booking.index') }}" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#F53003] to-[#ff7849] text-white rounded-lg font-medium text-sm hover:shadow-lg hover:shadow-[#F53003]/50 transition-all">
+        <i class="fas fa-ticket-alt text-xs"></i>
         <span>Mua vé nhanh</span>
-      </a>
-
-      <a href="#ve" class="hidden sm:inline-flex items-center gap-2 hover:text-[#F53003]">
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#1b1d24] font-bold">✓</span>
-        Vé
       </a>
 
       @auth
         <div class="relative group">
-          <button class="flex items-center gap-2 hover:text-[#F53003] transition">
-            <div class="w-8 h-8 bg-[#F53003] rounded-full flex items-center justify-center">
-              <span class="text-white text-sm font-medium">{{ strtoupper(substr(auth()->user()->ho_ten, 0, 1)) }}</span>
+          <button class="flex items-center gap-1.5 hover:text-[#F53003] transition">
+            <div class="w-7 h-7 bg-[#F53003] rounded-full flex items-center justify-center">
+              <span class="text-white text-xs font-medium">{{ strtoupper(substr(auth()->user()->ho_ten, 0, 1)) }}</span>
             </div>
             <span class="hidden sm:inline text-sm">{{ auth()->user()->ho_ten }}</span>
             @if(auth()->user()->la_thanh_vien)
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-600 to-orange-600 text-white">
+              <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-600 to-orange-600 text-white">
                 <i class="fas fa-crown text-xs"></i>
                 Thành viên
               </span>
             @endif
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.188l3.71-3.958a.75.75 0 111.08 1.04l-4.24 4.52a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
             </svg>
           </button>
@@ -127,15 +122,15 @@
           </div>
         </div>
       @else
-        <a href="{{ route('login.form') }}" class="inline-flex items-center gap-2 hover:text-[#F53003]">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <a href="{{ route('login.form') }}" class="inline-flex items-center gap-1.5 hover:text-[#F53003] text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 12a5 5 0 100-10 5 5 0 000 10z"/>
             <path fill-rule="evenodd" d="M2 20.25C2 16.245 5.134 13 9 13h6c3.866 0 7 3.245 7 7.25v.75H2v-.75z" clip-rule="evenodd"/>
           </svg>
           Đăng nhập
         </a>
-        <a href="{{ route('register.form') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#F53003] text-[#ff7a5f] hover:bg-[#2a2d3a]">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <a href="{{ route('register.form') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#F53003] text-[#ff7a5f] hover:bg-[#2a2d3a] text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 12a5 5 0 100-10 5 5 0 000 10z"/>
             <path d="M12 14c-4.418 0-8 3.134-8 7v1h9.5a6.5 6.5 0 000-13H12z"/>
           </svg>
@@ -146,7 +141,7 @@
   </div>
 
   <!-- Mobile Search Bar -->
-  <div id="mobile-search" class="hidden lg:hidden border-t border-[#262833] px-4 py-3 bg-[#1b1d24]">
+  <div id="mobile-search" class="hidden lg:hidden border-t border-[#262833] px-4 py-3 bg-transparent">
     <form action="{{ route('movies.index') }}" method="GET" class="relative">
       <input 
         type="text" 
@@ -163,7 +158,7 @@
   </div>
 
   <!-- Mobile Menu -->
-  <div id="mobile-menu" class="hidden lg:hidden border-t border-[#262833] bg-[#1b1d24]">
+  <div id="mobile-menu" class="hidden lg:hidden border-t border-[#262833] bg-transparent">
     <nav class="flex flex-col px-4 py-4 space-y-1">
       <a href="{{ route('home') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
         <i class="fas fa-home text-[#F53003]"></i>
@@ -196,6 +191,15 @@
     const mobileMenu = document.getElementById('mobile-menu');
     mobileSearch.classList.toggle('hidden');
     mobileMenu.classList.add('hidden'); // Close menu when opening search
+    
+    // Update background based on scroll position
+    if (window.scrollY > 40) {
+      mobileSearch.classList.add('bg-[#1b1d24]');
+      mobileSearch.classList.remove('bg-transparent');
+    } else {
+      mobileSearch.classList.remove('bg-[#1b1d24]');
+      mobileSearch.classList.add('bg-transparent');
+    }
   });
 
   document.getElementById('mobile-search-close')?.addEventListener('click', function() {
@@ -208,15 +212,53 @@
     const mobileSearch = document.getElementById('mobile-search');
     mobileMenu.classList.toggle('hidden');
     mobileSearch.classList.add('hidden'); // Close search when opening menu
-  });
-
-  // Sticky header shadow on scroll
-  window.addEventListener('scroll', function() {
-    const header = document.getElementById('main-header');
-    if (window.scrollY > 50) {
-      header.classList.add('shadow-lg', 'shadow-black/20');
+    
+    // Update background based on scroll position
+    if (window.scrollY > 40) {
+      mobileMenu.classList.add('bg-[#1b1d24]');
+      mobileMenu.classList.remove('bg-transparent');
     } else {
-      header.classList.remove('shadow-lg', 'shadow-black/20');
+      mobileMenu.classList.remove('bg-[#1b1d24]');
+      mobileMenu.classList.add('bg-transparent');
     }
   });
+
+  // Function to update header background
+  function updateHeaderBackground() {
+    const header = document.getElementById('main-header');
+    const mobileSearch = document.getElementById('mobile-search');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (window.scrollY > 40) {
+      // Add black background when scrolled
+      header.classList.add('bg-[#1b1d24]', 'border-b', 'border-[#262833]', 'shadow-lg', 'shadow-black/20');
+      header.classList.remove('bg-transparent');
+      if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+        mobileSearch.classList.add('bg-[#1b1d24]');
+        mobileSearch.classList.remove('bg-transparent');
+      }
+      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+        mobileMenu.classList.add('bg-[#1b1d24]');
+        mobileMenu.classList.remove('bg-transparent');
+      }
+    } else {
+      // Remove background when at top
+      header.classList.remove('bg-[#1b1d24]', 'border-b', 'border-[#262833]', 'shadow-lg', 'shadow-black/20');
+      header.classList.add('bg-transparent');
+      if (mobileSearch) {
+        mobileSearch.classList.remove('bg-[#1b1d24]');
+        mobileSearch.classList.add('bg-transparent');
+      }
+      if (mobileMenu) {
+        mobileMenu.classList.remove('bg-[#1b1d24]');
+        mobileMenu.classList.add('bg-transparent');
+      }
+    }
+  }
+
+  // Header background on scroll
+  window.addEventListener('scroll', updateHeaderBackground);
+  
+  // Check scroll position on page load
+  updateHeaderBackground();
 </script>

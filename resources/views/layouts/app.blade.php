@@ -34,6 +34,7 @@
   </head>
   <body class="min-h-screen bg-[#0f0f12] text-white">
     @include('partials.header')
+    @yield('hero')
     <div class="max-w-7xl mx-auto px-4 py-8 flex gap-6">
       <main class="flex-1">
       @yield('content')

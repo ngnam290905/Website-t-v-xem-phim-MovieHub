@@ -68,6 +68,11 @@
             <input type="checkbox" id="allDays" class="rounded"> Tạo cho tất cả ngày trong khoảng (bao gồm cuối tuần)
           </label>
         </div>
+        <div class="flex items-end">
+          <label class="inline-flex items-center gap-2 text-sm text-[#a6a6b0]">
+            <input type="checkbox" id="autoRemoveConflicts" class="rounded" checked> Tự động bỏ qua các suất chiếu bị trùng khi lưu
+          </label>
+        </div>
       </div>
 
       <div class="flex items-center justify-between">
@@ -176,7 +181,7 @@
                         <td class="px-3 py-2 text-white">${r.roomName}</td>
                         <td class="px-3 py-2 text-white">${r.dateVN}</td>
                         <td class="px-3 py-2 text-white">${r.startHM}–${r.endHM}</td>
-                        <td class="px-3 py-2">${badge}</td>
+                        <td class="px-3 py-2">${badge}${r.conflictReason ? `<br><span class="text-xs text-red-300 mt-1 block">${r.conflictReason}</span>` : ''}</td>
                         <td class="px-3 py-2"><button data-i="${i}" class="del bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">Xóa</button></td>`;
           tbody.appendChild(tr);
         });
@@ -244,11 +249,18 @@
         // Render lại để hiển thị trạng thái conflict
         render();
         
-        // Cập nhật thông báo và disable nút lưu nếu có conflict
+        // Cập nhật thông báo - cho phép lưu và tự động bỏ qua các suất conflict
+        const validCount = rows.length - conflictCount;
+        const autoRemove = document.getElementById('autoRemoveConflicts')?.checked ?? true;
+        
         if(conflictCount > 0) {
-          warn.textContent = `Có ${conflictCount} suất chiếu không hợp lệ (trùng với suất chiếu đã có hoặc tự-chồng). Vui lòng xóa các suất chiếu không hợp lệ trước khi lưu.`;
+          if(autoRemove) {
+            warn.textContent = `Có ${conflictCount} suất chiếu không hợp lệ sẽ tự động bỏ qua. ${validCount} suất hợp lệ sẽ được lưu.`;
+          } else {
+            warn.textContent = `Có ${conflictCount} suất chiếu không hợp lệ (trùng với suất chiếu đã có hoặc tự-chồng). Vui lòng xóa các suất chiếu không hợp lệ trước khi lưu.`;
+          }
           warn.classList.remove('hidden');
-          btnSave.disabled = true;
+          btnSave.disabled = validCount === 0; // Chỉ disable nếu không có suất hợp lệ nào
         } else {
           warn.classList.add('hidden');
           btnSave.disabled = false;
@@ -307,9 +319,10 @@
             // Logic tổng quát: Overlap nếu: x.sMin <= end && x.eMin >= cur
             // Nếu có interval, cần kiểm tra khoảng cách >= interval
             const overlap = day.some(x => {
-              // Kiểm tra overlap trực tiếp (bao gồm chạm nhau)
-              if(x.sMin <= end && x.eMin >= cur) return true;
-              // Nếu có interval, kiểm tra khoảng cách
+              // Kiểm tra overlap thực sự (không bao gồm chạm nhau)
+              // Overlap nếu: x.sMin < end && x.eMin > cur
+              if(x.sMin < end && x.eMin > cur) return true;
+              // Nếu có interval, kiểm tra khoảng cách giữa các suất
               if(interval > 0) {
                 // Nếu suất mới bắt đầu sau suất cũ, khoảng cách phải >= interval
                 if(cur > x.eMin && cur - x.eMin < interval) return true;
@@ -327,23 +340,28 @@
           }
           const base=new Date(fmtDateISO(d)+'T00:00:00');
           const now = new Date();
-          day.forEach(item=>{
+            day.forEach(item=>{
             const s=addMin(base,item.sMin); const e=addMin(base,item.eMin);
             // Kiểm tra thời gian không được trong quá khứ
-            if(s <= now || e <= now) {
-              item.conflict = true; // Đánh dấu conflict nếu trong quá khứ
+            // Chỉ đánh dấu conflict nếu thời gian bắt đầu đã qua (không tính thời gian kết thúc)
+            let conflictReason = null;
+            if(s <= now) {
+              item.conflict = true; // Đánh dấu conflict nếu thời gian bắt đầu đã qua
+              conflictReason = 'Thời gian trong quá khứ';
+            } else if(item.conflict) {
+              conflictReason = 'Tự-chồng với suất chiếu khác trong ngày';
             }
             rows.push({ movieId, movieName, roomId, roomName,
               dateISO: fmtDateISO(d), dateVN: fmtDateISO(d).split('-').reverse().join('/'),
-              startISO: s.toISOString(), endISO: e.toISOString(), startHM: fmtHM(s), endHM: fmtHM(e), conflict: item.conflict });
+              startISO: s.toISOString(), endISO: e.toISOString(), startHM: fmtHM(s), endHM: fmtHM(e), 
+              conflict: item.conflict, conflictReason: conflictReason });
           });
         }
         if(rows.length===0){ alert('Không tạo được suất nào.'); return; }
         const now = new Date();
         const pastRows = rows.filter(r => {
           const start = new Date(r.startISO);
-          const end = new Date(r.endISO);
-          return start <= now || end <= now;
+          return start <= now;
         });
         if(pastRows.length > 0) {
           warn.textContent=`Có ${pastRows.length} suất chiếu trong quá khứ đã được đánh dấu trùng. Chỉ có thể tạo suất chiếu trong tương lai.`;
@@ -361,8 +379,17 @@
       btnSave.addEventListener('click', async function(e){
         e.preventDefault();
         const token=document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        const valids=rows.filter(r=>!r.conflict); if(!valids.length){ alert('Không có suất hợp lệ.'); return; }
-        btnSave.disabled=true; let ok=0, fail=0, conflicts=0;
+        // Tự động lọc bỏ các suất chiếu bị conflict - chỉ lưu các suất hợp lệ
+        const valids=rows.filter(r=>!r.conflict); 
+        const skippedCount = rows.length - valids.length;
+        
+        if(!valids.length){ 
+          alert('Không có suất hợp lệ để lưu. Vui lòng kiểm tra lại các tham số.'); 
+          return; 
+        }
+        
+        btnSave.disabled=true; 
+        let ok=0, fail=0, conflicts=0;
 
         const concurrency = 8; // số request chạy song song tối đa
         let index = 0;
@@ -392,13 +419,25 @@
         const workers = Array.from({length: Math.min(concurrency, valids.length)}, () => worker());
         await Promise.all(workers);
 
-        if(conflicts > 0) {
-          alert(`Đã tạo thành công ${ok} suất.\n${conflicts} suất bị trùng lịch với suất chiếu đã có trong cùng phòng và không được lưu.\nLỗi khác: ${fail}.`);
-        } else {
-          alert(`Đã tạo thành công ${ok} suất. Lỗi khác: ${fail}.`);
+        // Hiển thị thông báo chi tiết về kết quả
+        let message = `Đã tạo thành công ${ok} suất chiếu.`;
+        if(skippedCount > 0) {
+          message += `\n${skippedCount} suất chiếu không hợp lệ đã được tự động bỏ qua (trùng hoặc tự-chồng).`;
         }
-        if(ok > 0 || conflicts === 0) {
+        if(conflicts > 0) {
+          message += `\n${conflicts} suất chiếu bị trùng với suất chiếu đã có trong database và không được lưu.`;
+        }
+        if(fail > 0) {
+          message += `\n${fail} suất chiếu gặp lỗi khác.`;
+        }
+        
+        alert(message);
+        
+        // Chuyển đến trang danh sách nếu có ít nhất 1 suất được tạo thành công
+        if(ok > 0) {
           window.location.href='{{ route('admin.suat-chieu.index') }}';
+        } else {
+          btnSave.disabled = false; // Cho phép thử lại nếu không có suất nào được tạo
         }
       });
     });

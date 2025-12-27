@@ -23,37 +23,53 @@
     // Xử lý đường dẫn ảnh - đảm bảo hiển thị tất cả ảnh
     $finalSrc = $finalFallback;
     
-    if ($src) {
+    // Kiểm tra src có hợp lệ không (không null, không empty, không chỉ có khoảng trắng)
+    $srcValid = $src && trim($src) !== '' && $src !== 'null' && $src !== 'undefined';
+    
+    if ($srcValid) {
+        $src = trim($src);
+        $foundValidPath = false;
+        
         // Nếu là URL đầy đủ (http/https)
         if (filter_var($src, FILTER_VALIDATE_URL)) {
             $finalSrc = $src;
+            $foundValidPath = true;
         }
         // Nếu bắt đầu bằng / hoặc storage/
         elseif (str_starts_with($src, '/') || str_starts_with($src, 'storage/')) {
             $finalSrc = asset($src);
+            $foundValidPath = true;
         }
         // Nếu là đường dẫn tương đối trong storage
         elseif (str_contains($src, 'posters/') || str_contains($src, 'images/')) {
             $finalSrc = asset('storage/' . $src);
+            $foundValidPath = true;
         }
         // Thử các đường dẫn khác
         else {
-            // Thử storage path
             try {
+                // Thử storage path
                 if (Storage::disk('public')->exists($src)) {
                     $finalSrc = Storage::disk('public')->url($src);
+                    $foundValidPath = true;
                 }
                 // Thử public/images
                 elseif (file_exists(public_path('images/' . $src))) {
                     $finalSrc = asset('images/' . $src);
+                    $foundValidPath = true;
                 }
-                // Sử dụng src như đã cho
+                // Thử storage/posters
+                elseif (Storage::disk('public')->exists('posters/' . $src)) {
+                    $finalSrc = Storage::disk('public')->url('posters/' . $src);
+                    $foundValidPath = true;
+                }
+                // Nếu không tìm thấy file, dùng fallback
                 else {
-                    $finalSrc = $src;
+                    $finalSrc = $finalFallback;
                 }
             } catch (\Exception $e) {
-                // Nếu có lỗi, sử dụng src trực tiếp hoặc fallback
-                $finalSrc = $src ?: $finalFallback;
+                // Nếu có lỗi, luôn dùng fallback
+                $finalSrc = $finalFallback;
             }
         }
     }

@@ -14,6 +14,13 @@
         <p class="text-[#a6a6b0] mt-1">Quản lý tất cả các suất chiếu trong hệ thống</p>
       </div>
       <div class="flex items-center gap-2">
+        <form method="POST" action="{{ route('admin.suat-chieu.destroy-all') }}" onsubmit="return confirm('Bạn có chắc chắn muốn xóa TẤT CẢ suất chiếu chưa có booking? Hành động này không thể hoàn tác!');" class="inline">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
+            <i class="fas fa-trash-alt mr-2"></i>Xóa Tất Cả
+          </button>
+        </form>
         <a href="{{ route('admin.suat-chieu.auto') }}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center shadow-lg hover:shadow-xl">
           <i class="fas fa-magic mr-2"></i>Tạo suất chiếu tự động
         </a>

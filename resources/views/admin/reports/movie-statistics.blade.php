@@ -73,7 +73,7 @@
         @if(isset($statistics))
             <div id="statistics-content">
                 <!-- Cards thống kê -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <!-- Số suất chiếu -->
                     <div class="bg-gradient-to-br from-blue-600/20 to-blue-800/20 border border-blue-500/30 rounded-xl p-5 hover:border-blue-500/50 transition-all">
                         <div class="flex items-center justify-between mb-3">
@@ -98,18 +98,6 @@
                         <div class="text-xs text-[#a6a6b0]">vé đã thanh toán</div>
                     </div>
 
-                    <!-- Tổng doanh thu -->
-                    <div class="bg-gradient-to-br from-yellow-600/20 to-orange-800/20 border border-yellow-500/30 rounded-xl p-5 hover:border-yellow-500/50 transition-all">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="text-xs text-[#a6a6b0] uppercase tracking-wide">Doanh thu</div>
-                            <i class="fas fa-money-bill-wave text-yellow-400 text-xl"></i>
-                        </div>
-                        <div class="text-2xl font-bold text-white mb-1" id="stat-total-revenue">
-                            {{ number_format($statistics['statistics']['total_revenue'], 0, ',', '.') }} <span class="text-sm">VNĐ</span>
-                        </div>
-                        <div class="text-xs text-[#a6a6b0]">tổng doanh thu</div>
-                    </div>
-
                     <!-- Tỷ lệ lấp đầy -->
                     <div class="bg-gradient-to-br from-purple-600/20 to-pink-800/20 border border-purple-500/30 rounded-xl p-5 hover:border-purple-500/50 transition-all">
                         <div class="flex items-center justify-between mb-3">
@@ -120,36 +108,6 @@
                             {{ number_format($statistics['statistics']['occupancy_rate'], 2) }}%
                         </div>
                         <div class="text-xs text-[#a6a6b0]">ghế đã bán / tổng ghế</div>
-                    </div>
-                </div>
-
-                <!-- Chi tiết doanh thu -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-5">
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-chair text-blue-400"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs text-[#a6a6b0] mb-1">Doanh thu từ vé</div>
-                                <div class="text-xl font-semibold text-white" id="stat-seat-revenue">
-                                    {{ number_format($statistics['statistics']['seat_revenue'], 0, ',', '.') }} VNĐ
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-5">
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-cookie-bite text-orange-400"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs text-[#a6a6b0] mb-1">Doanh thu từ combo</div>
-                                <div class="text-xl font-semibold text-white" id="stat-combo-revenue">
-                                    {{ number_format($statistics['statistics']['combo_revenue'], 0, ',', '.') }} VNĐ
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -218,14 +176,8 @@
                 new Intl.NumberFormat('vi-VN').format(data.statistics.total_showtimes);
             document.getElementById('stat-total-tickets').textContent = 
                 new Intl.NumberFormat('vi-VN').format(data.statistics.total_tickets_sold);
-            document.getElementById('stat-total-revenue').innerHTML = 
-                new Intl.NumberFormat('vi-VN').format(data.statistics.total_revenue) + ' <span class="text-sm">VNĐ</span>';
             document.getElementById('stat-occupancy-rate').textContent = 
                 data.statistics.occupancy_rate.toFixed(2) + '%';
-            document.getElementById('stat-seat-revenue').textContent = 
-                new Intl.NumberFormat('vi-VN').format(data.statistics.seat_revenue) + ' VNĐ';
-            document.getElementById('stat-combo-revenue').textContent = 
-                new Intl.NumberFormat('vi-VN').format(data.statistics.combo_revenue) + ' VNĐ';
 
             // Update chart if data exists
             if (data.chart_data.tickets_by_date && Object.keys(data.chart_data.tickets_by_date).length > 0) {

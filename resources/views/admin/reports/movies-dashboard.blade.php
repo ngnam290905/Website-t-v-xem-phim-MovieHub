@@ -56,7 +56,6 @@
         <div>
           <label class="text-xs text-[#a6a6b0] mb-1 block">Sắp xếp theo</label>
           <select id="sort-by" class="px-3 py-2 rounded-lg border border-[#2f3240] bg-[#0f0f12] text-white text-sm focus:outline-none focus:border-[#FF784E]">
-            <option value="revenue" {{ $data['sort_by'] === 'revenue' ? 'selected' : '' }}>Doanh thu</option>
             <option value="tickets" {{ $data['sort_by'] === 'tickets' ? 'selected' : '' }}>Số vé bán</option>
             <option value="showtimes" {{ $data['sort_by'] === 'showtimes' ? 'selected' : '' }}>Số suất chiếu</option>
           </select>
@@ -73,7 +72,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
         <div class="flex items-center justify-between mb-2">
           <div class="text-xs text-[#a6a6b0]">Tổng số phim</div>
@@ -97,14 +96,6 @@
         </div>
         <div class="text-2xl font-bold text-white">{{ number_format($data['summary']['total_tickets_sold']) }}</div>
       </div>
-
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-xs text-[#a6a6b0]">Tổng doanh thu</div>
-          <i class="fas fa-money-bill-wave text-yellow-400"></i>
-        </div>
-        <div class="text-2xl font-bold text-white">{{ number_format($data['summary']['total_revenue'], 0, ',', '.') }} VNĐ</div>
-      </div>
     </div>
 
     <!-- Movies Table -->
@@ -118,7 +109,6 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase">Phim</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase">Suất chiếu</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase">Vé bán</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase">Doanh thu</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-[#a6a6b0] uppercase">Thao tác</th>
             </tr>
           </thead>
@@ -148,7 +138,6 @@
                 </td>
                 <td class="px-4 py-3 text-white">{{ number_format($movie['total_showtimes']) }}</td>
                 <td class="px-4 py-3 text-white">{{ number_format($movie['total_tickets_sold']) }}</td>
-                <td class="px-4 py-3 text-white font-semibold">{{ number_format($movie['total_revenue'], 0, ',', '.') }} VNĐ</td>
                 <td class="px-4 py-3">
                   <a href="{{ route('admin.movies.show', $movie['id']) }}" class="inline-flex items-center px-3 py-1.5 rounded bg-blue-600/20 text-blue-300 text-xs hover:bg-blue-600/30">
                     <i class="fas fa-eye mr-2"></i> Chi tiết
@@ -157,7 +146,7 @@
               </tr>
             @empty
               <tr>
-                <td colspan="5" class="px-4 py-8 text-center text-[#a6a6b0]">
+                <td colspan="4" class="px-4 py-8 text-center text-[#a6a6b0]">
                   <i class="fas fa-info-circle mb-2"></i>
                   <p>Không có dữ liệu thống kê</p>
                 </td>

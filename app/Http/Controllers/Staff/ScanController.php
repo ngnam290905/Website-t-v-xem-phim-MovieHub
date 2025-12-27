@@ -26,20 +26,40 @@ class ScanController extends Controller
             ]);
         }
 
-        // Extract ticket ID from QR code format (ticket_id=1234 or just 1234)
-        if (preg_match('/ticket_id[=:](\d+)/i', $ticketId, $matches)) {
+        // Extract ticket ID from QR code format
+        // Support formats: ticket_id=123, ticket_id=MV000123, MV000123, 123
+        $rawTicketId = trim($ticketId);
+        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $rawTicketId, $matches)) {
             $ticketId = $matches[1];
-        } elseif (preg_match('/(\d+)/', $ticketId, $matches)) {
-            $ticketId = $matches[1];
+        } else {
+            $ticketId = $rawTicketId;
         }
 
         // Find ticket by ID or ticket_code
-        $ticket = DatVe::with([
-            'suatChieu.phim',
-            'chiTietDatVe.ghe'
-        ])->where('id', $ticketId)
-          ->orWhere('ticket_code', $ticketId)
-          ->first();
+        // Try numeric ID first, then ticket_code
+        $ticket = null;
+        
+        // If ticketId is numeric, try to find by ID first
+        if (is_numeric($ticketId)) {
+            $ticket = DatVe::with([
+                'suatChieu.phim',
+                'chiTietDatVe.ghe'
+            ])->where('id', (int)$ticketId)->first();
+        }
+        
+        // If not found or ticketId is not numeric, try ticket_code
+        if (!$ticket) {
+            $ticket = DatVe::with([
+                'suatChieu.phim',
+                'chiTietDatVe.ghe'
+            ])->where(function($q) use ($ticketId) {
+                $q->where('ticket_code', $ticketId);
+                // Also try numeric ID if ticketId contains numbers
+                if (is_numeric($ticketId)) {
+                    $q->orWhere('id', (int)$ticketId);
+                }
+            })->first();
+        }
 
         if (!$ticket) {
             return response()->json([
@@ -72,16 +92,11 @@ class ScanController extends Controller
             ]);
         }
         $now = Carbon::now();
+        // Chỉ kiểm tra vé đã hết hạn (sau giờ chiếu hoặc sau expires_at)
         if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
             return response()->json([
                 'valid' => false,
                 'message' => 'Vé đã hết hạn'
-            ]);
-        }
-        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
-            return response()->json([
-                'valid' => false,
-                'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu'
             ]);
         }
 
@@ -115,15 +130,27 @@ class ScanController extends Controller
         }
 
         // Extract ticket ID
-        if (preg_match('/ticket_id[=:](\d+)/i', $ticketId, $matches)) {
+        $rawTicketId = trim($ticketId);
+        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $rawTicketId, $matches)) {
             $ticketId = $matches[1];
-        } elseif (preg_match('/(\d+)/', $ticketId, $matches)) {
-            $ticketId = $matches[1];
+        } else {
+            $ticketId = $rawTicketId;
         }
 
-        $ticket = DatVe::where('id', $ticketId)
-                      ->orWhere('ticket_code', $ticketId)
-                      ->first();
+        // Try numeric ID first, then ticket_code
+        $ticket = null;
+        if (is_numeric($ticketId)) {
+            $ticket = DatVe::where('id', (int)$ticketId)->first();
+        }
+        
+        if (!$ticket) {
+            $ticket = DatVe::where(function($q) use ($ticketId) {
+                $q->where('ticket_code', $ticketId);
+                if (is_numeric($ticketId)) {
+                    $q->orWhere('id', (int)$ticketId);
+                }
+            })->first();
+        }
 
         if (!$ticket) {
             return response()->json([
@@ -154,16 +181,11 @@ class ScanController extends Controller
             ]);
         }
         $now = Carbon::now();
+        // Chỉ kiểm tra vé đã hết hạn (sau giờ chiếu hoặc sau expires_at)
         if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Vé đã hết hạn'
-            ]);
-        }
-        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu'
             ]);
         }
 

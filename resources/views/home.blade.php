@@ -2,8 +2,7 @@
 
 @section('title', 'MovieHub - Đặt vé xem phim')
 
-@section('content')
-<div class="min-h-screen bg-[#0d0f14]">
+@section('hero')
     <!-- Hero Slider Section -->
     <section class="relative h-[80vh] overflow-hidden">
         @if(isset($featuredMovies) && $featuredMovies->count() > 0)
@@ -127,7 +126,10 @@
         @endif
         <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0d0f14] to-transparent z-10"></div>
     </section>
+@endsection
 
+@section('content')
+<div class="min-h-screen bg-[#0d0f14]">
     <!-- Trailer Modal -->
     <div id="trailer-modal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/90">
         <div class="relative w-full max-w-5xl mx-4">

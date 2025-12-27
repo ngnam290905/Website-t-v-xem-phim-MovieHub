@@ -38,6 +38,10 @@
             <h2 class="text-xl font-semibold text-white flex items-center gap-2">
                 <i class="fas fa-ticket-alt text-blue-500"></i> Danh sách Đặt Vé
             </h2>
+            <a href="{{ route('admin.bookings.create') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                <i class="fas fa-plus"></i>
+                <span>Đặt vé mới</span>
+            </a>
             {{-- FORM TÌM KIẾM ĐÃ TỐI ƯU --}}
             <form method="GET" action="{{ route('admin.bookings.index') }}" class="w-full">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3">
@@ -122,9 +126,7 @@
                     <tbody class="divide-y divide-[#262833] bg-[#151822]">
                         @foreach ($bookings as $booking)
                             @php
-
                                 $isExpired = optional($booking->suatChieu)->thoi_gian_bat_dau < now();
-                                $isEditable = $booking->trang_thai != 2 && !$isExpired;
                             @endphp
                             {{-- ID ROW ĐỂ JS XÓA --}}
                             <tr id="row-{{ $booking->id }}" class="hover:bg-[#1b1e28]/70 transition group">
@@ -274,16 +276,6 @@
                                            title="Xem chi tiết">
                                             <i class="fas fa-eye"></i>
                                         </a>
-
-                                        @auth
-                                            @if (optional(auth()->user()->vaiTro)->ten === 'admin' && $isEditable)
-                                                <a href="{{ route('admin.bookings.edit', $booking->id) }}"
-                                                   class="w-8 h-8 flex items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
-                                                   title="Sửa vé">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            @endif
-                                        @endauth
 
                                         @if ($booking->trang_thai == 0)
                                             <form action="{{ route('admin.bookings.update', $booking->id) }}" method="POST" class="inline">

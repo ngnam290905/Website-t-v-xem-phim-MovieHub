@@ -476,37 +476,66 @@ class PhongChieuController extends Controller
      */
     private function createSeatsForRoom(PhongChieu $phongChieu, $rows, $cols, $defaultType = 'normal')
     {
-        // Xác định id_loai dựa trên defaultType
-        // Database mapping: 1=Thường, 2=VIP, 3=Đôi
-        $typeIdMap = [
-            'normal' => 1,   // Ghế thường - id 1
-            'vip' => 2,      // Ghế VIP - id 2
-            'couple' => 3,   // Ghế đôi - id 3
-        ];
+        // Lấy các loại ghế từ database
+        $normalSeatType = LoaiGhe::where('ten_loai', 'normal')->first() 
+            ?? LoaiGhe::where('ten_loai', 'thường')->first()
+            ?? LoaiGhe::first();
         
-        $typeId = $typeIdMap[$defaultType] ?? 1;
+        $vipSeatType = LoaiGhe::where('ten_loai', 'vip')->first() 
+            ?? LoaiGhe::where('ten_loai', 'VIP')->first()
+            ?? LoaiGhe::where('id', 2)->first();
         
-        // Kiểm tra xem loại ghế này có tồn tại không
-        $seatType = LoaiGhe::find($typeId);
+        $coupleSeatType = LoaiGhe::where('ten_loai', 'couple')->first()
+            ?? LoaiGhe::where('ten_loai', 'đôi')->first()
+            ?? LoaiGhe::where('id', 3)->first();
         
-        // Nếu không tồn tại, tìm loại ghế đầu tiên
-        if (!$seatType) {
-            $seatType = LoaiGhe::first();
-            $typeId = $seatType ? $seatType->id : null;
-        }
+        // Nếu không tìm thấy, sử dụng loại ghế đầu tiên làm mặc định
+        $normalTypeId = $normalSeatType ? $normalSeatType->id : 1;
+        $vipTypeId = $vipSeatType ? $vipSeatType->id : ($normalSeatType ? $normalSeatType->id : 1);
+        $coupleTypeId = $coupleSeatType ? $coupleSeatType->id : ($normalSeatType ? $normalSeatType->id : 1);
         
         $seats = [];
+        
+        // Cấu trúc ghế: mỗi hàng có 19 ghế, hàng L có 16 ghế đôi
+        // Ghế VIP: D3-D16 và J3-J16
+        // Hàng L: ghế đôi từ L1-L16
+        
         for ($row = 1; $row <= $rows; $row++) {
-            for ($col = 1; $col <= $cols; $col++) {
+            $rowLetter = chr(64 + $row); // A, B, C, D, ...
+            
+            // Xác định số ghế cho hàng này
+            // Hàng L (row 12) chỉ có 16 ghế đôi
+            $maxCols = ($rowLetter === 'L') ? 16 : $cols;
+            
+            for ($col = 1; $col <= $maxCols; $col++) {
+                $seatCode = $rowLetter . $col; // A1, A2, D3, D16, J3, J16, L1, L16...
+                
+                // Xác định loại ghế
+                $seatTypeId = $normalTypeId; // Mặc định là ghế thường
+                
+                // Hàng L: tất cả là ghế đôi
+                if ($rowLetter === 'L') {
+                    $seatTypeId = $coupleTypeId;
+                }
+                // Hàng D (row 4): ghế 3-16 là VIP
+                elseif ($rowLetter === 'D' && $col >= 3 && $col <= 16) {
+                    $seatTypeId = $vipTypeId;
+                }
+                // Hàng J (row 10): ghế 3-16 là VIP
+                elseif ($rowLetter === 'J' && $col >= 3 && $col <= 16) {
+                    $seatTypeId = $vipTypeId;
+                }
+                
                 $seats[] = [
                     'id_phong' => $phongChieu->id,
-                    'id_loai' => $typeId,
+                    'id_loai' => $seatTypeId,
                     'so_hang' => $row,
-                    'so_ghe' => chr(64 + $row) . $col, // ví dụ A1, A2...
+                    'so_ghe' => $seatCode,
                     'trang_thai' => 1,
                 ];
             }
         }
+        
         if (!empty($seats)) {
             Ghe::insert($seats);
         }

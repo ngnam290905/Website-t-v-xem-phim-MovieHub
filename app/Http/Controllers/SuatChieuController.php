@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\SuatChieu;
 use App\Models\Phim;
 use App\Models\PhongChieu;
+use App\Models\DatVe;
+use App\Models\ChiTietDatVe;
+use App\Models\ChiTietCombo;
+use App\Models\ThanhToan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -148,13 +152,9 @@ class SuatChieuController extends Controller
         $now = \Carbon\Carbon::now();
         
         // Kiểm tra start_time không được trong quá khứ
+        // Chỉ cần kiểm tra start_time vì nếu start_time trong tương lai thì end_time cũng sẽ trong tương lai
         if ($startTime->lte($now)) {
             return back()->withErrors(['start_time' => 'Không thể tạo suất chiếu vào thời gian quá khứ.'])->withInput();
-        }
-        
-        // Kiểm tra end_time không được trong quá khứ
-        if ($endTime->lte($now)) {
-            return back()->withErrors(['end_time' => 'Không thể tạo suất chiếu kết thúc trong quá khứ.'])->withInput();
         }
         $startHour = $startTime->hour;
         $endHour = $endTime->hour;
@@ -190,24 +190,6 @@ class SuatChieuController extends Controller
             if ($durationMinutes < $phim->do_dai) {
                 return back()->withErrors(['end_time' => "Thời gian suất chiếu ({$durationMinutes} phút) không thể nhỏ hơn thời lượng phim ({$phim->do_dai} phút)."])->withInput();
             }
-        }
-
-        // Kiểm tra xem phòng đã có suất chiếu trong cùng ngày chưa
-        $startDate = $startTime->format('Y-m-d');
-        $existingShowtimeInDay = SuatChieu::where('id_phong', $request->room_id)
-            ->whereDate('thoi_gian_bat_dau', $startDate)
-            ->with('phim')
-            ->first();
-        
-        if ($existingShowtimeInDay) {
-            $movieName = $existingShowtimeInDay->phim ? $existingShowtimeInDay->phim->ten_phim : 'phim khác';
-            $existingStart = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_bat_dau);
-            $existingEnd = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_ket_thuc);
-            $existingTime = $existingStart->format('d/m/Y H:i') . ' - ' . $existingEnd->format('H:i');
-            
-            return back()->withErrors([
-                'room_id' => "Phòng chiếu này đã có suất chiếu trong ngày ({$movieName} từ {$existingTime}). Không thể tạo suất chiếu mới vào phòng đã có suất chiếu trong cùng ngày."
-            ])->withInput();
         }
 
         // Check for time conflicts - kiểm tra overlap giữa 2 khoảng thời gian
@@ -259,7 +241,7 @@ class SuatChieuController extends Controller
                 ])->withInput();
             }
             
-            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng. Không thể tạo trùng suất chiếu trong cùng một ngày.'])->withInput();
+            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng. Không thể tạo suất chiếu trùng hoặc chạm nhau.'])->withInput();
         }
 
         SuatChieu::create([
@@ -326,13 +308,9 @@ class SuatChieuController extends Controller
         $now = \Carbon\Carbon::now();
         
         // Kiểm tra start_time không được trong quá khứ
+        // Chỉ cần kiểm tra start_time vì nếu start_time trong tương lai thì end_time cũng sẽ trong tương lai
         if ($startTime->lte($now)) {
             return back()->withErrors(['start_time' => 'Không thể đặt suất chiếu vào thời gian quá khứ.'])->withInput();
-        }
-        
-        // Kiểm tra end_time không được trong quá khứ
-        if ($endTime->lte($now)) {
-            return back()->withErrors(['end_time' => 'Không thể đặt suất chiếu kết thúc trong quá khứ.'])->withInput();
         }
         
         $startHour = $startTime->hour;
@@ -366,25 +344,6 @@ class SuatChieuController extends Controller
             if ($durationMinutes < $phim->do_dai) {
                 return back()->withErrors(['end_time' => "Thời gian suất chiếu ({$durationMinutes} phút) không thể nhỏ hơn thời lượng phim ({$phim->do_dai} phút)."])->withInput();
             }
-        }
-
-        // Kiểm tra xem phòng đã có suất chiếu khác trong cùng ngày chưa (trừ suất chiếu hiện tại)
-        $startDate = $startTime->format('Y-m-d');
-        $existingShowtimeInDay = SuatChieu::where('id_phong', $request->room_id)
-            ->where('id', '!=', $suatChieu->id)
-            ->whereDate('thoi_gian_bat_dau', $startDate)
-            ->with('phim')
-            ->first();
-        
-        if ($existingShowtimeInDay) {
-            $movieName = $existingShowtimeInDay->phim ? $existingShowtimeInDay->phim->ten_phim : 'phim khác';
-            $existingStart = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_bat_dau);
-            $existingEnd = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_ket_thuc);
-            $existingTime = $existingStart->format('d/m/Y H:i') . ' - ' . $existingEnd->format('H:i');
-            
-            return back()->withErrors([
-                'room_id' => "Phòng chiếu này đã có suất chiếu khác trong ngày ({$movieName} từ {$existingTime}). Không thể cập nhật suất chiếu vào phòng đã có suất chiếu khác trong cùng ngày."
-            ])->withInput();
         }
 
         // Check for time conflicts (excluding current suat chieu)
@@ -434,7 +393,7 @@ class SuatChieuController extends Controller
                 ])->withInput();
             }
             
-            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng. Không thể tạo trùng suất chiếu trong cùng một ngày.'])->withInput();
+            return back()->withErrors(['start_time' => 'Thời gian này đã bị trùng với suất chiếu khác trong cùng phòng. Không thể tạo suất chiếu trùng hoặc chạm nhau.'])->withInput();
         }
 
         $suatChieu->update([
@@ -463,6 +422,71 @@ class SuatChieuController extends Controller
 
         return redirect()->route('admin.suat-chieu.index')
             ->with('success', 'Xóa suất chiếu thành công!');
+    }
+
+    /**
+     * Delete all showtimes (only those without bookings)
+     */
+    public function destroyAll(Request $request)
+    {
+        $force = $request->input('force', false);
+        
+        try {
+            DB::beginTransaction();
+            
+            if ($force) {
+                // Xóa tất cả suất chiếu kể cả có booking (nguy hiểm)
+                // Xóa các booking liên quan trước
+                $showtimes = SuatChieu::all();
+                $deletedCount = 0;
+                $skippedCount = 0;
+                
+                foreach ($showtimes as $showtime) {
+                    // Xóa các booking liên quan
+                    $bookings = DatVe::where('id_suat_chieu', $showtime->id)->get();
+                    foreach ($bookings as $booking) {
+                        // Xóa chi tiết booking
+                        ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+                        ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+                        ThanhToan::where('id_dat_ve', $booking->id)->delete();
+                        $booking->delete();
+                    }
+                    
+                    // Xóa suất chiếu
+                    $showtime->delete();
+                    $deletedCount++;
+                }
+                
+                DB::commit();
+                
+                return redirect()->route('admin.suat-chieu.index')
+                    ->with('success', "Đã xóa tất cả {$deletedCount} suất chiếu (bao gồm cả các suất có booking).");
+            } else {
+                // Chỉ xóa các suất chiếu chưa có booking (an toàn)
+                $showtimesWithoutBookings = SuatChieu::doesntHave('datVe')->get();
+                $deletedCount = $showtimesWithoutBookings->count();
+                
+                foreach ($showtimesWithoutBookings as $showtime) {
+                    $showtime->delete();
+                }
+                
+                $totalShowtimes = SuatChieu::count();
+                
+                DB::commit();
+                
+                if ($deletedCount > 0) {
+                    return redirect()->route('admin.suat-chieu.index')
+                        ->with('success', "Đã xóa {$deletedCount} suất chiếu chưa có booking. Còn lại {$totalShowtimes} suất chiếu có booking.");
+                } else {
+                    return redirect()->route('admin.suat-chieu.index')
+                        ->with('info', 'Không có suất chiếu nào để xóa (tất cả đều có booking).');
+                }
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('admin.suat-chieu.index')
+                ->withErrors(['error' => 'Có lỗi xảy ra khi xóa suất chiếu: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -514,28 +538,6 @@ class SuatChieuController extends Controller
         ]);
 
         $startTime = \Carbon\Carbon::parse($request->start_time);
-        $startDate = $startTime->format('Y-m-d');
-
-        // Kiểm tra xem phòng đã có suất chiếu trong cùng ngày chưa
-        $existingShowtimeInDay = SuatChieu::where('id_phong', $request->room_id)
-            ->whereDate('thoi_gian_bat_dau', $startDate)
-            ->with('phim')
-            ->first();
-        
-        if ($existingShowtimeInDay) {
-            $movieName = $existingShowtimeInDay->phim ? $existingShowtimeInDay->phim->ten_phim : 'phim khác';
-            $existingStart = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_bat_dau);
-            $existingEnd = \Carbon\Carbon::parse($existingShowtimeInDay->thoi_gian_ket_thuc);
-            $existingTime = $existingStart->format('d/m/Y H:i') . ' - ' . $existingEnd->format('H:i');
-            
-            return response()->json([
-                'has_conflict' => true,
-                'conflict_type' => 'room_has_showtime',
-                'movie_name' => $movieName,
-                'conflict_time' => $existingTime,
-                'message' => "Phòng chiếu đã có suất chiếu trong ngày ({$movieName} từ {$existingTime})"
-            ]);
-        }
 
         // Kiểm tra trùng hoàn toàn
         $exactDuplicate = SuatChieu::where('id_phong', $request->room_id)

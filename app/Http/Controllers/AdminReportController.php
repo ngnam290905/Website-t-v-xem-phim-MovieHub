@@ -20,22 +20,50 @@ class AdminReportController extends Controller
 {
     public function advancedDashboard()
     {
-        // Financial Overview
-        $todayRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        // Financial Overview - Tính cả vé và combo
+        $todaySeatRevenue = DB::table('chi_tiet_dat_ve')
+            ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereDate('dat_ve.created_at', Carbon::today())
-            ->sum('chi_tiet_dat_ve.gia_ve');
+            ->sum(DB::raw('COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)'));
+        
+        $todayComboRevenue = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereDate('dat_ve.created_at', Carbon::today())
+            ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)'));
+        
+        $todayRevenue = $todaySeatRevenue + $todayComboRevenue;
 
-        $monthRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        $monthSeatRevenue = DB::table('chi_tiet_dat_ve')
+            ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereMonth('dat_ve.created_at', Carbon::now()->month)
             ->whereYear('dat_ve.created_at', Carbon::now()->year)
-            ->sum('chi_tiet_dat_ve.gia_ve');
+            ->sum(DB::raw('COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)'));
+        
+        $monthComboRevenue = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereMonth('dat_ve.created_at', Carbon::now()->month)
+            ->whereYear('dat_ve.created_at', Carbon::now()->year)
+            ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)'));
+        
+        $monthRevenue = $monthSeatRevenue + $monthComboRevenue;
 
-        $yearRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        $yearSeatRevenue = DB::table('chi_tiet_dat_ve')
+            ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereYear('dat_ve.created_at', Carbon::now()->year)
-            ->sum('chi_tiet_dat_ve.gia_ve');
+            ->sum(DB::raw('COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)'));
+        
+        $yearComboRevenue = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereYear('dat_ve.created_at', Carbon::now()->year)
+            ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)'));
+        
+        $yearRevenue = $yearSeatRevenue + $yearComboRevenue;
 
         // Customer Analytics
         $totalCustomers = NguoiDung::where('trang_thai', 1)->count();
@@ -44,11 +72,14 @@ class AdminReportController extends Controller
             ->whereYear('created_at', Carbon::now()->year)
             ->count();
 
-        $vipCustomers = NguoiDung::join('dat_ve', 'nguoi_dung.id', '=', 'dat_ve.id_nguoi_dung')
-            ->join('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+        // VIP customers - Tính cả vé và combo
+        $vipCustomers = DB::table('nguoi_dung')
+            ->join('dat_ve', 'nguoi_dung.id', '=', 'dat_ve.id_nguoi_dung')
+            ->leftJoin(DB::raw('(SELECT id_dat_ve, SUM(COALESCE(gia_ve, gia)) as seat_total FROM chi_tiet_dat_ve GROUP BY id_dat_ve) as seat_rev'), 'dat_ve.id', '=', 'seat_rev.id_dat_ve')
+            ->leftJoin(DB::raw('(SELECT id_dat_ve, SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total FROM chi_tiet_dat_ve_combo GROUP BY id_dat_ve) as combo_rev'), 'dat_ve.id', '=', 'combo_rev.id_dat_ve')
             ->where('dat_ve.trang_thai', 1)
             ->select('nguoi_dung.id', 'nguoi_dung.ho_ten', 'nguoi_dung.email')
-            ->selectRaw('SUM(chi_tiet_dat_ve.gia_ve) as total_spent')
+            ->selectRaw('SUM(COALESCE(seat_rev.seat_total, 0) + COALESCE(combo_rev.combo_total, 0)) as total_spent')
             ->groupBy('nguoi_dung.id', 'nguoi_dung.ho_ten', 'nguoi_dung.email')
             ->having('total_spent', '>', 1000000) // VIP customers who spent more than 1M
             ->count();
@@ -141,21 +172,65 @@ class AdminReportController extends Controller
             }
         }
 
-        // Revenue by movie
-        $revenueByMovie = $query->select(
-            'phim.id',
-            'phim.ten_phim',
-            'phim.poster',
-            DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
-            DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-            DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price')
-        )
-        ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster')
-        ->orderBy('total_revenue', 'desc')
-        ->get();
+        // Revenue by movie - Tính cả vé và combo
+        $seatSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
+            ->groupBy('id_dat_ve');
+        
+        $comboSub = DB::table('chi_tiet_dat_ve_combo')
+            ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
+            ->groupBy('id_dat_ve');
+        
+        $revenueByMovie = DB::table('phim')
+            ->join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
+            ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
+            ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->where('dat_ve.trang_thai', 1)
+            ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
+                return $q->whereBetween('dat_ve.created_at', [$startDate, $endDate]);
+            }, function($q) use ($period) {
+                switch ($period) {
+                    case 'today':
+                        return $q->whereDate('dat_ve.created_at', Carbon::today());
+                    case 'week':
+                        return $q->whereBetween('dat_ve.created_at', [
+                            Carbon::now()->startOfWeek(),
+                            Carbon::now()->endOfWeek()
+                        ]);
+                    case 'month':
+                        return $q->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                              ->whereYear('dat_ve.created_at', Carbon::now()->year);
+                    case 'year':
+                        return $q->whereYear('dat_ve.created_at', Carbon::now()->year);
+                }
+            })
+            ->select(
+                'phim.id',
+                'phim.ten_phim',
+                'phim.poster',
+                DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as total_revenue'),
+                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
+                DB::raw('AVG(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as avg_ticket_price')
+            )
+            ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster')
+            ->orderBy('total_revenue', 'desc')
+            ->get();
 
-        // Revenue by day
-        $revenueByDay = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        // Revenue by day - Tính cả vé và combo
+        $seatSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
+            ->groupBy('id_dat_ve');
+        
+        $comboSub = DB::table('chi_tiet_dat_ve_combo')
+            ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
+            ->groupBy('id_dat_ve');
+        
+        $revenueByDay = DB::table('dat_ve')
+            ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
             ->where('dat_ve.trang_thai', 1)
             ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
                 return $q->whereBetween('dat_ve.created_at', [$startDate, $endDate]);
@@ -177,7 +252,7 @@ class AdminReportController extends Controller
             })
             ->select(
                 DB::raw('DATE(dat_ve.created_at) as date'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as daily_revenue'),
+                DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as daily_revenue'),
                 DB::raw('COUNT(chi_tiet_dat_ve.id) as daily_tickets')
             )
             ->groupBy('date')
@@ -226,22 +301,52 @@ class AdminReportController extends Controller
                 break;
         }
 
-        // Top customers by spending
-        $topCustomers = $query->select(
-            'nguoi_dung.id',
-            'nguoi_dung.ho_ten',
-            'nguoi_dung.email',
-            'nguoi_dung.sdt',
-            'nguoi_dung.created_at as registration_date',
-            DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_spent'),
-            DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-            DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price'),
-            DB::raw('MAX(dat_ve.created_at) as last_booking_date')
-        )
-        ->groupBy('nguoi_dung.id', 'nguoi_dung.ho_ten', 'nguoi_dung.email', 'nguoi_dung.sdt', 'nguoi_dung.created_at')
-        ->orderBy('total_spent', 'desc')
-        ->limit($limit)
-        ->get();
+        // Top customers by spending - Tính cả vé và combo
+        $seatSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
+            ->groupBy('id_dat_ve');
+        
+        $comboSub = DB::table('chi_tiet_dat_ve_combo')
+            ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
+            ->groupBy('id_dat_ve');
+        
+        $topCustomers = DB::table('nguoi_dung')
+            ->join('dat_ve', 'nguoi_dung.id', '=', 'dat_ve.id_nguoi_dung')
+            ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->where('dat_ve.trang_thai', 1)
+            ->when($period === 'today', function($q) {
+                return $q->whereDate('dat_ve.created_at', Carbon::today());
+            })
+            ->when($period === 'week', function($q) {
+                return $q->whereBetween('dat_ve.created_at', [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek()
+                ]);
+            })
+            ->when($period === 'month', function($q) {
+                return $q->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                      ->whereYear('dat_ve.created_at', Carbon::now()->year);
+            })
+            ->when($period === 'year', function($q) {
+                return $q->whereYear('dat_ve.created_at', Carbon::now()->year);
+            })
+            ->select(
+                'nguoi_dung.id',
+                'nguoi_dung.ho_ten',
+                'nguoi_dung.email',
+                'nguoi_dung.sdt',
+                'nguoi_dung.created_at as registration_date',
+                DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as total_spent'),
+                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
+                DB::raw('AVG(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as avg_ticket_price'),
+                DB::raw('MAX(dat_ve.created_at) as last_booking_date')
+            )
+            ->groupBy('nguoi_dung.id', 'nguoi_dung.ho_ten', 'nguoi_dung.email', 'nguoi_dung.sdt', 'nguoi_dung.created_at')
+            ->orderBy('total_spent', 'desc')
+            ->limit($limit)
+            ->get();
 
         // Customer segments
         $customerSegments = [
@@ -278,6 +383,7 @@ class AdminReportController extends Controller
                 ->where('suat_chieu.id_phong_chieu', $theater->id)
                 ->where('dat_ve.trang_thai', 1)
                 ->whereDate('dat_ve.created_at', Carbon::today())
+                ->distinct('chi_tiet_dat_ve.id_ghe')
                 ->count();
 
             $utilizationRate = $totalSeats > 0 ? ($occupiedSeats / $totalSeats) * 100 : 0;
@@ -311,7 +417,7 @@ class AdminReportController extends Controller
                     ->where('ghe.id_loai_ghe', $seatType->id)
                     ->where('dat_ve.trang_thai', 1)
                     ->whereDate('dat_ve.created_at', Carbon::today())
-                    ->sum('chi_tiet_dat_ve.gia_ve')
+                    ->sum(DB::raw('COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)'))
             ];
         });
 
@@ -352,9 +458,9 @@ class AdminReportController extends Controller
                 'phim.poster',
                 'phim.thoi_luong',
                 'phim.ngay_khoi_chieu',
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+                DB::raw('SUM(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as total_revenue'),
                 DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-                DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price'),
+                DB::raw('AVG(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as avg_ticket_price'),
                 DB::raw('COUNT(DISTINCT dat_ve.id_nguoi_dung) as unique_customers')
             )
             ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster', 'phim.thoi_luong', 'phim.ngay_khoi_chieu')
@@ -384,7 +490,7 @@ class AdminReportController extends Controller
             ->select(
                 DB::raw('HOUR(suat_chieu.gio_chieu) as hour'),
                 DB::raw('COUNT(chi_tiet_dat_ve.id) as ticket_count'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as revenue')
+                DB::raw('SUM(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as revenue')
             )
             ->groupBy('hour')
             ->orderBy('ticket_count', 'desc')
@@ -481,20 +587,52 @@ class AdminReportController extends Controller
                 break;
         }
 
-        $hotMovies = $query->select(
-            'phim.id',
-            'phim.ten_phim',
-            'phim.poster',
-            'phim.the_loai',
-            'phim.quoc_gia',
-            'phim.ngay_khoi_chieu',
-            DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
-            DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets_sold'),
-            DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
-            DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price'),
-            DB::raw('COUNT(DISTINCT dat_ve.id_nguoi_dung) as unique_customers'),
-            DB::raw('COUNT(DISTINCT suat_chieu.id) as total_showtimes')
-        )
+        // Tính cả vé và combo cho hotMovies
+        $seatSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
+            ->groupBy('id_dat_ve');
+        
+        $comboSub = DB::table('chi_tiet_dat_ve_combo')
+            ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
+            ->groupBy('id_dat_ve');
+        
+        $hotMovies = DB::table('phim')
+            ->join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
+            ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
+            ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
+            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->where('dat_ve.trang_thai', 1)
+            ->when($period === 'today', function($q) {
+                return $q->whereDate('dat_ve.created_at', Carbon::today());
+            })
+            ->when($period === 'week', function($q) {
+                return $q->whereBetween('dat_ve.created_at', [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek()
+                ]);
+            })
+            ->when($period === 'month', function($q) {
+                return $q->whereMonth('dat_ve.created_at', Carbon::now()->month)
+                      ->whereYear('dat_ve.created_at', Carbon::now()->year);
+            })
+            ->when($period === 'year', function($q) {
+                return $q->whereYear('dat_ve.created_at', Carbon::now()->year);
+            })
+            ->select(
+                'phim.id',
+                'phim.ten_phim',
+                'phim.poster',
+                'phim.the_loai',
+                'phim.quoc_gia',
+                'phim.ngay_khoi_chieu',
+                DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
+                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets_sold'),
+                DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as total_revenue'),
+                DB::raw('AVG(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as avg_ticket_price'),
+                DB::raw('COUNT(DISTINCT dat_ve.id_nguoi_dung) as unique_customers'),
+                DB::raw('COUNT(DISTINCT suat_chieu.id) as total_showtimes')
+            )
         ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster', 'phim.the_loai', 'phim.quoc_gia', 'phim.ngay_khoi_chieu')
         ->orderBy('total_tickets_sold', 'desc')
         ->limit($limit)
@@ -574,7 +712,7 @@ class AdminReportController extends Controller
                 DB::raw('HOUR(dat_ve.created_at) as booking_hour'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
                 DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+                DB::raw('SUM(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as total_revenue'),
                 DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price')
             )
             ->groupBy('day_of_week', 'booking_hour')
@@ -600,7 +738,7 @@ class AdminReportController extends Controller
                 DB::raw('HOUR(dat_ve.created_at) as booking_hour'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings'),
                 DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia_ve) as total_revenue'),
+                DB::raw('SUM(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as total_revenue'),
                 DB::raw('AVG(chi_tiet_dat_ve.gia_ve) as avg_ticket_price')
             )
             ->groupBy('booking_hour')
@@ -680,7 +818,7 @@ class AdminReportController extends Controller
         $period = $request->get('period', 'all');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
-        $sortBy = $request->get('sort_by', 'revenue');
+        $sortBy = $request->get('sort_by', 'tickets');
         $sortOrder = $request->get('sort_order', 'desc');
         $limit = $request->get('limit');
 

@@ -123,7 +123,34 @@
 
     select option {
         color-scheme: dark !important;
-        }
+    }
+    
+    /* Custom scrollbar styles */
+    .scrollbar-thin {
+        scrollbar-width: thin;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .scrollbar-thumb-\[#262833\]::-webkit-scrollbar-thumb {
+        background-color: #262833;
+        border-radius: 3px;
+    }
+    
+    .scrollbar-thumb-\[#333548\]::-webkit-scrollbar-thumb {
+        background-color: #333548;
+    }
+    
+    .scrollbar-track-transparent::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .hover\:scrollbar-thumb-\[#333548\]:hover::-webkit-scrollbar-thumb {
+        background-color: #333548;
+    }
     </style>
     
     @stack('styles')
@@ -136,20 +163,20 @@
       </button>
 
       <!-- Sidebar cố định -->
-      <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40 lg:z-auto">
+      <aside id="sidebar" class="w-64 bg-[#151822] border-r border-[#262833] flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:static inset-y-0 left-0 z-40 lg:z-auto h-screen overflow-hidden">
         <!-- Header -->
-        <div class="p-6 border-b border-[#262833]">
+        <div class="p-4 border-b border-[#262833] shrink-0">
           <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3">
-            <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-12 w-12 object-contain rounded">
+            <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-10 w-10 object-contain rounded">
             <div>
-              <span class="text-xl font-bold text-white">MovieHub</span>
+              <span class="text-lg font-bold text-white">MovieHub</span>
               <p class="text-xs text-[#a6a6b0]">{{ request()->routeIs('staff.*') ? 'Staff Panel' : 'Admin Panel' }}</p>
             </div>
           </a>
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 p-4 space-y-2">
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-[#262833] scrollbar-track-transparent hover:scrollbar-thumb-[#333548]">
           <!-- Dashboard -->
           <a href="{{ request()->routeIs('staff.*') ? route('staff.dashboard') : route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') || request()->routeIs('staff.dashboard') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
             <i class="fas fa-tachometer-alt w-5"></i>
@@ -159,7 +186,7 @@
           @if(request()->routeIs('admin.*'))
             <!-- Admin only menu items -->
             <div class="space-y-1">
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Quản lý</div>
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1 mt-2">Quản lý</div>
               <a href="{{ route('admin.phong-chieu.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.phong-chieu.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-video w-5"></i>
                 <span>Phòng chiếu</span>
@@ -176,10 +203,22 @@
                 <i class="fas fa-film w-5"></i>
                 <span>Phim</span>
               </a>
-              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.index') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-ticket-alt w-5"></i>
                 <span>Đặt vé</span>
               </a>
+              @if(optional(auth()->user()->vaiTro)->ten === 'staff')
+              <a href="{{ route('admin.bookings.my-bookings') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.my-bookings') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-user-tag w-5"></i>
+                <span>Vé của tôi</span>
+              </a>
+              @endif
+              @if(optional(auth()->user()->vaiTro)->ten === 'staff')
+              <a href="{{ route('admin.bookings.create') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.create') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-plus-circle w-5"></i>
+                <span>Đặt vé mới</span>
+              </a>
+              @endif
               <a href="{{ route('admin.scan.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.scan.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-qrcode w-5"></i>
                 <span>Quản lý Scan</span>
@@ -204,7 +243,7 @@
           @else
             <!-- Staff only menu items -->
             <div class="space-y-1">
-              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Xem thông tin</div>
+              <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1 mt-2">Xem thông tin</div>
 
               <!-- Movies -->
               <a href="{{ route('admin.movies.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.movies.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
@@ -219,9 +258,17 @@
               </a>
 
               <!-- Tickets -->
-              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.*') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+              <a href="{{ route('admin.bookings.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.index') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
                 <i class="fas fa-ticket-alt w-5"></i>
                 <span>Vé</span>
+              </a>
+              <a href="{{ route('admin.bookings.my-bookings') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.my-bookings') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-user-tag w-5"></i>
+                <span>Vé của tôi</span>
+              </a>
+              <a href="{{ route('admin.bookings.create') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.bookings.create') ? 'bg-[#F53003] text-white' : 'text-[#a6a6b0] hover:bg-[#222533] hover:text-white' }}">
+                <i class="fas fa-plus-circle w-5"></i>
+                <span>Đặt vé mới</span>
               </a>
 
               <!-- Scan Management -->
@@ -246,7 +293,7 @@
             </nav>
 
         <!-- Footer -->
-        <div class="p-4 border-t border-[#262833] space-y-2">
+        <div class="p-4 border-t border-[#262833] space-y-2 shrink-0">
           <div class="space-y-1">
             <div class="text-xs text-[#666] font-semibold uppercase tracking-wider px-3 py-1">Hệ thống</div>
             <a href="{{ route('home') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[#a6a6b0] hover:bg-[#222533] hover:text-white transition-colors duration-200">
@@ -269,9 +316,9 @@
       <div id="mobile-overlay" class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 hidden"></div>
 
             <!-- Main content -->
-      <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex flex-col overflow-hidden min-w-0">
         <!-- Top bar -->
-        <header class="bg-[#1a1d24] border-b border-[#262833] px-6 py-4">
+        <header class="bg-[#1a1d24] border-b border-[#262833] px-6 py-4 shrink-0">
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-white">@yield('page-title', 'Admin')</h1>
@@ -286,7 +333,7 @@
         </header>
 
         <!-- Content area -->
-        <main class="flex-1 overflow-y-auto bg-[#0d0f14]">
+        <main class="flex-1 overflow-y-auto bg-[#0d0f14] scrollbar-thin scrollbar-thumb-[#262833] scrollbar-track-transparent hover:scrollbar-thumb-[#333548]">
           <div class="max-w-6xl mx-auto p-6">
                     @yield('content')
                 </div>

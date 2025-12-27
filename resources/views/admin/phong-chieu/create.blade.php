@@ -80,6 +80,22 @@
             Cấu hình sơ đồ ghế
           </h3>
           
+          <!-- Info about automatic seat structure -->
+          <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <i class="fas fa-info-circle text-[#F53003] mt-1"></i>
+              <div class="text-sm text-[#a6a6b0]">
+                <p class="font-medium text-white mb-1">Cấu trúc ghế tự động:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2">
+                  <li>Mỗi hàng có <strong class="text-white">19 ghế</strong> (hàng L: 16 ghế đôi)</li>
+                  <li>Ghế <strong class="text-yellow-400">VIP</strong>: D3-D16 và J3-J16</li>
+                  <li>Hàng <strong class="text-purple-400">L</strong>: 16 ghế đôi (L1-L16)</li>
+                  <li>Các ghế còn lại: ghế thường</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <!-- Number of Rows -->
             <div class="space-y-2">
@@ -92,12 +108,12 @@
                      min="1" 
                      max="20" 
                      class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('rows') border-red-500 @enderror" 
-                     value="{{ old('rows', 10) }}" 
+                     value="{{ old('rows', 12) }}" 
                      required>
               @error('rows')
                 <p class="text-red-400 text-sm mt-1">{{ $message }}</p>
               @enderror
-              <p class="text-xs text-[#a6a6b0]">Tối đa 20 hàng (A, B, C...)</p>
+              <p class="text-xs text-[#a6a6b0]">Tối đa 20 hàng (A-L: 12 hàng chuẩn)</p>
             </div>
 
             <!-- Number of Seats per Row -->
@@ -111,12 +127,12 @@
                      min="1" 
                      max="30" 
                      class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('cols') border-red-500 @enderror" 
-                     value="{{ old('cols', 15) }}" 
+                     value="{{ old('cols', 19) }}" 
                      required>
               @error('cols')
                 <p class="text-red-400 text-sm mt-1">{{ $message }}</p>
               @enderror
-              <p class="text-xs text-[#a6a6b0]">Tối đa 30 ghế mỗi hàng</p>
+              <p class="text-xs text-[#a6a6b0]">19 ghế/hàng chuẩn (hàng L: 16 ghế đôi)</p>
             </div>
 
             <!-- Default Seat Type as radio -->

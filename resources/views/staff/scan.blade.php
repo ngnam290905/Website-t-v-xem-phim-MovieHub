@@ -75,6 +75,14 @@
                         <p><span class="text-gray-400">Giờ chiếu:</span> <span id="result-showtime" class="font-semibold"></span></p>
                         <p class="text-sm text-gray-400 mt-4">Mã vé: <span id="result-ticket-code"></span></p>
                     </div>
+                    <!-- Warning message for too early -->
+                    <div id="too-early-warning" class="hidden mt-4 p-4 bg-yellow-900/30 border-2 border-yellow-500 rounded-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                            <p id="too-early-message" class="text-yellow-300 font-semibold"></p>
+                        </div>
+                        <p id="minutes-info" class="text-yellow-200 text-sm"></p>
+                    </div>
                     <button 
                         id="confirm-checkin" 
                         class="mt-4 w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition"
@@ -337,6 +345,14 @@ function showValidResult(ticket) {
     document.getElementById('result-seats').textContent = ticket.seats;
     document.getElementById('result-showtime').textContent = ticket.showtime;
     document.getElementById('result-ticket-code').textContent = ticket.ticket_code || ticket.id;
+    
+    // Hide warning and enable confirm button
+    const warningDiv = document.getElementById('too-early-warning');
+    const confirmBtn = document.getElementById('confirm-checkin');
+    warningDiv.classList.add('hidden');
+    confirmBtn.disabled = false;
+    confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    confirmBtn.textContent = 'Xác nhận';
 }
 
 // Show invalid result

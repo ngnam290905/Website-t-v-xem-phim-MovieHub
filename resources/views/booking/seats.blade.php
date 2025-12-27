@@ -39,7 +39,7 @@
         <div class="shrink-0">
           <div class="relative group">
             <x-image 
-              src="{{ $showtime->phim->poster_url ?? $showtime->phim->poster }}" 
+              src="{{ $showtime->phim->poster_url ?? $showtime->phim->poster ?? asset('images/no-poster.svg') }}" 
               alt="{{ $showtime->phim->ten_phim }}"
               aspectRatio="2/3"
               class="w-32 md:w-40 rounded-xl shadow-lg"
@@ -199,6 +199,8 @@
             <div id="seat-map-scale" class="inline-block space-y-4" style="transform-origin: top center; display:block; margin: 0 auto;">
               @foreach($seatMatrix as $rowLabel => $rowSeats)
                 @php
+                  $rowIndex = array_search($rowLabel, array_keys($seatMatrix));
+                  
                   $isVipRow = in_array($rowLabel, $vipRows);
                   $rowIndex = array_search($rowLabel, array_keys($seatMatrix));
                   
@@ -300,6 +302,7 @@
                               $seat = $seatData;
                               $status = $seat->booking_status ?? 'available';
                               $seatType = $seat->seatType ?? $seat->loaiGhe ?? null;
+                              
                               $isVipSeat = ($seat->id_loai == 2) || ($seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false);
                               $isCoupleSeat = ($seat->id_loai == 3) || ($seat->is_double ?? false) || ($seatType && (
                                 strpos(strtolower($seatType->ten_loai ?? ''), 'đôi') !== false ||
@@ -417,8 +420,8 @@
                             <!-- Enhanced Tooltip -->
                             <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-4 py-3 bg-gradient-to-br from-[#1a1d24] via-[#2a2d3a] to-[#1a1d24] text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-50 shadow-2xl border border-[#FF784E]/50 pointer-events-none backdrop-blur-sm">
                               <div class="flex items-center gap-2 mb-2">
-                                <div class="w-2 h-2 rounded-full bg-[#FF784E]"></div>
-                                <div class="font-bold text-[#FF784E]">Ghế {{ $seat->so_ghe }}</div>
+                                <div class="w-2 h-2 rounded-full @if($isVipSeat) bg-yellow-500 @else bg-[#FF784E] @endif"></div>
+                                <div class="font-bold @if($isVipSeat) text-yellow-400 @else text-[#FF784E] @endif">Ghế {{ $seat->so_ghe }}</div>
                               </div>
                               <div class="text-[#E6E7EB] font-semibold mb-1">{{ number_format($price) }}đ</div>
                               <div class="text-[#A0A6B1] text-[10px] flex items-center gap-1">

@@ -175,7 +175,7 @@ class MovieStatisticsService
         ?string $period = 'all',
         ?string $startDate = null,
         ?string $endDate = null,
-        ?string $sortBy = 'revenue',
+        ?string $sortBy = 'tickets',
         ?string $sortOrder = 'desc',
         ?int $limit = null
     ): array {

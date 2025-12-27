@@ -266,7 +266,8 @@ Route::get('/create', [MovieController::class, 'create'])->middleware('role:admi
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
         Route::put('suat-chieu/{suatChieu}', [SuatChieuController::class, 'update'])->name('suat-chieu.update');
         Route::delete('suat-chieu/{suatChieu}', [SuatChieuController::class, 'destroy'])->name('suat-chieu.destroy');
-Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
+        Route::delete('suat-chieu', [SuatChieuController::class, 'destroyAll'])->name('suat-chieu.destroy-all');
+        Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
         Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     });
     // Admin only: xem danh sách/chi tiết
@@ -327,15 +328,20 @@ Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStat
     // Quản lý đặt vé
     Route::prefix('bookings')->name('bookings.')->group(function () {
         Route::get('/', [QuanLyDatVeController::class, 'index'])->name('index');
+        
+        // Staff: Đặt vé mới
+        Route::middleware('role:admin,staff')->group(function () {
+            Route::get('/create', [QuanLyDatVeController::class, 'create'])->name('create');
+            Route::post('/', [QuanLyDatVeController::class, 'store'])->name('store');
+            Route::get('/movie/{movieId}/showtimes', [QuanLyDatVeController::class, 'getShowtimesForStaff'])->name('showtimes');
+            Route::get('/my-bookings', [QuanLyDatVeController::class, 'myBookings'])->name('my-bookings');
+        });
+        
         // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
-        Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
 // Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
-
-        // API cho UI chỉnh sửa vé
-        Route::get('/{id}/available-showtimes', [QuanLyDatVeController::class, 'availableShowtimes'])->name('available-showtimes');
 
         // Đặt SAU cùng
         Route::get('/{id}', [QuanLyDatVeController::class, 'show'])->name('show');

@@ -139,21 +139,31 @@ class ScanController extends Controller
             return response()->json(['valid' => false, 'message' => 'Vui lòng nhập mã vé']);
         }
 
-        // Accept formats like ticket_id=123, MV000123, plain 123
-        $raw = (string)$ticketId;
+        // Accept formats like ticket_id=123, ticket_id=MV000123, MV000123, plain 123
+        $raw = trim((string)$ticketId);
         if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) {
             $raw = $m[1];
         }
-        // Prefer numeric id if digits present (e.g., MV000290 -> 290)
-        $numeric = null;
-        if (preg_match('/(\d+)/', $raw, $m2)) {
-            $numeric = (int)$m2[1];
-        }
+        
+        // Try to find ticket by ticket_code first (more reliable)
         $ticket = DatVe::with(['suatChieu.phim','chiTietDatVe.ghe'])
-            ->when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
-            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
-            ->orWhere('ticket_code', $raw)
+            ->where('ticket_code', $raw)
             ->first();
+        
+        // If not found and raw is numeric, try by ID
+        if (!$ticket && is_numeric($raw)) {
+            $ticket = DatVe::with(['suatChieu.phim','chiTietDatVe.ghe'])
+                ->where('id', (int)$raw)
+                ->first();
+        }
+        
+        // If still not found, try extracting numeric from ticket_code format (MV000290 -> 290)
+        if (!$ticket && preg_match('/(\d+)/', $raw, $m2)) {
+            $numeric = (int)$m2[1];
+            $ticket = DatVe::with(['suatChieu.phim','chiTietDatVe.ghe'])
+                ->where('id', $numeric)
+                ->first();
+        }
 
         if (!$ticket) {
             return response()->json(['valid' => false, 'message' => 'Vé không tồn tại']);
@@ -169,11 +179,9 @@ class ScanController extends Controller
             return response()->json(['valid' => false, 'message' => 'Vé không có suất chiếu hợp lệ']);
         }
         $now = Carbon::now();
+        // Chỉ kiểm tra vé đã hết hạn (sau giờ chiếu hoặc sau expires_at)
         if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
             return response()->json(['valid' => false, 'message' => 'Vé đã hết hạn']);
-        }
-        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
-            return response()->json(['valid' => false, 'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu']);
         }
 
         $seats = $ticket->chiTietDatVe->map(fn($d) => $d->ghe->so_ghe ?? 'N/A')->filter()->implode(', ');
@@ -199,15 +207,24 @@ class ScanController extends Controller
             return response()->json(['success' => false, 'message' => 'Vui lòng nhập mã vé']);
         }
 
-        $raw = (string)$ticketId;
-        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) { $raw = $m[1]; }
-        $numeric = null;
-        if (preg_match('/(\d+)/', $raw, $m2)) { $numeric = (int)$m2[1]; }
-
-        $ticket = DatVe::when($numeric !== null, function($q) use ($numeric) { $q->where('id', $numeric); })
-            ->when($numeric === null, function($q) use ($raw) { $q->where('id', $raw); })
-            ->orWhere('ticket_code', $raw)
-            ->first();
+        $raw = trim((string)$ticketId);
+        if (preg_match('/ticket_id[=:]([A-Za-z0-9]+)/i', $raw, $m)) {
+            $raw = $m[1];
+        }
+        
+        // Try to find ticket by ticket_code first
+        $ticket = DatVe::where('ticket_code', $raw)->first();
+        
+        // If not found and raw is numeric, try by ID
+        if (!$ticket && is_numeric($raw)) {
+            $ticket = DatVe::where('id', (int)$raw)->first();
+        }
+        
+        // If still not found, try extracting numeric from ticket_code format
+        if (!$ticket && preg_match('/(\d+)/', $raw, $m2)) {
+            $numeric = (int)$m2[1];
+            $ticket = DatVe::where('id', $numeric)->first();
+        }
         if (!$ticket) {
             return response()->json(['success' => false, 'message' => 'Vé không tồn tại']);
         }
@@ -222,11 +239,9 @@ class ScanController extends Controller
             return response()->json(['success' => false, 'message' => 'Vé không có suất chiếu hợp lệ']);
         }
         $now = Carbon::now();
+        // Chỉ kiểm tra vé đã hết hạn (sau giờ chiếu hoặc sau expires_at)
         if (($ticket->expires_at && $now->greaterThan(Carbon::parse($ticket->expires_at))) || $now->greaterThanOrEqualTo($showtimeStart)) {
             return response()->json(['success' => false, 'message' => 'Vé đã hết hạn']);
-        }
-        if ($now->lt($showtimeStart->copy()->subMinutes(30))) {
-            return response()->json(['success' => false, 'message' => 'Chỉ có thể quét vé trong vòng 30 phút trước khi phim bắt đầu']);
         }
 
         $ticket->checked_in = true;

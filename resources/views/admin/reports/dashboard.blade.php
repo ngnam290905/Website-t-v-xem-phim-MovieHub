@@ -140,24 +140,51 @@
                             <h3 class="text-xl font-bold text-white">Biểu đồ doanh thu</h3>
                         </div>
                         <div class="flex items-center gap-2">
-                            <select id="revenuePeriod" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select id="revenueChartType" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="line">Đường</option>
+                                <option value="bar">Cột</option>
+                                <option value="area">Vùng</option>
+                            </select>
+                            <select id="revenuePeriod" class="bg-[#262833] border border-[#3a3d4a] rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="today">Hôm nay</option>
                                 <option value="week">Tuần này</option>
                                 <option value="month" selected>Tháng này</option>
                                 <option value="year">Năm nay</option>
                             </select>
-                            <button class="bg-[#F53003] hover:bg-[#e02d03] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <button id="exportChartBtn" class="bg-[#F53003] hover:bg-[#e02d03] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                                 <i class="fas fa-download mr-1"></i>Xuất
                             </button>
                         </div>
                     </div>
+                    <!-- Thống kê nhanh -->
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gradient-to-br from-blue-600/20 to-blue-800/20 border border-blue-500/30 rounded-xl p-4">
+                            <div class="text-gray-400 text-xs mb-1">Tổng doanh thu</div>
+                            <div id="totalRevenueDisplay" class="text-2xl font-bold text-white">0đ</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-600/20 to-green-800/20 border border-green-500/30 rounded-xl p-4">
+                            <div class="text-gray-400 text-xs mb-1">Tổng vé</div>
+                            <div id="totalTicketsDisplay" class="text-2xl font-bold text-white">0</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-600/20 to-purple-800/20 border border-purple-500/30 rounded-xl p-4">
+                            <div class="text-gray-400 text-xs mb-1">Trung bình/ngày</div>
+                            <div id="avgRevenueDisplay" class="text-2xl font-bold text-white">0đ</div>
+                        </div>
+                    </div>
                     <div class="h-96 relative">
                         <canvas id="revenueChart"></canvas>
-                        <div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-[#1a1d29]/90 rounded-lg">
+                        <div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-[#1a1d29]/90 rounded-lg z-10">
                             <div class="text-center">
                                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
                                 <div class="text-gray-400 text-lg font-medium">Đang tải dữ liệu biểu đồ...</div>
                                 <div class="text-gray-500 text-sm mt-2">Vui lòng chờ trong giây lát</div>
+                            </div>
+                        </div>
+                        <div id="chartEmpty" class="absolute inset-0 flex items-center justify-center bg-[#1a1d29]/90 rounded-lg z-10 hidden">
+                            <div class="text-center">
+                                <i class="fas fa-chart-line text-6xl text-gray-600 mb-4"></i>
+                                <div class="text-gray-400 text-lg font-medium">Chưa có dữ liệu doanh thu</div>
+                                <div class="text-gray-500 text-sm mt-2">Vui lòng chọn kỳ khác hoặc thử lại sau</div>
                             </div>
                         </div>
                         <!-- Skeleton loading cho biểu đồ -->
@@ -504,10 +531,19 @@
 $(document).ready(function() {
     let revenueChart;
     
-    // Load initial data
-    loadRevenueData();
-    loadTopMovies();
-    loadTopCustomers();
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        $('#chartLoading').html('<div class="text-center"><div class="text-red-400 text-lg font-medium">Lỗi: Chart.js chưa được tải</div></div>');
+        return;
+    }
+    
+    // Load initial data with delay to ensure everything is ready
+    setTimeout(function() {
+        loadRevenueData();
+        loadTopMovies();
+        loadTopCustomers();
+    }, 100);
     
     // Update last update time
     function updateLastUpdateTime() {
@@ -600,70 +636,176 @@ $(document).ready(function() {
     function loadRevenueData() {
         const period = $('#revenuePeriod').val();
         
+        // Show loading
+        $('#chartLoading').fadeIn();
+        
         $.ajax({
             url: '{{ route("admin.reports.revenue") }}',
             method: 'GET',
             data: { period: period },
             success: function(response) {
-                updateRevenueChart(response.revenue_data);
+                console.log('Revenue data received:', response);
+                if (response && response.revenue_data) {
+                    updateRevenueChart(response.revenue_data, response.total_revenue || 0, response.total_tickets || 0);
+                } else {
+                    $('#chartLoading').fadeOut();
+                    showNotification('Không có dữ liệu để hiển thị', 'warning');
+                    updateRevenueChart([], 0, 0);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading revenue data:', xhr, status, error);
+                $('#chartLoading').fadeOut();
+                let errorMsg = 'Lỗi khi tải dữ liệu biểu đồ';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg += ': ' + xhr.responseJSON.message;
+                } else if (error) {
+                    errorMsg += ': ' + error;
+                }
+                showNotification(errorMsg, 'error');
+                // Show empty chart
+                updateRevenueChart([], 0, 0);
             }
         });
     }
     
-    function updateRevenueChart(data) {
+    function updateRevenueChart(data, totalRevenue = 0, totalTickets = 0) {
         // Hide loading
         $('#chartLoading').fadeOut();
         
-        const ctx = document.getElementById('revenueChart').getContext('2d');
+        // Validate data
+        if (!data || !Array.isArray(data)) {
+            data = [];
+        }
+        
+        // Update statistics
+        const avgRevenue = data.length > 0 ? totalRevenue / data.length : 0;
+        $('#totalRevenueDisplay').text(new Intl.NumberFormat('vi-VN').format(totalRevenue) + 'đ');
+        $('#totalTicketsDisplay').text(new Intl.NumberFormat('vi-VN').format(totalTickets));
+        $('#avgRevenueDisplay').text(new Intl.NumberFormat('vi-VN').format(Math.round(avgRevenue)) + 'đ');
+        
+        const ctx = document.getElementById('revenueChart');
+        if (!ctx) {
+            console.error('Canvas element not found');
+            return;
+        }
+        
+        const chartType = $('#revenueChartType').val() || 'line';
         
         if (revenueChart) {
             revenueChart.destroy();
         }
         
+        // Handle empty data
+        if (data.length === 0) {
+            $('#chartEmpty').removeClass('hidden');
+            // Create a minimal chart to prevent errors
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+            return;
+        }
+        
+        // Hide empty message if data exists
+        $('#chartEmpty').addClass('hidden');
+        
+        // Configure dataset based on chart type
+        let datasetConfig = {
+            label: 'Doanh thu (VNĐ)',
+            data: data.map(item => parseFloat(item.total_revenue) || 0),
+            borderColor: '#F53003',
+            backgroundColor: chartType === 'bar' 
+                ? 'rgba(245, 48, 3, 0.6)' 
+                : chartType === 'area'
+                ? 'rgba(245, 48, 3, 0.3)'
+                : 'rgba(245, 48, 3, 0.1)',
+            borderWidth: chartType === 'bar' ? 2 : 3,
+            tension: chartType === 'line' || chartType === 'area' ? 0.4 : 0,
+            fill: chartType === 'area' || chartType === 'line',
+            pointBackgroundColor: '#F53003',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: chartType === 'bar' ? 0 : 6,
+            pointHoverRadius: chartType === 'bar' ? 0 : 8,
+            borderRadius: chartType === 'bar' ? 4 : 0
+        };
+        
         revenueChart = new Chart(ctx, {
-            type: 'line',
+            type: chartType === 'area' ? 'line' : chartType,
             data: {
                 labels: data.map(item => {
-                    const date = new Date(item.date);
-                    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                    try {
+                        const date = new Date(item.date);
+                        if (isNaN(date.getTime())) {
+                            return item.date || 'N/A';
+                        }
+                        const period = $('#revenuePeriod').val();
+                        if (period === 'year') {
+                            return date.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' });
+                        } else if (period === 'month') {
+                            return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                        } else {
+                            return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        }
+                    } catch (e) {
+                        return item.date || 'N/A';
+                    }
                 }),
-                datasets: [{
-                    label: 'Doanh thu (VNĐ)',
-                    data: data.map(item => item.total_revenue),
-                    borderColor: '#F53003',
-                    backgroundColor: 'rgba(245, 48, 3, 0.1)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#F53003',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
+                datasets: [datasetConfig]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
+                        display: true,
                         labels: {
                             color: '#ffffff',
                             font: {
                                 size: 14,
                                 weight: 'bold'
-                            }
+                            },
+                            padding: 15
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
                         titleColor: '#ffffff',
                         bodyColor: '#ffffff',
                         borderColor: '#F53003',
-                        borderWidth: 1,
+                        borderWidth: 2,
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
                         callbacks: {
                             label: function(context) {
-                                return 'Doanh thu: ' + new Intl.NumberFormat('vi-VN').format(context.parsed.y) + 'đ';
+                                const value = context.parsed.y;
+                                const tickets = data[context.dataIndex]?.total_tickets || 0;
+                                return [
+                                    'Doanh thu: ' + new Intl.NumberFormat('vi-VN').format(value) + 'đ',
+                                    'Số vé: ' + new Intl.NumberFormat('vi-VN').format(tickets)
+                                ];
                             }
                         }
                     }
@@ -671,32 +813,65 @@ $(document).ready(function() {
                 scales: {
                     x: {
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: 'rgba(255, 255, 255, 0.05)',
+                            drawBorder: false
                         },
                         ticks: {
-                            color: '#ffffff'
+                            color: '#9ca3af',
+                            font: {
+                                size: 11
+                            },
+                            maxRotation: 45,
+                            minRotation: 0
                         }
                     },
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            color: 'rgba(255, 255, 255, 0.05)',
+                            drawBorder: false
                         },
                         ticks: {
-                            color: '#ffffff',
+                            color: '#9ca3af',
+                            font: {
+                                size: 11
+                            },
                             callback: function(value) {
+                                if (value >= 1000000) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                } else if (value >= 1000) {
+                                    return (value / 1000).toFixed(0) + 'K';
+                                }
                                 return new Intl.NumberFormat('vi-VN').format(value) + 'đ';
                             }
                         }
                     }
                 },
                 animation: {
-                    duration: 2000,
+                    duration: 1500,
                     easing: 'easeInOutQuart'
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 }
             }
         });
     }
+    
+    // Export chart function
+    $('#exportChartBtn').click(function() {
+        if (revenueChart) {
+            const url = revenueChart.toBase64Image();
+            const link = document.createElement('a');
+            link.download = 'doanh-thu-' + $('#revenuePeriod').val() + '-' + new Date().getTime() + '.png';
+            link.href = url;
+            link.click();
+            showNotification('Đã xuất biểu đồ thành công!', 'success');
+        } else {
+            showNotification('Chưa có dữ liệu biểu đồ để xuất', 'warning');
+        }
+    });
     
     // Top movies
     function loadTopMovies() {
@@ -841,6 +1016,19 @@ $(document).ready(function() {
     // Event listeners
     $('#revenuePeriod').change(function() {
         loadRevenueData();
+    });
+    
+    $('#revenueChartType').change(function() {
+        const period = $('#revenuePeriod').val();
+        $('#chartLoading').fadeIn();
+        $.ajax({
+            url: '{{ route("admin.reports.revenue") }}',
+            method: 'GET',
+            data: { period: period },
+            success: function(response) {
+                updateRevenueChart(response.revenue_data, response.total_revenue, response.total_tickets);
+            }
+        });
     });
     
     $('#topMoviesPeriod').change(function() {
