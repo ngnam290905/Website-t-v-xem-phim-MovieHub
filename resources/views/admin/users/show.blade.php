@@ -132,7 +132,7 @@
             $seats = $b->chiTietDatVe->map(function($ct){ return optional($ct->ghe)->so_ghe; })->filter()->implode(', ');
           @endphp
           <div class="flex items-center gap-4 bg-[#1a1d29] border border-[#262833] rounded-lg p-3">
-            <img src="{{ $movie->poster ?? asset('images/default-poster.jpg') }}" alt="{{ $movie->ten_phim ?? 'Movie' }}" class="w-16 h-24 object-cover rounded hidden sm:block">
+            <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim ?? 'Movie' }}" class="w-16 h-24 object-cover rounded hidden sm:block" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
             <div class="flex-1">
               <div class="flex items-center justify-between">
                 <div class="text-white font-semibold">#{{ $b->id }} • {{ $movie->ten_phim ?? 'N/A' }}</div>

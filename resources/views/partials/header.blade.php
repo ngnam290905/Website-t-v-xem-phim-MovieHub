@@ -1,17 +1,66 @@
-<header class="bg-[#1b1d24] border-b border-[#262833]">
+<header id="main-header" class="bg-[#1b1d24] border-b border-[#262833] sticky top-0 z-50 transition-all duration-300">
   <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
     <a href="{{ route('home') }}" class="flex items-center gap-3 shrink-0">
       <img src="{{ asset('images/logo.png') }}" alt="MovieHub" class="h-20 w-20 object-contain rounded">
       <span class="text-2xl font-semibold">MovieHub</span>
     </a>
 
-    <nav class="hidden md:flex items-center gap-10 text-[15px]">
-      <a href="{{ route('home') }}" class="hover:text-[#F53003] transition">Trang chủ</a>
-      <a href="{{ route('movies.index') }}" class="hover:text-[#F53003] transition">Phim</a>
-      <a href="{{ route('about') }}" class="hover:text-[#F53003] transition">Giới thiệu</a>
+    <!-- Search Bar -->
+    <div class="hidden lg:flex flex-1 max-w-md mx-6">
+      <form action="{{ route('movies.index') }}" method="GET" class="w-full relative">
+        <input 
+          type="text" 
+          name="search" 
+          id="header-search"
+          value="{{ request('search') }}"
+          placeholder="Tìm kiếm phim, đạo diễn, diễn viên..." 
+          class="w-full px-4 py-2 pl-10 bg-[#151822] border border-[#262833] rounded-lg text-white placeholder-[#a6a6b0] focus:outline-none focus:border-[#F53003] transition-colors"
+        >
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-[#a6a6b0]"></i>
+      </form>
+    </div>
+
+    <!-- Desktop Navigation -->
+    <nav class="hidden lg:flex items-center gap-6 xl:gap-8 text-[15px]">
+      <a href="{{ route('home') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+        <i class="fas fa-home text-xs"></i>
+        <span>Trang chủ</span>
+      </a>
+      <a href="{{ route('movies.showtimes') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+        <i class="fas fa-calendar-alt text-xs"></i>
+        <span>Lịch chiếu</span>
+      </a>
+      <a href="{{ route('public.news') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+        <i class="fas fa-newspaper text-xs"></i>
+        <span>Tin tức</span>
+      </a>
+      <a href="{{ route('public.pricing') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+        <i class="fas fa-tags text-xs"></i>
+        <span>Giá vé</span>
+      </a>
+      <a href="{{ route('about') }}" class="hover:text-[#F53003] transition flex items-center gap-1.5">
+        <i class="fas fa-info-circle text-xs"></i>
+        <span>Giới thiệu</span>
+      </a>
     </nav>
 
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="lg:hidden text-[#a6a6b0] hover:text-[#F53003] transition">
+      <i class="fas fa-bars text-xl"></i>
+    </button>
+
     <div class="flex items-center gap-4 text-[15px]">
+      <!-- Mobile Search Button -->
+      <button id="mobile-search-btn" class="lg:hidden text-[#a6a6b0] hover:text-[#F53003] transition">
+        <i class="fas fa-search text-xl"></i>
+      </button>
+
+      <!-- Quick Booking Button -->
+      <a href="{{ route('booking.index') }}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F53003] to-[#ff7849] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#F53003]/50 transition-all">
+        <i class="fas fa-ticket-alt"></i>
+        <span>Mua vé nhanh</span>
+      </a>
+
       <a href="#ve" class="hidden sm:inline-flex items-center gap-2 hover:text-[#F53003]">
         <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#1b1d24] font-bold">✓</span>
         Vé
@@ -95,4 +144,79 @@
       @endauth
     </div>
   </div>
+
+  <!-- Mobile Search Bar -->
+  <div id="mobile-search" class="hidden lg:hidden border-t border-[#262833] px-4 py-3 bg-[#1b1d24]">
+    <form action="{{ route('movies.index') }}" method="GET" class="relative">
+      <input 
+        type="text" 
+        name="search" 
+        value="{{ request('search') }}"
+        placeholder="Tìm kiếm phim..." 
+        class="w-full px-4 py-2 pl-10 bg-[#151822] border border-[#262833] rounded-lg text-white placeholder-[#a6a6b0] focus:outline-none focus:border-[#F53003]"
+      >
+      <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-[#a6a6b0]"></i>
+      <button type="button" id="mobile-search-close" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#a6a6b0] hover:text-white">
+        <i class="fas fa-times"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden lg:hidden border-t border-[#262833] bg-[#1b1d24]">
+    <nav class="flex flex-col px-4 py-4 space-y-1">
+      <a href="{{ route('home') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
+        <i class="fas fa-home text-[#F53003]"></i>
+        <span>Trang chủ</span>
+      </a>
+      <a href="{{ route('movies.showtimes') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
+        <i class="fas fa-calendar-alt text-[#F53003]"></i>
+        <span>Lịch chiếu</span>
+      </a>
+      <a href="{{ route('public.news') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
+        <i class="fas fa-newspaper text-[#F53003]"></i>
+        <span>Tin tức</span>
+      </a>
+      <a href="{{ route('public.pricing') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
+        <i class="fas fa-tags text-[#F53003]"></i>
+        <span>Giá vé</span>
+      </a>
+      <a href="{{ route('about') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#222533] transition text-white">
+        <i class="fas fa-info-circle text-[#F53003]"></i>
+        <span>Giới thiệu</span>
+      </a>
+    </nav>
+  </div>
 </header>
+
+<script>
+  // Mobile search toggle
+  document.getElementById('mobile-search-btn')?.addEventListener('click', function() {
+    const mobileSearch = document.getElementById('mobile-search');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileSearch.classList.toggle('hidden');
+    mobileMenu.classList.add('hidden'); // Close menu when opening search
+  });
+
+  document.getElementById('mobile-search-close')?.addEventListener('click', function() {
+    document.getElementById('mobile-search').classList.add('hidden');
+  });
+
+  // Mobile menu toggle
+  document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileSearch = document.getElementById('mobile-search');
+    mobileMenu.classList.toggle('hidden');
+    mobileSearch.classList.add('hidden'); // Close search when opening menu
+  });
+
+  // Sticky header shadow on scroll
+  window.addEventListener('scroll', function() {
+    const header = document.getElementById('main-header');
+    if (window.scrollY > 50) {
+      header.classList.add('shadow-lg', 'shadow-black/20');
+    } else {
+      header.classList.remove('shadow-lg', 'shadow-black/20');
+    }
+  });
+</script>

@@ -83,6 +83,7 @@ Route::get('/lich-chieu', [PublicController::class, 'schedule'])->middleware('bl
 Route::get('/combo', [PublicController::class, 'combos'])->middleware('block.admin.staff')->name('public.combos');
 Route::get('/tin-tuc', [PublicController::class, 'news'])->middleware('block.admin.staff')->name('public.news');
 Route::get('/tin-tuc/{slug}', [PublicController::class, 'newsDetail'])->middleware('block.admin.staff')->name('public.news.detail');
+Route::get('/gia-ve', [PublicController::class, 'pricing'])->middleware('block.admin.staff')->name('public.pricing');
 Route::get('/gioi-thieu', function(){ return View::make('about'); })->middleware('block.admin.staff')->name('about');
 
 // Debug route (remove in production)
@@ -141,7 +142,7 @@ Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
     Route::post('/shows/{showId}/seats/release', [App\Http\Controllers\BookingController::class, 'releaseSeat'])->name('booking.seats.release');
     Route::post('/shows/{showId}/seats/confirm-booking', [App\Http\Controllers\BookingController::class, 'confirmBooking'])->name('booking.seats.confirm');
     // Legacy endpoints removed: lock/unlock (frontend switched to hold/release)
-    Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
+Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
     Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
     Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
     Route::get('/checkout/{bookingId}', [App\Http\Controllers\BookingController::class, 'checkout'])->name('booking.checkout');
@@ -150,14 +151,21 @@ Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
     Route::get('/result', [App\Http\Controllers\BookingController::class, 'result'])->name('booking.result');
     Route::get('/tickets', [App\Http\Controllers\BookingController::class, 'tickets'])->name('booking.tickets');
     Route::get('/tickets/{id}', [App\Http\Controllers\BookingController::class, 'ticketDetail'])->name('booking.ticket.detail');
+    Route::post('/tickets/{id}/mark-printed', [App\Http\Controllers\BookingController::class, 'markAsPrinted'])->name('booking.ticket.mark-printed');
 
     // Continue to payment from seat selection
     Route::post('/booking/continue', [App\Http\Controllers\BookingController::class, 'continueToPayment'])->name('booking.continue');
     Route::get('/booking/payment', [App\Http\Controllers\BookingController::class, 'showPaymentPage'])->name('booking.payment');
 });
 
-// Legacy booking routes
-Route::get('/dat-ve/{id?}', [BookingController::class, 'create'])->middleware('block.admin.staff')->name('booking');
+// Legacy booking routes - Redirect to new booking flow
+Route::get('/dat-ve/{id?}', function ($id = null) {
+    if ($id) {
+        return redirect()->route('booking.showtimes', $id);
+    }
+    return redirect()->route('booking.index');
+})->middleware('block.admin.staff')->name('booking');
+
 Route::get('/dat-ve-dong/{id?}', function ($id = 1) {
     return view('booking-dynamic', ['id' => $id]);
 })->middleware('block.admin.staff')->name('booking-dynamic');
@@ -181,7 +189,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register');
     Route::post('/login', [AuthController::class, 'login'])->name('login');
     Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
-    Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
+Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetLink'])->name('password.email');
     Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
@@ -212,21 +220,13 @@ Route::middleware('auth')->middleware('block.admin.staff')->prefix('thanh-vien')
 // Admin routes - cả Admin và Staff
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])->group(function () {
     // Admin dashboard for admins, redirect staff to a suitable module (e.g., movies)
-    Route::get('/', function () {
-        $role = optional(\Illuminate\Support\Facades\Auth::user()->vaiTro)->ten;
-        $norm = is_string($role) ? mb_strtolower(trim($role)) : '';
-        if (in_array($norm, ['admin'])) {
-            return app(\App\Http\Controllers\AdminController::class)->dashboard();
-        }
-        // Staff: redirect to movies list (or another module if desired)
-        return redirect()->route('admin.movies.index');
-    })->name('dashboard');
+    Route::get('/', [AdminController::class, 'handleDashboard'])->name('dashboard');
 
     // Quản lý phim (Admin & Staff view-only except staff may be restricted by policy)
     Route::prefix('movies')->name('movies.')->group(function () {
         Route::get('/', [MovieController::class, 'adminIndex'])->name('index');
         Route::get('/search', [MovieController::class, 'adminIndex'])->name('search');
-        Route::get('/create', [MovieController::class, 'create'])->middleware('role:admin,staff')->name('create');
+Route::get('/create', [MovieController::class, 'create'])->middleware('role:admin,staff')->name('create');
         Route::post('/', [MovieController::class, 'store'])->middleware('role:admin,staff')->name('store');
         Route::get('/{movie}', [MovieController::class, 'show'])->name('show');
         Route::get('/{movie}/edit', [MovieController::class, 'edit'])->middleware('role:admin,staff')->name('edit');
@@ -262,10 +262,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::get('suat-chieu/auto', [SuatChieuController::class, 'auto'])->name('suat-chieu.auto');
         Route::get('suat-chieu/create', [SuatChieuController::class, 'create'])->name('suat-chieu.create');
         Route::post('suat-chieu', [SuatChieuController::class, 'store'])->name('suat-chieu.store');
+        Route::post('suat-chieu/check-conflict', [SuatChieuController::class, 'checkConflict'])->name('suat-chieu.check-conflict');
         Route::get('suat-chieu/{suatChieu}/edit', [SuatChieuController::class, 'edit'])->name('suat-chieu.edit');
         Route::put('suat-chieu/{suatChieu}', [SuatChieuController::class, 'update'])->name('suat-chieu.update');
         Route::delete('suat-chieu/{suatChieu}', [SuatChieuController::class, 'destroy'])->name('suat-chieu.destroy');
-        Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
+Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
         Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     });
     // Admin only: xem danh sách/chi tiết
@@ -293,7 +294,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         Route::post('phong-chieu/{phongChieu}/seats', [PhongChieuController::class, 'storeSeat'])->name('phong-chieu.seats.store');
         Route::put('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'updateSeat'])->name('phong-chieu.seats.update');
         Route::delete('phong-chieu/{phongChieu}/seats/{ghe}', [PhongChieuController::class, 'destroySeat'])->name('phong-chieu.seats.destroy');
-        Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
+Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStatus'])->name('seats.update-status');
         Route::patch('seats/{ghe}/type', [PhongChieuController::class, 'updateSeatType'])->name('seats.update-type');
         Route::post('phong-chieu/{phongChieu}/seats/bulk', [PhongChieuController::class, 'bulkSeats'])->name('phong-chieu.seats.bulk');
         Route::post('phong-chieu/{phongChieu}/seats/bulk-create', [PhongChieuController::class, 'bulkCreateSeats'])->name('phong-chieu.seats.bulk-create');
@@ -329,7 +330,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
         // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
         Route::get('/{id}/edit', [QuanLyDatVeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
-        // Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
+// Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/send-ticket', [QuanLyDatVeController::class, 'sendTicket'])->name('send-ticket');
 
@@ -376,10 +377,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,staff'])
 
     // Quản lý Scan vé
     Route::prefix('scan')->name('scan.')->group(function () {
-        Route::get('/', [ScanController::class, 'index'])->name('index');
+Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::get('/{id}', [ScanController::class, 'show'])->whereNumber('id')->name('show');
         Route::post('/check', [ScanController::class, 'check'])->name('check');
         Route::post('/confirm', [ScanController::class, 'confirm'])->name('confirm');
+        Route::post('/{id}/mark-printed', [ScanController::class, 'markAsPrinted'])->name('mark-printed');
     });
 });
 
@@ -397,6 +399,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
         Route::get('/hot-movies', [AdminReportController::class, 'hotMoviesReport'])->name('hot-movies');
         Route::get('/peak-booking-hours', [AdminReportController::class, 'peakBookingHoursReport'])->name('peak-booking-hours');
+        
+        // Thống kê theo phim
+        Route::get('/movies-dashboard', [AdminReportController::class, 'moviesStatisticsDashboard'])->name('movies-dashboard');
+        Route::get('/movies/{movie}/statistics', [AdminReportController::class, 'movieStatistics'])->name('movie-statistics');
     });
 });
 

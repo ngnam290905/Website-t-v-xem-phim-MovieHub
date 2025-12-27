@@ -504,9 +504,9 @@
                     @forelse($movies as $movie)
                         <div class="swiper-slide">
                             <img 
-                                src="{{ $movie->poster_url ?? $movie->hinh_anh ?? '/images/default-poster.jpg' }}" 
+                                src="{{ $movie->poster_url ?? $movie->hinh_anh ?? asset('images/no-poster.svg') }}" 
                                 alt="{{ $movie->ten_phim }}"
-                                onerror="this.src='/images/default-poster.jpg'"
+                                onerror="this.src='{{ asset('images/no-poster.svg') }}'"
                             >
                             <div class="slide-overlay"></div>
                             <div class="slide-content">
@@ -519,7 +519,7 @@
                         </div>
                     @empty
                         <div class="swiper-slide">
-                            <img src="/images/default-poster.jpg" alt="MovieHub">
+                            <img src="{{ asset('images/logo.png') }}" alt="MovieHub" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                             <div class="slide-overlay"></div>
                             <div class="slide-content">
                                 <div class="slide-badge">

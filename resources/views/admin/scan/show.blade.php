@@ -7,12 +7,22 @@
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">Chi tiết vé #{{ $ticket->id }}</h1>
         <div class="flex gap-2">
-            <button 
-                onclick="window.print()" 
-                class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
-            >
-                <i class="fas fa-print mr-2"></i>In vé
-            </button>
+            @if(isset($isPrinted) && $isPrinted)
+                <button 
+                    disabled
+                    class="px-4 py-2 bg-gray-600 text-gray-400 rounded-lg cursor-not-allowed print-hidden"
+                >
+                    <i class="fas fa-print mr-2"></i>Đã in ({{ $ticket->thoi_gian_in ? $ticket->thoi_gian_in->format('d/m/Y H:i') : 'N/A' }})
+                </button>
+            @else
+                <button 
+                    id="print-ticket-btn"
+                    onclick="printTicket({{ $ticket->id }})"
+                    class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
+                >
+                    <i class="fas fa-print mr-2"></i>In vé
+                </button>
+            @endif
         <a 
             href="{{ route('admin.scan.index') }}" 
             class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
@@ -234,6 +244,61 @@ function generateQRCodeFallbackAdmin(qrData) {
             }
         };
         document.head.appendChild(script);
+    }
+}
+
+let isPrinting = false;
+
+async function printTicket(ticketId) {
+    if (isPrinting) {
+        return;
+    }
+
+    const printBtn = document.getElementById('print-ticket-btn');
+    if (!printBtn || printBtn.disabled) {
+        window.print();
+        return;
+    }
+
+    isPrinting = true;
+    printBtn.disabled = true;
+    printBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...';
+
+    try {
+        const response = await fetch(`/admin/scan/${ticketId}/mark-printed`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            printBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Đã in';
+            printBtn.classList.remove('bg-[#F53003]', 'hover:bg-[#ff4d4d]');
+            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
+            
+            setTimeout(() => {
+                window.print();
+            }, 500);
+        } else {
+            alert('Vé này đã được in rồi. Thời gian in: ' + (data.printed_at || 'N/A'));
+            printBtn.disabled = true;
+            printBtn.innerHTML = '<i class="fas fa-print mr-2"></i>Đã in';
+            printBtn.classList.remove('bg-[#F53003]', 'hover:bg-[#ff4d4d]');
+            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
+        }
+    } catch (error) {
+        console.error('Error marking ticket as printed:', error);
+        alert('Có lỗi xảy ra, nhưng vẫn có thể in vé.');
+        window.print();
+        printBtn.disabled = false;
+        printBtn.innerHTML = '<i class="fas fa-print mr-2"></i>In vé';
+    } finally {
+        isPrinting = false;
     }
 }
 </script>

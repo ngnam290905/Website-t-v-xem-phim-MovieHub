@@ -234,13 +234,51 @@ class ReportController extends Controller
             ->limit(5)
             ->get();
 
+        // Thống kê phim - sử dụng MovieStatisticsService
+        $movieStatsService = app(\App\Services\MovieStatisticsService::class);
+        $moviesStatsResult = $movieStatsService->getAllMoviesStatistics('all');
+        $moviesStatistics = $moviesStatsResult['movies'] ?? collect([]);
+        
+        // Tính occupancy_rate cho mỗi phim
+        $moviesStatistics = $moviesStatistics->map(function($movie) {
+            $movie['total_tickets'] = $movie['total_tickets_sold'] ?? 0;
+            $movie['poster_url'] = $movie['poster'] ?? asset('images/no-poster.svg');
+            $movie['the_loai'] = Phim::find($movie['id'])->the_loai ?? 'N/A';
+            
+            // Tính occupancy_rate (giả định mỗi suất chiếu có 100 ghế)
+            $totalSeats = ($movie['total_showtimes'] ?? 0) * 100;
+            $movie['occupancy_rate'] = $totalSeats > 0 
+                ? round((($movie['total_tickets'] ?? 0) / $totalSeats) * 100, 2)
+                : 0;
+            
+            return $movie;
+        });
+        
+        // Tính tổng số suất chiếu, vé và doanh thu của tất cả phim
+        $totalShowtimes = SuatChieu::where('trang_thai', 1)->count();
+        $totalTickets = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->count();
+        $totalRevenue = DB::table('chi_tiet_dat_ve as d')
+            ->join('dat_ve as v', 'v.id', '=', 'd.id_dat_ve')
+            ->where('v.trang_thai', 1)
+            ->sum('d.gia') + 
+            DB::table('chi_tiet_dat_ve_combo as c')
+            ->join('dat_ve as v', 'v.id', '=', 'c.id_dat_ve')
+            ->where('v.trang_thai', 1)
+            ->sum(DB::raw('c.gia_ap_dung * COALESCE(c.so_luong,1)'));
+
         return view('admin.reports.dashboard', compact(
             'todayRevenue',
             'monthRevenue',
             'totalCustomers',
             'totalMovies',
             'totalBookings',
-            'recentBookings'
+            'recentBookings',
+            'moviesStatistics',
+            'totalShowtimes',
+            'totalTickets',
+            'totalRevenue'
         ));
     }
 }

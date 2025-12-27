@@ -118,7 +118,7 @@
                     @foreach($movies as $movie)
                         <a href="{{ route('booking.data.movie', $movie->id) }}" class="block bg-[#1a1d24] border border-[#2A2F3A] rounded-lg p-4 hover:border-[#FF784E] transition-colors">
                             <div class="flex items-center gap-4">
-                                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-16 h-24 object-cover rounded">
+                                <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-16 h-24 object-cover rounded" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                                 <div class="flex-1">
                                     <h3 class="font-semibold text-white mb-1">{{ $movie->ten_phim }}</h3>
                                     <p class="text-sm text-[#a6a6b0]">{{ $movie->suat_chieu_count }} suất chiếu</p>

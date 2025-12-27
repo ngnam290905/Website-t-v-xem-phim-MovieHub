@@ -189,8 +189,9 @@
                         <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600 hover:border-purple-500 transition">
                             <div class="flex gap-4">
                                 @if($datVe->poster)
-                                    <img src="{{ asset('storage/' . $datVe->poster) }}" alt="{{ $datVe->ten_phim }}" 
-                                        class="w-20 h-28 object-cover rounded">
+                                    <img src="{{ $datVe->poster_url ?? asset('storage/' . $datVe->poster) ?? asset('images/no-poster.svg') }}" alt="{{ $datVe->ten_phim }}" 
+                                        class="w-20 h-28 object-cover rounded"
+                                        onerror="this.src='{{ asset('images/no-poster.svg') }}'">
                                 @else
                                     <div class="w-20 h-28 bg-gray-600 rounded flex items-center justify-center">
                                         <i class="fas fa-film text-gray-400 text-2xl"></i>

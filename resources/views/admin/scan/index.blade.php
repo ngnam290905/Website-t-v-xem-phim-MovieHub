@@ -13,19 +13,63 @@
         
         <!-- Camera Section -->
         <div class="mb-4">
-            <div id="camera-container" class="bg-black rounded-lg overflow-hidden mb-4" style="display: none;">
-                <video id="video" width="100%" height="400" autoplay playsinline></video>
+            <div id="camera-container" class="relative bg-black rounded-xl overflow-hidden mb-4 shadow-2xl" style="display: none;">
+                <video id="video" width="100%" height="500" autoplay playsinline class="w-full"></video>
                 <canvas id="canvas" style="display: none;"></canvas>
+                
+                <!-- Scanning Overlay -->
+                <div id="scanning-overlay" class="absolute inset-0 pointer-events-none">
+                    <!-- Corner borders -->
+                    <div class="absolute top-0 left-0 w-20 h-20 border-t-4 border-l-4 border-[#F53003] rounded-tl-lg"></div>
+                    <div class="absolute top-0 right-0 w-20 h-20 border-t-4 border-r-4 border-[#F53003] rounded-tr-lg"></div>
+                    <div class="absolute bottom-0 left-0 w-20 h-20 border-b-4 border-l-4 border-[#F53003] rounded-bl-lg"></div>
+                    <div class="absolute bottom-0 right-0 w-20 h-20 border-b-4 border-r-4 border-[#F53003] rounded-br-lg"></div>
+                    
+                    <!-- Scanning line -->
+                    <div id="scanning-line" class="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#F53003] to-transparent opacity-80" style="top: 0%; animation: scanLine 2s linear infinite;"></div>
+                    
+                    <!-- Center crosshair -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                        <div class="w-48 h-48 border-2 border-[#F53003]/50 rounded-lg relative">
+                            <div class="absolute top-1/2 left-0 right-0 h-0.5 bg-[#F53003]/30"></div>
+                            <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-[#F53003]/30"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status indicator -->
+                    <div id="scan-status" class="absolute top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-lg text-white text-sm font-medium hidden">
+                        <i class="fas fa-search mr-2"></i>
+                        <span>Đang quét...</span>
+                    </div>
+                </div>
+                
+                <!-- Success/Error overlay -->
+                <div id="scan-result-overlay" class="absolute inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center hidden z-50">
+                    <div id="scan-success" class="hidden text-center">
+                        <div class="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-4 mx-auto animate-bounce">
+                            <i class="fas fa-check text-white text-4xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-green-400 mb-2">Quét thành công!</h3>
+                        <p class="text-white">Đang kiểm tra vé...</p>
+                    </div>
+                    <div id="scan-error" class="hidden text-center">
+                        <div class="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center mb-4 mx-auto animate-pulse">
+                            <i class="fas fa-times text-white text-4xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-red-400 mb-2">Không tìm thấy QR</h3>
+                        <p class="text-white">Vui lòng thử lại</p>
+                    </div>
+                </div>
             </div>
             
             <div class="flex gap-3 mb-4 flex-wrap">
-                <button id="start-camera" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+                <button id="start-camera" class="group px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-blue-600/50 hover:shadow-xl hover:shadow-blue-600/70 transform hover:scale-105">
                     <i class="fas fa-camera mr-2"></i>Bật Camera
                 </button>
-                <button id="stop-camera" class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition" style="display: none;">
+                <button id="stop-camera" class="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg" style="display: none;">
                     <i class="fas fa-stop mr-2"></i>Tắt Camera
                 </button>
-                <label for="upload-image" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition cursor-pointer">
+                <label for="upload-image" class="group px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-purple-600/50 hover:shadow-xl hover:shadow-purple-600/70 transform hover:scale-105 cursor-pointer">
                     <i class="fas fa-image mr-2"></i>Upload ảnh QR
                     <input type="file" id="upload-image" accept="image/*" style="display: none;" />
                 </label>
@@ -67,47 +111,97 @@
         <!-- Result Box -->
         <div id="result-box" class="hidden">
             <!-- Valid Ticket -->
-            <div id="valid-result" class="hidden bg-green-900/30 border-2 border-green-500 rounded-lg p-6 mb-4">
-                <div class="flex items-center mb-4">
-                    <i class="fas fa-check-circle text-green-500 text-3xl mr-3"></i>
-                    <h3 class="text-2xl font-bold text-green-500">VÉ HỢP LỆ</h3>
+            <div id="valid-result" class="hidden bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-2 border-green-500 rounded-2xl p-8 mb-4 shadow-2xl shadow-green-500/20 animate-slide-in">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75"></div>
+                        <div class="relative w-20 h-20 bg-green-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-check-circle text-white text-4xl"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-3xl font-bold text-green-400 ml-4">VÉ HỢP LỆ</h3>
                 </div>
-                <div class="space-y-2 text-white">
-                    <p><span class="text-gray-400">Tên phim:</span> <span id="result-movie" class="font-semibold"></span></p>
-                    <p><span class="text-gray-400">Ghế:</span> <span id="result-seats" class="font-semibold"></span></p>
-                    <p><span class="text-gray-400">Giờ chiếu:</span> <span id="result-showtime" class="font-semibold"></span></p>
-                    <p class="text-sm text-gray-400 mt-4">Mã vé: <span id="result-ticket-code"></span></p>
+                
+                <div class="bg-[#1a1d24]/50 backdrop-blur-sm rounded-xl p-6 mb-6 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-film text-green-400 text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-xs text-gray-400 mb-1">Tên phim</div>
+                            <div id="result-movie" class="text-white font-bold text-lg"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chair text-blue-400 text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-xs text-gray-400 mb-1">Ghế</div>
+                            <div id="result-seats" class="text-white font-semibold"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-purple-400 text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-xs text-gray-400 mb-1">Giờ chiếu</div>
+                            <div id="result-showtime" class="text-white font-semibold"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-[#262833]">
+                        <div class="text-xs text-gray-400 mb-1">Mã vé</div>
+                        <div id="result-ticket-code" class="text-green-400 font-mono font-bold text-lg"></div>
+                    </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                
+                <div class="flex gap-3">
                     <button 
                         id="confirm-checkin" 
-                        class="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition"
+                        class="flex-1 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg shadow-green-600/50 hover:shadow-xl hover:shadow-green-600/70 transform hover:scale-105"
                     >
+                        <i class="fas fa-check-circle mr-2"></i>
                         Xác nhận quét
                     </button>
                     <a 
                         id="view-detail-link"
                         href="#"
                         target="_blank"
-                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                        class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-blue-600/50 hover:shadow-xl hover:shadow-blue-600/70 transform hover:scale-105"
                     >
-                        <i class="fas fa-eye mr-2"></i>Xem chi tiết
+                        <i class="fas fa-eye mr-2"></i>Chi tiết
                     </a>
                 </div>
             </div>
             
             <!-- Invalid Ticket -->
-            <div id="invalid-result" class="hidden bg-red-900/30 border-2 border-red-500 rounded-lg p-6">
-                <div class="flex items-center mb-4">
-                    <i class="fas fa-times-circle text-red-500 text-3xl mr-3"></i>
-                    <h3 class="text-2xl font-bold text-red-500">VÉ KHÔNG HỢP LỆ</h3>
+            <div id="invalid-result" class="hidden bg-gradient-to-br from-red-900/40 to-rose-900/40 border-2 border-red-500 rounded-2xl p-8 shadow-2xl shadow-red-500/20 animate-slide-in">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-red-500 rounded-full animate-pulse opacity-75"></div>
+                        <div class="relative w-20 h-20 bg-red-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-times-circle text-white text-4xl"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-3xl font-bold text-red-400 ml-4">VÉ KHÔNG HỢP LỆ</h3>
                 </div>
-                <p id="error-message" class="text-white"></p>
+                
+                <div class="bg-[#1a1d24]/50 backdrop-blur-sm rounded-xl p-6 mb-6">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-exclamation-triangle text-red-400 text-2xl"></i>
+                        <p id="error-message" class="text-white text-lg font-medium"></p>
+                    </div>
+                </div>
+                
                 <button 
                     id="scan-again" 
-                    class="mt-4 w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                    class="w-full px-6 py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg shadow-red-600/50 hover:shadow-xl hover:shadow-red-600/70 transform hover:scale-105"
                 >
-                    Quét lại
+                    <i class="fas fa-redo mr-2"></i>Quét lại
                 </button>
             </div>
         </div>
@@ -297,10 +391,83 @@
 <!-- QR Code Scanner Library -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
+<style>
+@keyframes scanLine {
+    0% { top: 0%; }
+    100% { top: 100%; }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-in {
+    animation: slideIn 0.5s ease-out;
+}
+
+.scanning-pulse {
+    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: .5;
+    }
+}
+</style>
+
 <script>
 let stream = null;
 let scanning = false;
 let currentTicketId = null;
+let scanTimeout = null;
+
+// Sound effects
+function playSuccessSound() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+}
+
+function playErrorSound() {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 400;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+}
 
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
@@ -363,14 +530,22 @@ function scanQRFromImage(imgElement) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
     
-    if (code) {
-        console.log('QR Code detected from image:', code.data);
-        checkTicket(code.data);
-        imagePreviewContainer.style.display = 'none';
-        uploadImageInput.value = '';
-    } else {
-        alert('Không tìm thấy mã QR trong ảnh. Vui lòng thử lại với ảnh khác.');
-    }
+        if (code) {
+            console.log('QR Code detected from image:', code.data);
+            playSuccessSound();
+            showScanSuccess();
+            setTimeout(() => {
+                checkTicket(code.data);
+                imagePreviewContainer.style.display = 'none';
+                uploadImageInput.value = '';
+            }, 500);
+        } else {
+            playErrorSound();
+            showScanError();
+            setTimeout(() => {
+                alert('Không tìm thấy mã QR trong ảnh. Vui lòng thử lại với ảnh khác.');
+            }, 500);
+        }
 }
 
 // Stop camera helper function
@@ -397,12 +572,17 @@ startCameraBtn.addEventListener('click', async () => {
         // Wait a bit to ensure camera is released
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        // Request camera access
+        // Show loading state
+        startCameraBtn.disabled = true;
+        startCameraBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang khởi động camera...';
+        
+        // Request camera access with enhanced settings
         stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+                facingMode: 'environment', // Use back camera on mobile
+                width: { ideal: 1920, min: 640 },
+                height: { ideal: 1080, min: 480 },
+                aspectRatio: { ideal: 16/9 }
             } 
         });
         
@@ -410,24 +590,38 @@ startCameraBtn.addEventListener('click', async () => {
         cameraContainer.style.display = 'block';
         startCameraBtn.style.display = 'none';
         stopCameraBtn.style.display = 'inline-block';
-        scanning = true;
-        scanQR();
+        
+        // Show scanning status
+        const statusDiv = document.getElementById('scan-status');
+        if (statusDiv) {
+            statusDiv.classList.remove('hidden');
+        }
+        
+        // Wait for video to be ready
+        video.addEventListener('loadedmetadata', () => {
+            scanning = true;
+            scanQR();
+        }, { once: true });
+        
     } catch (error) {
         console.error('Error accessing camera:', error);
         stopCameraStream();
+        startCameraBtn.disabled = false;
+        startCameraBtn.innerHTML = '<i class="fas fa-camera mr-2"></i>Bật Camera';
         
         let errorMessage = 'Không thể truy cập camera. ';
         if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
             errorMessage += 'Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng các ứng dụng khác đang dùng camera và thử lại.';
         } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            errorMessage += 'Vui lòng cấp quyền truy cập camera.';
+            errorMessage += 'Vui lòng cấp quyền truy cập camera trong cài đặt trình duyệt.';
         } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-            errorMessage += 'Không tìm thấy camera.';
+            errorMessage += 'Không tìm thấy camera. Vui lòng kiểm tra kết nối camera.';
         } else {
             errorMessage += 'Vui lòng thử lại sau.';
         }
         
-        alert(errorMessage);
+        // Show error in a nicer way
+        showInvalidResult(errorMessage);
     }
 });
 
@@ -439,7 +633,7 @@ stopCameraBtn.addEventListener('click', () => {
     stopCameraBtn.style.display = 'none';
 });
 
-// Scan QR code
+// Scan QR code with enhanced detection
 function scanQR() {
     if (!scanning) return;
     
@@ -448,16 +642,76 @@ function scanQR() {
         canvas.width = video.videoWidth;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        // Try scanning with different inversion modes for better detection
+        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+        });
+        
+        if (!code) {
+            code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'invertFirst'
+            });
+        }
+        
+        if (!code) {
+            code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'attemptBoth'
+            });
+        }
         
         if (code) {
             console.log('QR Code detected:', code.data);
-            checkTicket(code.data);
+            scanning = false;
+            showScanSuccess();
+            playSuccessSound();
+            
+            // Wait a bit before checking ticket for better UX
+            setTimeout(() => {
+                checkTicket(code.data);
+            }, 500);
             return;
         }
     }
     
     requestAnimationFrame(scanQR);
+}
+
+// Show scan success overlay
+function showScanSuccess() {
+    const overlay = document.getElementById('scan-result-overlay');
+    const successDiv = document.getElementById('scan-success');
+    const errorDiv = document.getElementById('scan-error');
+    
+    overlay.classList.remove('hidden');
+    successDiv.classList.remove('hidden');
+    errorDiv.classList.add('hidden');
+    
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        successDiv.classList.add('hidden');
+    }, 1500);
+}
+
+// Show scan error overlay
+function showScanError() {
+    const overlay = document.getElementById('scan-result-overlay');
+    const successDiv = document.getElementById('scan-success');
+    const errorDiv = document.getElementById('scan-error');
+    
+    overlay.classList.remove('hidden');
+    successDiv.classList.add('hidden');
+    errorDiv.classList.remove('hidden');
+    playErrorSound();
+    
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        errorDiv.classList.add('hidden');
+        if (stream && stream.active) {
+            scanning = true;
+            scanQR();
+        }
+    }, 2000);
 }
 
 // Manual check
@@ -481,6 +735,13 @@ async function checkTicket(ticketId) {
     try {
         scanning = false;
         
+        // Show loading status
+        const statusDiv = document.getElementById('scan-status');
+        if (statusDiv) {
+            statusDiv.classList.remove('hidden');
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span>Đang kiểm tra vé...</span>';
+        }
+        
         const response = await fetch('{{ route("admin.scan.check") }}', {
             method: 'POST',
             headers: {
@@ -493,21 +754,33 @@ async function checkTicket(ticketId) {
         const data = await response.json();
         currentTicketId = ticketId;
         
+        if (statusDiv) {
+            statusDiv.classList.add('hidden');
+        }
+        
         if (data.valid) {
             showValidResult(data.ticket);
+            // Scroll to result
+            document.getElementById('result-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
             showInvalidResult(data.message);
+            // Resume scanning after showing error
+            setTimeout(() => {
+                if (stream && stream.active) {
+                    scanning = true;
+                    scanQR();
+                }
+            }, 3000);
         }
     } catch (error) {
         console.error('Error checking ticket:', error);
         showInvalidResult('Có lỗi xảy ra khi kiểm tra vé');
-    } finally {
         setTimeout(() => {
-            if (stream && stream.active && !scanning) {
+            if (stream && stream.active) {
                 scanning = true;
                 scanQR();
             }
-        }, 2000);
+        }, 3000);
     }
 }
 
@@ -517,6 +790,9 @@ function showValidResult(ticket) {
     validResult.classList.remove('hidden');
     invalidResult.classList.add('hidden');
     
+    // Animate result box
+    resultBox.style.animation = 'slideIn 0.5s ease-out';
+    
     document.getElementById('result-movie').textContent = ticket.movie;
     document.getElementById('result-seats').textContent = ticket.seats;
     document.getElementById('result-showtime').textContent = ticket.showtime;
@@ -524,6 +800,11 @@ function showValidResult(ticket) {
     
     // Set view detail link
     viewDetailLink.href = '{{ route("admin.scan.show", ":id") }}'.replace(':id', ticket.id);
+    
+    // Stop camera temporarily
+    if (stream && stream.active) {
+        scanning = false;
+    }
 }
 
 // Show invalid result
@@ -531,7 +812,9 @@ function showInvalidResult(message) {
     resultBox.classList.remove('hidden');
     validResult.classList.add('hidden');
     invalidResult.classList.remove('hidden');
+    resultBox.style.animation = 'slideIn 0.5s ease-out';
     document.getElementById('error-message').textContent = message;
+    playErrorSound();
 }
 
 // Confirm check-in
@@ -551,12 +834,29 @@ confirmCheckinBtn.addEventListener('click', async () => {
         const data = await response.json();
         
         if (data.success) {
-            alert('Xác nhận quét thành công!');
-            resultBox.classList.add('hidden');
-            currentTicketId = null;
-            manualInput.value = '';
-            // Reload page to update statistics
-            setTimeout(() => location.reload(), 1000);
+            // Show success animation
+            const successOverlay = document.createElement('div');
+            successOverlay.className = 'fixed inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center z-50';
+            successOverlay.innerHTML = `
+                <div class="bg-[#151822] border-2 border-green-500 rounded-2xl p-8 text-center">
+                    <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-4 mx-auto animate-bounce">
+                        <i class="fas fa-check text-white text-3xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-2">Xác nhận thành công!</h3>
+                    <p class="text-white">Vé đã được quét và xác nhận</p>
+                </div>
+            `;
+            document.body.appendChild(successOverlay);
+            playSuccessSound();
+            
+            setTimeout(() => {
+                successOverlay.remove();
+                resultBox.classList.add('hidden');
+                currentTicketId = null;
+                manualInput.value = '';
+                // Reload page to update statistics
+                location.reload();
+            }, 2000);
         } else {
             alert(data.message || 'Có lỗi xảy ra');
         }
@@ -574,6 +874,9 @@ scanAgainBtn.addEventListener('click', () => {
     if (stream && stream.active) {
         scanning = true;
         scanQR();
+    } else {
+        // If camera not active, show start camera button
+        startCameraBtn.click();
     }
 });
 

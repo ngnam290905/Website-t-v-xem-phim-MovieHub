@@ -8,7 +8,7 @@
       <!-- Left: Poster + trailer -->
       <div class="lg:col-span-1">
         <div class="bg-[#111214] border border-[#262833] rounded-lg overflow-hidden p-4">
-          <img src="{{ $movie->poster ? (Str::startsWith($movie->poster, ['http','/']) ? (Str::startsWith($movie->poster, ['/']) ? asset(ltrim($movie->poster,'/')) : $movie->poster) : asset('storage/' . $movie->poster)) : asset('images/placeholder-poster.png') }}" alt="{{ $movie->ten_phim }}" class="w-full rounded">
+          <img src="{{ $movie->poster_url ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-full rounded" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
         </div>
 
         @if(!empty($movie->trailer))
@@ -52,7 +52,7 @@
 
         <div class="flex items-center gap-4 mb-6">
           @if($movie->trang_thai === 'dang_chieu')
-            <a href="{{ route('booking', $movie->id) }}" class="bg-[#F53003] text-white px-4 py-2 rounded-md">Đặt vé</a>
+            <a href="{{ route('booking.showtimes', $movie->id) }}" class="bg-[#F53003] text-white px-4 py-2 rounded-md">Đặt vé</a>
           @else
             <span class="px-4 py-2 bg-gray-600 text-white rounded-md">Sắp chiếu</span>
           @endif
@@ -91,7 +91,7 @@
                   <div class="font-medium mb-2">{{ \Carbon\Carbon::parse($date)->format('l, d/m/Y') }}</div>
                   <div class="flex flex-wrap gap-3">
                     @foreach($shows as $s)
-                      <a href="{{ route('booking', $movie->id) }}" class="px-3 py-2 bg-[#1b1d24] border border-[#262833] rounded text-sm hover:bg-[#222533]">{{ \Carbon\Carbon::parse($s->thoi_gian_bat_dau)->format('H:i') }} • {{ $s->phongChieu->ten_phong ?? 'Phòng' }}</a>
+                      <a href="{{ route('booking.showtimes', $movie->id) }}" class="px-3 py-2 bg-[#1b1d24] border border-[#262833] rounded text-sm hover:bg-[#222533]">{{ \Carbon\Carbon::parse($s->thoi_gian_bat_dau)->format('H:i') }} • {{ $s->phongChieu->ten_phong ?? 'Phòng' }}</a>
                     @endforeach
                   </div>
                 </div>

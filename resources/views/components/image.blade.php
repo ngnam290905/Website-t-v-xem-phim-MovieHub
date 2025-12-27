@@ -6,12 +6,57 @@
     'aspectRatio' => null, // e.g., '16/9', '4/3', '1/1', '2/3'
     'placeholder' => true,
     'quality' => 'high', // 'low', 'medium', 'high'
-    'fallback' => '/images/no-poster.jpg'
+    'fallback' => '/images/no-poster.svg'
 ])
 
 @php
-    // Determine if image is external URL
-    $isExternal = $src && filter_var($src, FILTER_VALIDATE_URL);
+    use Illuminate\Support\Facades\Storage;
+    
+    // Xử lý fallback - đảm bảo là đường dẫn đầy đủ
+    $finalFallback = $fallback;
+    if ($fallback && !filter_var($fallback, FILTER_VALIDATE_URL) && !str_starts_with($fallback, '/')) {
+        $finalFallback = asset($fallback);
+    } elseif ($fallback && !filter_var($fallback, FILTER_VALIDATE_URL)) {
+        $finalFallback = asset($fallback);
+    }
+    
+    // Xử lý đường dẫn ảnh - đảm bảo hiển thị tất cả ảnh
+    $finalSrc = $finalFallback;
+    
+    if ($src) {
+        // Nếu là URL đầy đủ (http/https)
+        if (filter_var($src, FILTER_VALIDATE_URL)) {
+            $finalSrc = $src;
+        }
+        // Nếu bắt đầu bằng / hoặc storage/
+        elseif (str_starts_with($src, '/') || str_starts_with($src, 'storage/')) {
+            $finalSrc = asset($src);
+        }
+        // Nếu là đường dẫn tương đối trong storage
+        elseif (str_contains($src, 'posters/') || str_contains($src, 'images/')) {
+            $finalSrc = asset('storage/' . $src);
+        }
+        // Thử các đường dẫn khác
+        else {
+            // Thử storage path
+            try {
+                if (Storage::disk('public')->exists($src)) {
+                    $finalSrc = Storage::disk('public')->url($src);
+                }
+                // Thử public/images
+                elseif (file_exists(public_path('images/' . $src))) {
+                    $finalSrc = asset('images/' . $src);
+                }
+                // Sử dụng src như đã cho
+                else {
+                    $finalSrc = $src;
+                }
+            } catch (\Exception $e) {
+                // Nếu có lỗi, sử dụng src trực tiếp hoặc fallback
+                $finalSrc = $src ?: $finalFallback;
+            }
+        }
+    }
     
     // Generate aspect ratio style
     $aspectStyle = $aspectRatio ? "aspect-ratio: {$aspectRatio};" : '';
@@ -39,23 +84,24 @@
     <!-- Actual Image -->
     <img 
         id="{{ $imageId }}"
-        src="{{ $src ?: $fallback }}"
+        src="{{ $finalSrc }}"
         alt="{{ $alt }}"
         class="image-content {{ $qualityClass }} {{ $placeholder ? 'opacity-0' : '' }}"
         @if($lazy) loading="lazy" @endif
         onload="this.classList.add('loaded'); this.parentElement.querySelector('[data-skeleton=\'{{ $imageId }}\']')?.classList.add('hidden');"
-        onerror="this.onerror=null; this.src='{{ $fallback }}'; this.classList.add('loaded'); this.parentElement.querySelector('[data-skeleton=\'{{ $imageId }}\']')?.classList.add('hidden');"
+        onerror="this.onerror=null; this.src='{{ $finalFallback }}'; this.classList.add('loaded'); this.parentElement.querySelector('[data-skeleton=\'{{ $imageId }}\']')?.classList.add('hidden');"
         decoding="async"
     >
     
     <!-- Blur-up Effect -->
-    @if($placeholder && $src)
+    @if($placeholder && $finalSrc && $finalSrc !== $finalFallback)
         <img 
-            src="{{ $src }}" 
+            src="{{ $finalSrc }}" 
             alt=""
             class="image-blur"
             loading="eager"
             aria-hidden="true"
+            onerror="this.style.display='none';"
         >
     @endif
 </div>

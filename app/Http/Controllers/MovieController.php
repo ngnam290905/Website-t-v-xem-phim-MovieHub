@@ -124,12 +124,60 @@ class MovieController extends Controller
     /**
      * Display the movie listing page
      */
-    public function list()
+    public function list(Request $request)
     {
-        $movies = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
-            ->orderByRaw("CASE WHEN trang_thai = 'dang_chieu' THEN 0 ELSE 1 END")
-            ->orderBy('ngay_khoi_chieu', 'asc')
-            ->paginate(12);
+        $query = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('trang_thai', $request->status);
+        }
+
+        // Filter by genre
+        if ($request->filled('genre')) {
+            $query->where('the_loai', 'LIKE', "%{$request->genre}%");
+        }
+
+        // Filter by country
+        if ($request->filled('country')) {
+            $query->where('quoc_gia', $request->country);
+        }
+
+        // Filter by age rating
+        if ($request->filled('age')) {
+            $query->where('do_tuoi', $request->age);
+        }
+
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('ten_phim', 'LIKE', "%{$search}%")
+                  ->orWhere('dao_dien', 'LIKE', "%{$search}%")
+                  ->orWhere('dien_vien', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Sort
+        $sort = $request->get('sort', 'newest');
+        switch ($sort) {
+            case 'oldest':
+                $query->orderBy('ngay_khoi_chieu', 'asc');
+                break;
+            case 'rating':
+                $query->orderBy('diem_danh_gia', 'desc');
+                break;
+            case 'name':
+                $query->orderBy('ten_phim', 'asc');
+                break;
+            case 'newest':
+            default:
+                $query->orderByRaw("CASE WHEN trang_thai = 'dang_chieu' THEN 0 ELSE 1 END")
+                      ->orderBy('ngay_khoi_chieu', 'desc');
+                break;
+        }
+
+        $movies = $query->paginate(12)->appends($request->query());
 
         return view('movies.index', [
             'movies' => $movies,
@@ -412,7 +460,7 @@ class MovieController extends Controller
             'ten_phim' => 'required|string|max:255',
             'ten_goc' => 'nullable|string|max:255',
             'do_dai' => 'required|integer|min:1|max:600',
-            'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'poster' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'mo_ta' => 'required|string|min:10|max:2000',
             'dao_dien' => 'required|string|max:100',
             'dien_vien' => 'required|string|max:500',
@@ -430,6 +478,7 @@ class MovieController extends Controller
             'do_dai.required' => 'Độ dài phim không được để trống.',
             'do_dai.min' => 'Độ dài phim phải lớn hơn 0 phút.',
             'do_dai.max' => 'Độ dài phim không được vượt quá 600 phút.',
+            'poster.required' => 'Vui lòng upload poster cho phim (bắt buộc).',
             'poster.image' => 'File poster phải là hình ảnh.',
             'poster.mimes' => 'Poster phải có định dạng: jpeg, png, jpg, gif, webp.',
             'poster.max' => 'Kích thước poster không được vượt quá 5MB.',
@@ -574,6 +623,10 @@ class MovieController extends Controller
         $doanhThu = $movie->calculateDoanhThu();
         $loiNhuan = $movie->calculateLoiNhuan();
 
+        // Lấy thống kê chi tiết
+        $statisticsService = new \App\Services\MovieStatisticsService();
+        $statistics = $statisticsService->getMovieStatistics($movie->id, 'all');
+
         return view('admin.movies.show', [
             'movie' => $movie,
             'selectedDate' => $selectedDate,
@@ -581,6 +634,7 @@ class MovieController extends Controller
             'suatChieu' => $suatChieu,
             'doanhThu' => $doanhThu,
             'loiNhuan' => $loiNhuan,
+            'statistics' => $statistics,
         ]);
     }
 

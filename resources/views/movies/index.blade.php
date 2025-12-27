@@ -23,7 +23,7 @@
         @foreach ($movies as $movie)
           <div class="group bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden transition-all duration-300 hover:border-[#F53003]/50 hover:shadow-lg hover:shadow-[#F53003]/10">
             <div class="relative overflow-hidden">
-              <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105">
+              <img src="{{ $movie->poster_url ?? $movie->poster ?? asset('images/no-poster.svg') }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
               <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                 <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] text-white text-center py-2 rounded-md text-sm font-medium hover:bg-opacity-90 transition">
                   Xem chi tiết
@@ -42,7 +42,7 @@
                   <span class="ml-1 text-sm text-white">{{ number_format($movie->diem_danh_gia, 1) }}</span>
                 </div>
                 @if($movie->trang_thai === 'dang_chieu')
-                <a href="{{ route('booking', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
+                <a href="{{ route('booking.showtimes', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
                   Đặt vé
                 </a>
                 @else

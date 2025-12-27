@@ -95,20 +95,27 @@ class AuthController extends Controller
                 $request->session()->regenerate();
                 
                 $user = Auth::user();
+                Log::info('User authenticated', ['user_id' => $user->id, 'email' => $user->email]);
                 
                 // Check if user exists and has a role
                 if ($user && $user->vaiTro) {
                     $userRole = $user->vaiTro->ten;
+                    Log::info('User role', ['role' => $userRole]);
                     
                     if ($userRole === 'admin') {
-                        return redirect()->intended(route('admin.dashboard'));
+                        Log::info('Redirecting admin to dashboard');
+                        return redirect()->route('admin.dashboard');
                     } elseif ($userRole === 'staff') {
-                        return redirect()->intended(route('admin.dashboard'));
+                        Log::info('Redirecting staff to movies');
+                        return redirect()->route('admin.movies.index');
                     }
+                } else {
+                    Log::warning('User has no role', ['user_id' => $user->id]);
                 }
                 
                 // Default redirect for users with no role or invalid role
-                return redirect()->intended(route('home'));
+                Log::info('Redirecting to home');
+                return redirect()->route('home');
             }
 
             return back()->withErrors([

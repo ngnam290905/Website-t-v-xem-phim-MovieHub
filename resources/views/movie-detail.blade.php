@@ -181,9 +181,14 @@
               @foreach($relatedMovies as $related)
                 <a href="{{ route('movie-detail', $related->id) }}" 
                    class="group bg-[#1a1d24] border border-[#2A2F3A] rounded-lg overflow-hidden hover:border-[#F53003] transition-all">
-                  <img src="{{ $related->poster_url ?? $related->poster ?? asset('images/no-poster.svg') }}" 
-                       alt="{{ $related->ten_phim }}" 
-                       class="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform">
+                  <x-image 
+                    src="{{ $related->poster_url ?? $related->poster }}" 
+                    alt="{{ $related->ten_phim }}"
+                    aspectRatio="2/3"
+                    class="w-full group-hover:scale-105 transition-transform"
+                    quality="high"
+                    :lazy="false"
+                  />
                   <div class="p-3">
                     <h3 class="text-sm font-semibold text-white line-clamp-2 group-hover:text-[#F53003] transition-colors">
                       {{ $related->ten_phim }}

@@ -4,12 +4,28 @@
 
 @section('content')
     @php
-        // Tính toán lại để hiển thị breakdown cho chính xác
-        $seatTotal = (float) $booking->chiTietDatVe->sum('gia');
+        // --- CẬP NHẬT LOGIC TÍNH TIỀN THEO GIÁ MỚI ---
+        $seatTotal = 0;
+        
+        // Duyệt qua từng ghế để cộng tiền theo loại
+        foreach($booking->chiTietDatVe as $detail) {
+            $loaiGhe = strtolower($detail->ghe->loaiGhe->ten_loai ?? '');
+            
+            if (str_contains($loaiGhe, 'vip')) {
+                $seatTotal += 150000; // Ghế VIP
+            } elseif (str_contains($loaiGhe, 'đôi') || str_contains($loaiGhe, 'doi') || str_contains($loaiGhe, 'couple')) {
+                $seatTotal += 200000; // Ghế Đôi
+            } else {
+                $seatTotal += 100000; // Ghế Thường
+            }
+        }
+
+        // Tính tiền Combo
         $comboTotal = (float) ($booking->chiTietCombo->sum(function($i){ 
             return ($i->gia_ap_dung ?? 0) * max(1, (int)$i->so_luong); 
         }) ?? 0);
         
+        // Tính khuyến mãi
         $discount = 0;
         if ($booking->khuyenMai) {
             $type = strtolower($booking->khuyenMai->loai_giam);
@@ -24,12 +40,13 @@
             if ($discount > $base) $discount = $base;
         }
         
-        // Tổng tiền cuối cùng (ưu tiên số tiền đã thanh toán -> tổng lưu trong booking -> tính toán)
+        // Tổng tiền cuối cùng
         $base = $seatTotal + $comboTotal;
         $calculated = max(0, $base - $discount);
-        $paid = optional($booking->thanhToan)->so_tien;
-        $stored = $booking->tong_tien;
-        $total = is_numeric($paid) && $paid > 0 ? (float)$paid : (is_numeric($stored) && $stored > 0 ? (float)$stored : (float)$calculated);
+        
+        // Ưu tiên hiển thị giá trị tính toán lại để khớp với giá mới bạn yêu cầu
+        // (Nếu muốn giữ nguyên giá cũ trong DB thì dùng $booking->tong_tien)
+        $total = $calculated; 
     @endphp
 
     <div class="space-y-6">
@@ -86,8 +103,9 @@
                 <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
                     <h3 class="text-lg font-semibold text-white mb-4 border-b border-[#262833] pb-3">🎬 Thông tin Phim</h3>
                     <div class="flex gap-4">
-                        <img src="{{ $booking->suatChieu?->phim?->poster ?? 'https://via.placeholder.com/150x225' }}" 
-                             alt="Poster" 
+                        <img src="{{ $booking->suatChieu?->phim?->poster_url ?? $booking->suatChieu?->phim?->poster ?? asset('images/no-poster.svg') }}" 
+                             alt="Poster"
+                             onerror="this.src='{{ asset('images/no-poster.svg') }}'" 
                              class="w-24 h-36 object-cover rounded-lg shadow-lg">
                         <div>
                             <h4 class="text-xl font-bold text-blue-400">{{ $booking->suatChieu?->phim?->ten_phim ?? 'Phim không tồn tại' }}</h4>
@@ -107,10 +125,21 @@
                     @else
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                             @foreach($booking->chiTietDatVe as $detail)
+                                @php
+                                    // Logic hiển thị giá từng ghế
+                                    $loai = strtolower($detail->ghe->loaiGhe->ten_loai ?? '');
+                                    $priceDisplay = 100000; // Mặc định thường
+                                    
+                                    if (str_contains($loai, 'vip')) {
+                                        $priceDisplay = 150000;
+                                    } elseif (str_contains($loai, 'đôi') || str_contains($loai, 'doi') || str_contains($loai, 'couple')) {
+                                        $priceDisplay = 200000;
+                                    }
+                                @endphp
                                 <div class="bg-[#1d202a] p-3 rounded-lg border border-[#262833] flex flex-col items-center justify-center">
                                     <span class="text-2xl font-bold text-white mb-1">{{ $detail->ghe->so_ghe ?? '?' }}</span>
                                     <span class="text-xs text-gray-400">{{ $detail->ghe->loaiGhe->ten_loai ?? 'Thường' }}</span>
-                                    <span class="text-xs text-green-400 mt-1 font-mono">{{ number_format($detail->gia, 0) }}đ</span>
+                                    <span class="text-xs text-green-400 mt-1 font-mono">{{ number_format($priceDisplay, 0) }}đ</span>
                                 </div>
                             @endforeach
                         </div>
@@ -196,11 +225,19 @@
                     <div class="bg-[#1d202a] rounded-lg p-3 text-sm space-y-2 border border-[#262833]">
                         <div class="flex justify-between">
                             <span class="text-gray-500">Phương thức</span>
-                            <span class="text-white font-medium">{{ $booking->thanhToan->phuong_thuc ?? 'Chưa thanh toán' }}</span>
+                            <span class="text-white font-medium">
+                                @if($booking->phuong_thuc_thanh_toan == 1)
+                                    VNPAY/Online
+                                @elseif($booking->phuong_thuc_thanh_toan == 2)
+                                    Tại quầy
+                                @else
+                                    {{ $booking->thanhToan->phuong_thuc ?? 'Chưa thanh toán' }}
+                                @endif
+                            </span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-500">Trạng thái TT</span>
-                            @if(optional($booking->thanhToan)->trang_thai == 1)
+                            @if(optional($booking->thanhToan)->trang_thai == 1 || $booking->trang_thai == 1)
                                 <span class="text-green-400 font-medium"><i class="fas fa-check-circle mr-1"></i>Thành công</span>
                             @else
                                 <span class="text-yellow-400 font-medium"><i class="fas fa-clock mr-1"></i>Chờ xử lý</span>

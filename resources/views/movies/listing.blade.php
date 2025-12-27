@@ -12,32 +12,121 @@
         @endisset
     </div>
 
-    <!-- Genre Filter -->
-    @if(!isset($currentGenre))
+    <!-- Advanced Filters -->
+    <div class="mb-8 bg-[#1b1d24] border border-[#262833] rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Bộ lọc nâng cao</h3>
+            <button id="toggle-filters" class="text-[#a6a6b0] hover:text-white">
+                <i class="fas fa-filter"></i>
+            </button>
+        </div>
+        
+        <form method="GET" action="{{ route('movies.index') }}" id="filter-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Trạng thái</label>
+                <select name="status" class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
+                    <option value="">Tất cả</option>
+                    <option value="dang_chieu" {{ request('status') === 'dang_chieu' ? 'selected' : '' }}>🔴 Đang chiếu</option>
+                    <option value="sap_chieu" {{ request('status') === 'sap_chieu' ? 'selected' : '' }}>🟡 Sắp chiếu</option>
+                </select>
+            </div>
+
+            <!-- Genre Filter -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Thể loại</label>
+                <select name="genre" class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
+                    <option value="">Tất cả thể loại</option>
+                    @php
+                        $allGenres = \App\Models\Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
+                            ->whereNotNull('the_loai')
+                            ->where('the_loai', '!=', '')
+                            ->pluck('the_loai')
+                            ->flatMap(function($item) {
+                                return array_map('trim', explode(',', $item));
+                            })
+                            ->unique()
+                            ->sort()
+                            ->values();
+                    @endphp
+                    @foreach($allGenres as $genre)
+                        <option value="{{ $genre }}" {{ request('genre') === $genre ? 'selected' : '' }}>{{ $genre }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Country Filter -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Quốc gia</label>
+                <select name="country" class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
+                    <option value="">Tất cả quốc gia</option>
+                    @php
+                        $countries = \App\Models\Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
+                            ->whereNotNull('quoc_gia')
+                            ->where('quoc_gia', '!=', '')
+                            ->pluck('quoc_gia')
+                            ->unique()
+                            ->sort()
+                            ->values();
+                    @endphp
+                    @foreach($countries as $country)
+                        <option value="{{ $country }}" {{ request('country') === $country ? 'selected' : '' }}>{{ $country }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Age Rating Filter -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Độ tuổi</label>
+                <select name="age" class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
+                    <option value="">Tất cả</option>
+                    <option value="P" {{ request('age') === 'P' ? 'selected' : '' }}>P - Mọi lứa tuổi</option>
+                    <option value="C13" {{ request('age') === 'C13' ? 'selected' : '' }}>C13 - 13+</option>
+                    <option value="C16" {{ request('age') === 'C16' ? 'selected' : '' }}>C16 - 16+</option>
+                    <option value="C18" {{ request('age') === 'C18' ? 'selected' : '' }}>C18 - 18+</option>
+                </select>
+            </div>
+
+            <!-- Sort By -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Sắp xếp theo</label>
+                <select name="sort" class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white focus:outline-none focus:border-[#F53003]">
+                    <option value="newest" {{ request('sort') === 'newest' ? 'selected' : '' }}>Mới nhất</option>
+                    <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }}>Cũ nhất</option>
+                    <option value="rating" {{ request('sort') === 'rating' ? 'selected' : '' }}>Đánh giá cao</option>
+                    <option value="name" {{ request('sort') === 'name' ? 'selected' : '' }}>Tên A-Z</option>
+                </select>
+            </div>
+
+            <!-- Search -->
+            <div>
+                <label class="block text-sm text-[#a6a6b0] mb-2">Tìm kiếm</label>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Tên phim, đạo diễn..." class="w-full px-4 py-2 bg-[#151822] border border-[#262833] rounded-lg text-white placeholder-[#a6a6b0] focus:outline-none focus:border-[#F53003]">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-end gap-2">
+                <button type="submit" class="flex-1 px-4 py-2 bg-[#F53003] hover:bg-[#e02a00] text-white rounded-lg font-semibold transition-all">
+                    <i class="fas fa-search mr-2"></i>Lọc
+                </button>
+                <a href="{{ route('movies.index') }}" class="px-4 py-2 bg-[#262833] hover:bg-[#2f3240] text-white rounded-lg transition-all">
+                    <i class="fas fa-redo"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Quick Filter Tabs -->
     <div class="mb-8">
         <div class="flex flex-wrap gap-2">
-            @php
-                $genres = [
-                    'hanh-dong' => 'Hành động',
-                    'tinh-cam' => 'Tình cảm',
-                    'hai-huoc' => 'Hài hước',
-                    'kinh-di' => 'Kinh dị',
-                    'vien-tuong' => 'Viễn tưởng',
-                    'phieu-luu' => 'Phiêu lưu',
-                    'hoat-hinh' => 'Hoạt hình',
-                    'tai-lieu' => 'Tài liệu',
-                    'hinh-su' => 'Hình sự',
-                    'than-thoai' => 'Thần thoại'
-                ];
-            @endphp
             <a href="{{ route('movies.index') }}" class="px-4 py-2 rounded-full text-sm font-medium {{ $activeTab === 'all' ? 'bg-[#F53003] text-white' : 'bg-[#1b1d24] text-gray-300 hover:bg-[#262833]' }}">
                 Tất cả
             </a>
             <a href="{{ route('movies.now-showing') }}" class="px-4 py-2 rounded-full text-sm font-medium {{ $activeTab === 'now-showing' ? 'bg-[#F53003] text-white' : 'bg-[#1b1d24] text-gray-300 hover:bg-[#262833]' }}">
-                Đang chiếu
+                🔴 Đang chiếu
             </a>
             <a href="{{ route('movies.coming-soon') }}" class="px-4 py-2 rounded-full text-sm font-medium {{ $activeTab === 'coming-soon' ? 'bg-[#F53003] text-white' : 'bg-[#1b1d24] text-gray-300 hover:bg-[#262833]' }}">
-                Sắp chiếu
+                🟡 Sắp chiếu
             </a>
             <a href="{{ route('movies.hot') }}" class="px-4 py-2 rounded-full text-sm font-medium {{ $activeTab === 'hot' ? 'bg-[#F53003] text-white' : 'bg-[#1b1d24] text-gray-300 hover:bg-[#262833]' }}">
                 Phim hot
@@ -63,12 +152,18 @@
         @forelse($movies as $movie)
         <div class="group bg-[#1b1d24] border border-[#262833] rounded-xl overflow-hidden transition-all duration-300 hover:border-[#F53003]/50 hover:shadow-lg hover:shadow-[#F53003]/10">
             <div class="relative overflow-hidden">
-                <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105">
-                @if($movie->trang_thai === 'sap_chieu')
-                <div class="absolute top-2 left-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">Sắp chiếu</div>
-                @elseif($movie->trang_thai === 'dang_chieu')
-                <div class="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">Đang chiếu</div>
-                @endif
+                <img src="{{ $movie->poster_url }}" alt="{{ $movie->ten_phim }}" class="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
+                <!-- Chuẩn hóa Badge -->
+                <div class="absolute top-2 left-2 z-10 flex flex-col gap-2">
+                    @if($movie->hot)
+                        <span class="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-xs font-bold rounded uppercase shadow-lg">🔥 HOT</span>
+                    @endif
+                    @if($movie->trang_thai === 'dang_chieu')
+                        <span class="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded uppercase shadow-lg">🔴 Đang chiếu</span>
+                    @elseif($movie->trang_thai === 'sap_chieu')
+                        <span class="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded uppercase shadow-lg">🟡 Sắp chiếu</span>
+                    @endif
+                </div>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                     <a href="{{ route('movies.show', $movie->id) }}" class="w-full bg-[#F53003] text-white text-center py-2 rounded-md text-sm font-medium hover:bg-opacity-90 transition">
                         Xem chi tiết
@@ -87,7 +182,7 @@
                         <span class="ml-1 text-sm text-white">{{ number_format($movie->diem_danh_gia, 1) }}</span>
                     </div>
                     @if($movie->trang_thai === 'dang_chieu')
-                    <a href="{{ route('booking', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
+                    <a href="{{ route('booking.showtimes', $movie->id) }}" class="text-sm bg-[#F53003] text-white px-3 py-1 rounded hover:bg-opacity-90 transition">
                         Đặt vé
                     </a>
                     @else

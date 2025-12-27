@@ -1,28 +1,42 @@
 @php
+  // Chuẩn hóa badge theo trạng thái phim
+  $badgeConfig = [];
+  if ($movie->hot) {
+    $badgeConfig[] = ['class' => 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black', 'text' => '🔥 HOT'];
+  }
+  if ($movie->trang_thai === 'dang_chieu') {
+    $badgeConfig[] = ['class' => 'bg-green-500 text-white', 'text' => '🔴 Đang chiếu'];
+  } elseif ($movie->trang_thai === 'sap_chieu') {
+    $badgeConfig[] = ['class' => 'bg-yellow-500 text-black', 'text' => '🟡 Sắp chiếu'];
+  }
+  
   $highlightColors = [
-    'hot' => ['border' => 'border-[#FF784E]/50', 'hover' => 'hover:border-[#FF784E]', 'tag' => 'bg-gradient-to-r from-yellow-400 to-orange-400', 'tagText' => 'HOT'],
-    'now' => ['border' => 'border-blue-500/50', 'hover' => 'hover:border-blue-400', 'tag' => 'bg-blue-500', 'tagText' => 'MỚI'],
-    'coming' => ['border' => 'border-purple-500/50', 'hover' => 'hover:border-purple-400', 'tag' => 'bg-gradient-to-r from-purple-500 to-pink-500', 'tagText' => 'SẮP CHIẾU'],
+    'hot' => ['border' => 'border-[#FF784E]/50', 'hover' => 'hover:border-[#FF784E]'],
+    'now' => ['border' => 'border-blue-500/50', 'hover' => 'hover:border-blue-400'],
+    'coming' => ['border' => 'border-purple-500/50', 'hover' => 'hover:border-purple-400'],
   ];
   $colors = $highlightColors[$highlight] ?? $highlightColors['now'];
 @endphp
 
-<div class="movie-card group cursor-pointer bg-[#1b1d24]/80 border {{ $colors['border'] }} rounded-xl overflow-hidden {{ $colors['hover'] }} transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-[#FF784E]/20 focus-within:ring-2 focus-within:ring-[#FF784E]/50 focus-within:outline-none">
-  <div class="relative overflow-hidden">
+<div class="movie-card group cursor-pointer bg-[#1b1d24]/80 border {{ $colors['border'] }} rounded-xl overflow-hidden {{ $colors['hover'] }} transition-all duration-500 transform hover:scale-[1.05] hover:shadow-2xl hover:shadow-[#F53003]/30 focus-within:ring-2 focus-within:ring-[#F53003]/50 focus-within:outline-none">
+    <div class="relative overflow-hidden">
     <x-image 
       src="{{ $movie->poster_url }}" 
       alt="{{ $movie->ten_phim }}"
       aspectRatio="2/3"
-      class="w-full"
+      class="w-full transition-transform duration-700 group-hover:scale-110"
       quality="high"
+      onerror="this.src='{{ asset('images/no-poster.svg') }}'"
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
     
-    <!-- Tag -->
-    <div class="absolute top-3 left-3 z-10">
-      <span class="px-2.5 py-1 {{ $colors['tag'] }} text-white text-[10px] font-bold rounded uppercase shadow-lg">
-        {{ $colors['tagText'] }}
-      </span>
+    <!-- Badges -->
+    <div class="absolute top-3 left-3 z-10 flex flex-col gap-2">
+      @foreach($badgeConfig as $badge)
+        <span class="px-2.5 py-1 {{ $badge['class'] }} text-[10px] font-bold rounded uppercase shadow-lg">
+          {{ $badge['text'] }}
+        </span>
+      @endforeach
     </div>
     
     <!-- Rating -->
@@ -33,11 +47,31 @@
       </div>
     </div>
     
-    <!-- Trailer Button on Hover -->
-    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-      <button class="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300 transform hover:scale-110">
-        <i class="fas fa-play text-xl ml-1"></i>
-      </button>
+    <!-- Hover Overlay with Trailer & Info -->
+    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 flex flex-col items-center justify-center p-4">
+      @if($movie->trailer)
+        <button onclick="openTrailer('{{ $movie->trailer }}', '{{ $movie->ten_phim }}')" class="w-20 h-20 rounded-full bg-gradient-to-r from-[#F53003] to-[#ff5c3a] backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-white hover:bg-gradient-to-r hover:from-[#ff5c3a] hover:to-[#F53003] transition-all duration-300 transform hover:scale-110 mb-4 shadow-lg shadow-[#F53003]/50 hover:shadow-xl hover:shadow-[#F53003]/70">
+          <i class="fas fa-play text-2xl ml-1"></i>
+        </button>
+      @endif
+      <div class="text-center text-white space-y-3">
+        @if($movie->the_loai)
+          <div class="px-3 py-1 bg-[#F53003]/80 backdrop-blur-sm rounded-full text-xs font-semibold inline-block">
+            🎭 {{ $movie->the_loai }}
+          </div>
+        @endif
+        <p class="text-sm line-clamp-3 px-2">{{ $movie->mo_ta_ngan ?? substr($movie->mo_ta ?? '', 0, 100) . '...' }}</p>
+        <div class="flex gap-2">
+          @if($highlight !== 'coming')
+            <a href="{{ route('booking.index') }}?movie={{ $movie->id }}" class="px-4 py-2 bg-gradient-to-r from-[#F53003] to-[#ff5c3a] text-white rounded-lg text-sm font-bold hover:shadow-lg hover:shadow-[#F53003]/50 transition-all transform hover:scale-105">
+              🎟️ Đặt vé
+            </a>
+          @endif
+          <a href="{{ route('movie-detail', $movie->id) }}" class="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg text-sm font-semibold hover:bg-white/20 transition-all">
+            Chi tiết
+          </a>
+        </div>
+      </div>
     </div>
   </div>
   

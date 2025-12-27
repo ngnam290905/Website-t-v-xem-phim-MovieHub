@@ -4,6 +4,7 @@
 use App\Models\SuatChieu;
 use App\Models\Phim;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 function tinhGiaVe($id_suat_chieu, $id_loai_ghe)
@@ -22,9 +23,16 @@ function tinhGiaVe($id_suat_chieu, $id_loai_ghe)
     $heSoThoiGian = 1.0;
     $thu = $ngayChieu->dayOfWeekIso; // 1 = Thứ 2, 7 = Chủ nhật
 
-    $rules = DB::table('cau_hinh_he_so_thoi_gian')
-        ->where('trang_thai', true)
-        ->get();
+    $rules = collect([]);
+    try {
+        if (Schema::hasTable('cau_hinh_he_so_thoi_gian')) {
+            $rules = DB::table('cau_hinh_he_so_thoi_gian')
+                ->where('trang_thai', true)
+                ->get();
+        }
+    } catch (\Exception $e) {
+        // Table doesn't exist, use default coefficient
+    }
 
     foreach ($rules as $rule) {
         if ($rule->loai == 'ngay_tuan') {

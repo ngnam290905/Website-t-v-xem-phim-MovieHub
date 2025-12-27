@@ -43,13 +43,14 @@
           <div class="relative w-full overflow-hidden rounded-xl border border-[#262833] bg-[#0f0f12]">
             @if($movie->poster)
               @if(str_starts_with($movie->poster, 'http'))
-                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3">
+                <img src="{{ $movie->poster }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
               @else
-                <img src="{{ asset('storage/' . $movie->poster) }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3">
+                <img src="{{ asset('storage/' . $movie->poster) }}" alt="{{ $movie->ten_phim }}" class="w-full object-cover" style="aspect-ratio: 2/3" onerror="this.src='{{ asset('images/no-poster.svg') }}'">
               @endif
-                  <i class="fas fa-image text-3xl mb-2"></i>
-                  Chưa có poster
-                </div>
+            @else
+              <div class="w-full flex flex-col items-center justify-center text-[#a6a6b0]" style="aspect-ratio: 2/3; min-height: 400px;">
+                <i class="fas fa-image text-5xl mb-4 opacity-50"></i>
+                <p class="text-sm">Chưa có poster</p>
               </div>
             @endif
             <span class="absolute top-3 left-3 text-[10px] uppercase px-2 py-1 rounded-full font-semibold {{ $movie->trang_thai==='dang_chieu' ? 'bg-green-500/20 text-green-300' : ($movie->trang_thai==='sap_chieu' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-gray-500/20 text-gray-300') }}">
@@ -227,6 +228,118 @@
         <div class="text-[#a6a6b0] flex items-center gap-2"><i class="fas fa-info-circle"></i> Không có lịch chiếu cho ngày đã chọn.</div>
       @endif
     </div>
+
+    <!-- Thống kê - Báo cáo -->
+    <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+          <i class="fas fa-chart-bar text-[#FF784E]"></i>
+          Thống kê - Báo cáo
+        </h2>
+        <div class="flex items-center gap-2">
+          <select id="statistics-period" class="px-3 py-1.5 rounded-lg border border-[#2f3240] bg-[#0f0f12] text-white text-sm focus:outline-none focus:border-[#FF784E]">
+            <option value="all">Tất cả thời gian</option>
+            <option value="today">Hôm nay</option>
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+            <option value="year">Năm nay</option>
+            <option value="custom">Tùy chọn</option>
+          </select>
+          <div id="custom-date-range" class="hidden flex items-center gap-2">
+            <input type="date" id="start-date" class="px-3 py-1.5 rounded-lg border border-[#2f3240] bg-[#0f0f12] text-white text-sm focus:outline-none focus:border-[#FF784E]">
+            <span class="text-[#a6a6b0]">đến</span>
+            <input type="date" id="end-date" class="px-3 py-1.5 rounded-lg border border-[#2f3240] bg-[#0f0f12] text-white text-sm focus:outline-none focus:border-[#FF784E]">
+            <button id="apply-date-range" class="px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-300 text-sm hover:bg-blue-600/30">
+              Áp dụng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if(isset($statistics))
+        <div id="statistics-content">
+          <!-- Cards thống kê -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <!-- Số suất chiếu -->
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 hover:border-[#FF784E]/50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs text-[#a6a6b0] uppercase tracking-wide">Số suất chiếu</div>
+                <i class="fas fa-calendar-alt text-[#FF784E] text-lg"></i>
+              </div>
+              <div class="text-3xl font-bold text-white mb-1" id="stat-total-showtimes">
+                {{ number_format($statistics['statistics']['total_showtimes']) }}
+              </div>
+              <div class="text-xs text-[#a6a6b0]">suất chiếu đã tạo</div>
+            </div>
+
+            <!-- Tổng vé đã bán -->
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 hover:border-green-400/50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs text-[#a6a6b0] uppercase tracking-wide">Vé đã bán</div>
+                <i class="fas fa-ticket-alt text-green-400 text-lg"></i>
+              </div>
+              <div class="text-3xl font-bold text-white mb-1" id="stat-total-tickets">
+                {{ number_format($statistics['statistics']['total_tickets_sold']) }}
+              </div>
+              <div class="text-xs text-[#a6a6b0]">vé đã thanh toán</div>
+            </div>
+
+            <!-- Tổng doanh thu -->
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 hover:border-yellow-400/50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs text-[#a6a6b0] uppercase tracking-wide">Doanh thu</div>
+                <i class="fas fa-money-bill-wave text-yellow-400 text-lg"></i>
+              </div>
+              <div class="text-2xl font-bold text-white mb-1" id="stat-total-revenue">
+                {{ number_format($statistics['statistics']['total_revenue'], 0, ',', '.') }} <span class="text-sm">VNĐ</span>
+              </div>
+              <div class="text-xs text-[#a6a6b0]">tổng doanh thu</div>
+            </div>
+
+            <!-- Tỷ lệ lấp đầy -->
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4 hover:border-blue-400/50 transition-colors">
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-xs text-[#a6a6b0] uppercase tracking-wide">Tỷ lệ lấp đầy</div>
+                <i class="fas fa-percentage text-blue-400 text-lg"></i>
+              </div>
+              <div class="text-3xl font-bold text-white mb-1" id="stat-occupancy-rate">
+                {{ number_format($statistics['statistics']['occupancy_rate'], 2) }}%
+              </div>
+              <div class="text-xs text-[#a6a6b0]">ghế đã bán / tổng ghế</div>
+            </div>
+          </div>
+
+          <!-- Chi tiết doanh thu -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
+              <div class="text-xs text-[#a6a6b0] mb-2">Doanh thu từ vé</div>
+              <div class="text-xl font-semibold text-white" id="stat-seat-revenue">
+                {{ number_format($statistics['statistics']['seat_revenue'], 0, ',', '.') }} VNĐ
+              </div>
+            </div>
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
+              <div class="text-xs text-[#a6a6b0] mb-2">Doanh thu từ combo</div>
+              <div class="text-xl font-semibold text-white" id="stat-combo-revenue">
+                {{ number_format($statistics['statistics']['combo_revenue'], 0, ',', '.') }} VNĐ
+              </div>
+            </div>
+          </div>
+
+          <!-- Biểu đồ vé bán theo thời gian -->
+          @if(!empty($statistics['chart_data']['tickets_by_date']))
+            <div class="bg-[#1a1d24] border border-[#262833] rounded-lg p-4">
+              <div class="text-sm font-semibold text-white mb-4">Biểu đồ vé bán theo thời gian</div>
+              <canvas id="tickets-chart" height="100"></canvas>
+            </div>
+          @endif
+        </div>
+      @else
+        <div class="text-[#a6a6b0] text-center py-8">
+          <i class="fas fa-chart-line text-4xl mb-2"></i>
+          <p>Đang tải dữ liệu thống kê...</p>
+        </div>
+      @endif
+    </div>
   </div>
   <!-- Modal xem sơ đồ ghế -->
   <div id="seatmap-modal" class="fixed inset-0 z-50 hidden">
@@ -343,5 +456,152 @@
         });
       });
     });
+
+    // Statistics filter handler
+    document.getElementById('statistics-period')?.addEventListener('change', function() {
+      const period = this.value;
+      const customRange = document.getElementById('custom-date-range');
+      
+      if (period === 'custom') {
+        customRange.classList.remove('hidden');
+      } else {
+        customRange.classList.add('hidden');
+        loadStatistics(period);
+      }
+    });
+
+    document.getElementById('apply-date-range')?.addEventListener('click', function() {
+      const startDate = document.getElementById('start-date').value;
+      const endDate = document.getElementById('end-date').value;
+      
+      if (startDate && endDate) {
+        loadStatistics('custom', startDate, endDate);
+      }
+    });
+
+    function loadStatistics(period, startDate = null, endDate = null) {
+      const url = new URL('{{ route("admin.reports.movie-statistics", $movie->id) }}', window.location.origin);
+      url.searchParams.set('period', period);
+      if (startDate) url.searchParams.set('start_date', startDate);
+      if (endDate) url.searchParams.set('end_date', endDate);
+
+      fetch(url, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Update statistics
+        document.getElementById('stat-total-showtimes').textContent = 
+          new Intl.NumberFormat('vi-VN').format(data.statistics.total_showtimes);
+        document.getElementById('stat-total-tickets').textContent = 
+          new Intl.NumberFormat('vi-VN').format(data.statistics.total_tickets_sold);
+        document.getElementById('stat-total-revenue').textContent = 
+          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.statistics.total_revenue);
+        document.getElementById('stat-occupancy-rate').textContent = 
+          data.statistics.occupancy_rate.toFixed(2) + '%';
+        document.getElementById('stat-seat-revenue').textContent = 
+          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.statistics.seat_revenue);
+        document.getElementById('stat-combo-revenue').textContent = 
+          new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(data.statistics.combo_revenue);
+
+        // Update chart if data exists
+        if (data.chart_data.tickets_by_date && Object.keys(data.chart_data.tickets_by_date).length > 0) {
+          updateChart(data.chart_data.tickets_by_date);
+        }
+      })
+      .catch(error => {
+        console.error('Error loading statistics:', error);
+      });
+    }
+
+    // Chart initialization
+    @if(isset($statistics) && !empty($statistics['chart_data']['tickets_by_date']))
+      const chartData = @json($statistics['chart_data']['tickets_by_date']);
+      const ctx = document.getElementById('tickets-chart');
+      if (ctx && chartData) {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: Object.keys(chartData),
+            datasets: [{
+              label: 'Số vé bán',
+              data: Object.values(chartData),
+              borderColor: '#FF784E',
+              backgroundColor: 'rgba(255, 120, 78, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                labels: { color: '#a6a6b0' }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: '#a6a6b0' },
+                grid: { color: '#262833' }
+              },
+              x: {
+                ticks: { color: '#a6a6b0' },
+                grid: { color: '#262833' }
+              }
+            }
+          }
+        });
+      }
+
+      function updateChart(newData) {
+        const ctx = document.getElementById('tickets-chart');
+        if (ctx && newData) {
+          // Destroy existing chart if exists
+          if (window.ticketsChart) {
+            window.ticketsChart.destroy();
+          }
+          window.ticketsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: Object.keys(newData),
+              datasets: [{
+                label: 'Số vé bán',
+                data: Object.values(newData),
+                borderColor: '#FF784E',
+                backgroundColor: 'rgba(255, 120, 78, 0.1)',
+                tension: 0.4,
+                fill: true
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: {
+                  labels: { color: '#a6a6b0' }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: { color: '#a6a6b0' },
+                  grid: { color: '#262833' }
+                },
+                x: {
+                  ticks: { color: '#a6a6b0' },
+                  grid: { color: '#262833' }
+                }
+              }
+            }
+          });
+        }
+      }
+    @endif
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 @endsection
