@@ -17,7 +17,7 @@
             @else
                 <button 
                     id="print-ticket-btn"
-                    onclick="printTicket({{ $ticket->id }})"
+                    onclick="window.print()"
                     class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
                 >
                     <i class="fas fa-print mr-2"></i>In vé
@@ -144,164 +144,78 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Payment Info -->
-    @if($ticket->thanhToan)
+        <!-- Combo Info -->
+        @if(isset($comboItems) && $comboItems->isNotEmpty())
         <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-            <h2 class="text-xl font-semibold text-white mb-4">Thông tin thanh toán</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                    <span class="text-[#a6a6b0] text-sm">Phương thức:</span>
-                    <p class="text-white font-semibold">{{ $ticket->thanhToan->phuong_thuc ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <span class="text-[#a6a6b0] text-sm">Mã giao dịch:</span>
-                    <p class="text-white font-mono text-sm">{{ $ticket->thanhToan->ma_giao_dich ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <span class="text-[#a6a6b0] text-sm">Trạng thái:</span>
-                    <p class="text-white">
-                        @if($ticket->thanhToan->trang_thai == 1)
-                            <span class="text-green-400">Đã thanh toán</span>
-                        @else
-                            <span class="text-yellow-400">Chờ thanh toán</span>
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <span class="text-[#a6a6b0] text-sm">Thời gian:</span>
-                    <p class="text-white text-sm">
-                        {{ $ticket->thanhToan->thoi_gian ? \Carbon\Carbon::parse($ticket->thanhToan->thoi_gian)->format('d/m/Y H:i') : 'N/A' }}
-                    </p>
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-box text-[#ffcc00]"></i>
+                <span>Combo đã chọn</span>
+            </h2>
+            <div class="space-y-2">
+                @foreach($comboItems as $comboDetail)
+                    @php
+                        $c = $comboDetail->combo;
+                        $comboName = $c->ten ?? $c->ten_combo ?? 'Combo';
+                        $qty = max(1, (int)($comboDetail->so_luong ?? 1));
+                        $unit = (float)($comboDetail->gia_ap_dung ?? $c->gia ?? 0);
+                        $lineTotal = $unit * $qty;
+                    @endphp
+                    <div class="flex justify-between items-center p-2 bg-[#1a1d24] rounded">
+                        <div>
+                            <span class="text-white font-semibold">{{ $comboName }}</span>
+                            <span class="text-[#a6a6b0] text-sm ml-2">x{{ $qty }}</span>
+                            <div class="text-[#a6a6b0] text-xs mt-1">Đơn giá: {{ number_format($unit, 0, ',', '.') }} đ</div>
+                        </div>
+                        <span class="text-white font-semibold">{{ number_format($lineTotal, 0, ',', '.') }} đ</span>
+                    </div>
+                @endforeach
+                <div class="pt-2 border-t border-[#262833] flex justify-between">
+                    <span class="text-[#a6a6b0]">Tổng combo:</span>
+                    <span class="text-white font-semibold">
+                        {{ number_format($comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); }), 0, ',', '.') }} đ
+                    </span>
                 </div>
             </div>
         </div>
-    @endif
+        @endif
 
-    <!-- QR Code Section -->
-    <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
-        <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-            <i class="fas fa-qrcode text-[#F53003]"></i>
-            <span>Mã QR Vé</span>
-        </h2>
-        @php
-            $qrData = 'ticket_id=' . $ticket->id;
-            if ($ticket->ticket_code) {
-                $qrData = 'ticket_id=' . $ticket->ticket_code;
-            }
-            $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($qrData);
-        @endphp
-        <div class="flex flex-col items-center justify-center">
-            <div class="bg-white p-4 rounded-lg mb-4" style="min-height: 250px; min-width: 250px; display: flex; align-items: center; justify-center;">
-                <img src="{{ $qrCodeUrl }}" alt="QR Code" id="qrcode-img-admin" style="width: 250px; height: 250px; display: block;" onerror="console.error('QR Image failed to load'); this.style.display='none'; document.getElementById('qrcode-fallback-admin').style.display='block'; generateQRCodeFallbackAdmin('{{ $qrData }}');">
-                <div id="qrcode-fallback-admin" style="display: none; width: 250px; height: 250px;"></div>
+        <!-- Foods Info -->
+        @if(isset($foodItems) && $foodItems->isNotEmpty())
+        <div class="bg-[#151822] border border-[#262833] rounded-xl p-6">
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-utensils text-[#ff784e]"></i>
+                <span>Đồ ăn đã chọn</span>
+            </h2>
+            <div class="space-y-2">
+                @foreach($foodItems as $foodDetail)
+                    @php
+                        $f = $foodDetail->food;
+                        $foodName = $f->name ?? 'Đồ ăn';
+                        $qty = max(1, (int)($foodDetail->quantity ?? 1));
+                        $unit = (float)($foodDetail->price ?? $f->price ?? 0);
+                        $lineTotal = $unit * $qty;
+                    @endphp
+                    <div class="flex justify-between items-center p-2 bg-[#1a1d24] rounded">
+                        <div>
+                            <span class="text-white font-semibold">{{ $foodName }}</span>
+                            <span class="text-[#a6a6b0] text-sm ml-2">x{{ $qty }}</span>
+                            <div class="text-[#a6a6b0] text-xs mt-1">Đơn giá: {{ number_format($unit, 0, ',', '.') }} đ</div>
+                        </div>
+                        <span class="text-white font-semibold">{{ number_format($lineTotal, 0, ',', '.') }} đ</span>
+                    </div>
+                @endforeach
+                <div class="pt-2 border-t border-[#262833] flex justify-between">
+                    <span class="text-[#a6a6b0]">Tổng đồ ăn:</span>
+                    <span class="text-white font-semibold">
+                        {{ number_format($foodItems->sum(function($f){ return (float)$f->price * max(1,(int)$f->quantity); }), 0, ',', '.') }} đ
+                    </span>
+                </div>
             </div>
-            <p class="text-sm text-[#a6a6b0] text-center">
-                <i class="fas fa-info-circle mr-2"></i>
-                Xuất trình mã QR này tại rạp để vào phòng chiếu
-            </p>
-            <p class="text-xs text-[#a6a6b0] text-center mt-2 font-mono">
-                Mã vé: {{ $ticket->ticket_code ?: sprintf('MV%06d', $ticket->id) }}
-            </p>
         </div>
+        @endif
     </div>
 </div>
-
-<!-- QR Code Library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-function generateQRCodeFallbackAdmin(qrData) {
-    const fallbackElement = document.getElementById('qrcode-fallback-admin');
-    const imgElement = document.getElementById('qrcode-img-admin');
-    
-    if (fallbackElement && typeof QRCode !== 'undefined') {
-        imgElement.style.display = 'none';
-        fallbackElement.style.display = 'block';
-        new QRCode(fallbackElement, {
-            text: qrData,
-            width: 250,
-            height: 250,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H
-        });
-    } else {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
-        script.onload = function() {
-            if (fallbackElement) {
-                imgElement.style.display = 'none';
-                fallbackElement.style.display = 'block';
-                new QRCode(fallbackElement, {
-                    text: qrData,
-                    width: 250,
-                    height: 250,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-            }
-        };
-        document.head.appendChild(script);
-    }
-}
-
-let isPrinting = false;
-
-async function printTicket(ticketId) {
-    if (isPrinting) {
-        return;
-    }
-
-    const printBtn = document.getElementById('print-ticket-btn');
-    if (!printBtn || printBtn.disabled) {
-        window.print();
-        return;
-    }
-
-    isPrinting = true;
-    printBtn.disabled = true;
-    printBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...';
-
-    try {
-        const response = await fetch(`/admin/scan/${ticketId}/mark-printed`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            printBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Đã in';
-            printBtn.classList.remove('bg-[#F53003]', 'hover:bg-[#ff4d4d]');
-            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
-            
-            setTimeout(() => {
-                window.print();
-            }, 500);
-        } else {
-            alert('Vé này đã được in rồi. Thời gian in: ' + (data.printed_at || 'N/A'));
-            printBtn.disabled = true;
-            printBtn.innerHTML = '<i class="fas fa-print mr-2"></i>Đã in';
-            printBtn.classList.remove('bg-[#F53003]', 'hover:bg-[#ff4d4d]');
-            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
-        }
-    } catch (error) {
-        console.error('Error marking ticket as printed:', error);
-        alert('Có lỗi xảy ra, nhưng vẫn có thể in vé.');
-        window.print();
-        printBtn.disabled = false;
-        printBtn.innerHTML = '<i class="fas fa-print mr-2"></i>In vé';
-    } finally {
-        isPrinting = false;
-    }
-}
-</script>
 
 <style>
 @media print {
@@ -335,19 +249,6 @@ async function printTicket(ticketId) {
     
     .text-\[#a6a6b0\] {
         color: #666 !important;
-    }
-    
-    /* Ensure QR code is visible when printing */
-    img[alt="QR Code"], #qrcode-img-admin, #qrcode-fallback-admin {
-        visibility: visible !important;
-        display: block !important;
-        max-width: 100% !important;
-        height: auto !important;
-    }
-    
-    #qrcode-fallback-admin canvas {
-        visibility: visible !important;
-        display: block !important;
     }
     
     @page {

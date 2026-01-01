@@ -61,7 +61,7 @@ class SuatChieuController extends Controller
         
         // Sort functionality
         $sortBy = $request->get('sort_by', 'thoi_gian_bat_dau');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortOrder = $request->get('sort_order', 'asc');
         
         // Map sort_by to actual column names
         $columnMap = [
@@ -73,9 +73,17 @@ class SuatChieuController extends Controller
         $actualColumn = $columnMap[$sortBy] ?? $sortBy;
         
         if (in_array($actualColumn, ['thoi_gian_bat_dau', 'thoi_gian_ket_thuc', 'trang_thai'])) {
-            $query->orderBy($actualColumn, $sortOrder);
+            // Nếu sắp xếp theo thoi_gian_bat_dau, ưu tiên suất chưa chiếu trước
+            if ($actualColumn === 'thoi_gian_bat_dau' && $sortOrder === 'asc') {
+                $query->orderByRaw('CASE WHEN thoi_gian_ket_thuc >= NOW() THEN 0 ELSE 1 END')
+                      ->orderBy('thoi_gian_bat_dau', 'asc');
+            } else {
+                $query->orderBy($actualColumn, $sortOrder);
+            }
         } else {
-            $query->orderBy('thoi_gian_bat_dau', 'desc');
+            // Mặc định: ưu tiên suất chưa chiếu, sau đó sắp xếp theo thời gian bắt đầu tăng dần
+            $query->orderByRaw('CASE WHEN thoi_gian_ket_thuc >= NOW() THEN 0 ELSE 1 END')
+                  ->orderBy('thoi_gian_bat_dau', 'asc');
         }
         
         $perPage = $request->get('per_page', 10);
@@ -276,6 +284,12 @@ class SuatChieuController extends Controller
      */
     public function edit(SuatChieu $suatChieu)
     {
+        // Kiểm tra nếu suất chiếu đã kết thúc thì không cho phép chỉnh sửa
+        if ($suatChieu->thoi_gian_ket_thuc && $suatChieu->thoi_gian_ket_thuc->isPast()) {
+            return redirect()->route('admin.suat-chieu.show', $suatChieu)
+                ->withErrors(['error' => 'Suất chiếu đã kết thúc, không thể chỉnh sửa.']);
+        }
+        
         $phim = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])->get();
         $phongChieu = PhongChieu::where('trang_thai', 1)->get();
         
@@ -287,6 +301,11 @@ class SuatChieuController extends Controller
      */
     public function update(Request $request, SuatChieu $suatChieu)
     {
+        // Bảo vệ backend: Kiểm tra nếu suất chiếu đã kết thúc thì không cho phép cập nhật
+        if ($suatChieu->thoi_gian_ket_thuc && $suatChieu->thoi_gian_ket_thuc->isPast()) {
+            return back()->withErrors(['error' => 'Suất chiếu đã kết thúc, không thể chỉnh sửa.'])->withInput();
+        }
+        
         // Support legacy field names from form: id_phim, id_phong
         if ($request->has('id_phim') && !$request->has('movie_id')) {
             $request->merge(['movie_id' => $request->input('id_phim')]);

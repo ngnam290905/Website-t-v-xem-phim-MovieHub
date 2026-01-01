@@ -83,6 +83,7 @@ class ScanController extends Controller
             'suatChieu.phongChieu',
             'chiTietDatVe.ghe.loaiGhe',
             'chiTietCombo.combo',
+            'chiTietFood.food',
             'nguoiDung',
             'thanhToan',
             'khuyenMai'
@@ -96,9 +97,11 @@ class ScanController extends Controller
             ];
         });
 
+        $comboItems = $ticket->chiTietCombo ?? collect();
+        $foodItems = $ticket->chiTietFood ?? collect();
         $isPrinted = $ticket->da_in ?? false;
 
-        return view('admin.scan.show', compact('ticket', 'seats', 'isPrinted'));
+        return view('admin.scan.show', compact('ticket', 'seats', 'comboItems', 'foodItems', 'isPrinted'));
     }
 
     /**

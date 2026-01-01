@@ -395,7 +395,9 @@ async function loadShowtimes(date) {
                 `;
                 
                 if (!isDisabled) {
-                    showtimeCard.onclick = () => selectShowtime(showtime);
+                    showtimeCard.onclick = (e) => {
+                        selectShowtime(showtime, e);
+                    };
                 }
                 
                 grid.appendChild(showtimeCard);
@@ -412,7 +414,7 @@ async function loadShowtimes(date) {
 }
 
 // Select showtime
-function selectShowtime(showtime) {
+function selectShowtime(showtime, event) {
     currentSelectedShowtime = showtime;
     
     // Update ticket info
@@ -431,7 +433,9 @@ function selectShowtime(showtime) {
     document.querySelectorAll('.showtime-btn').forEach(btn => {
         btn.classList.remove('ring-2', 'ring-[#F53003]', 'ring-offset-2', 'ring-offset-[#151822]');
     });
-    event.currentTarget.classList.add('ring-2', 'ring-[#F53003]', 'ring-offset-2', 'ring-offset-[#151822]');
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('ring-2', 'ring-[#F53003]', 'ring-offset-2', 'ring-offset-[#151822]');
+    }
     
     showToast('Đã chọn suất chiếu ' + showtime.time, 'success');
 }

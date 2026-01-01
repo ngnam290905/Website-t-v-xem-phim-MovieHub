@@ -16,6 +16,7 @@ use App\Http\Controllers\AdminKhuyenMaiController;
 use App\Http\Controllers\QuanLyDatVeController;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\ComboController;
+use App\Http\Controllers\Admin\FoodController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserProfileController;
@@ -135,14 +136,16 @@ Route::middleware('auth')->middleware('block.admin.staff')->prefix('booking')->n
 });
 
 
+Route::middleware('block.admin.staff')->group(function () {
+    Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats')->where('showId', '[0-9]+');
+    Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh')->where('showId', '[0-9]+');
+});
+
 Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
-    Route::get('/shows/{showId}/seats', [App\Http\Controllers\BookingController::class, 'showSeats'])->name('booking.seats');
     // New seat hold endpoints
     Route::post('/shows/{showId}/seats/hold', [App\Http\Controllers\BookingController::class, 'holdSeat'])->name('booking.seats.hold');
     Route::post('/shows/{showId}/seats/release', [App\Http\Controllers\BookingController::class, 'releaseSeat'])->name('booking.seats.release');
     Route::post('/shows/{showId}/seats/confirm-booking', [App\Http\Controllers\BookingController::class, 'confirmBooking'])->name('booking.seats.confirm');
-    // Legacy endpoints removed: lock/unlock (frontend switched to hold/release)
-Route::get('/shows/{showId}/seats/refresh', [App\Http\Controllers\BookingController::class, 'refreshSeats'])->name('booking.seats.refresh');
     Route::get('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'addons'])->name('booking.addons');
     Route::post('/bookings/{bookingId}/addons', [App\Http\Controllers\BookingController::class, 'updateAddons'])->name('booking.addons.update');
     Route::get('/checkout/{bookingId}', [App\Http\Controllers\BookingController::class, 'checkout'])->name('booking.checkout');
@@ -267,7 +270,7 @@ Route::get('/create', [MovieController::class, 'create'])->middleware('role:admi
         Route::put('suat-chieu/{suatChieu}', [SuatChieuController::class, 'update'])->name('suat-chieu.update');
         Route::delete('suat-chieu/{suatChieu}', [SuatChieuController::class, 'destroy'])->name('suat-chieu.destroy');
         Route::delete('suat-chieu', [SuatChieuController::class, 'destroyAll'])->name('suat-chieu.destroy-all');
-        Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
+Route::patch('suat-chieu/{suatChieu}/status', [SuatChieuController::class, 'updateStatus'])->name('suat-chieu.update-status');
         Route::post('suat-chieu/{suatChieu}/duplicate', [SuatChieuController::class, 'duplicate'])->name('suat-chieu.duplicate');
     });
     // Admin only: xem danh sách/chi tiết
@@ -380,6 +383,21 @@ Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStat
     });
     // Admin & Staff: chi tiết (ràng buộc là số để tránh nuốt '/create')
     Route::get('combos/{combo}', [ComboController::class, 'show'])->whereNumber('combo')->name('combos.show');
+
+    // Quản lý Đồ ăn
+    Route::get('foods', [FoodController::class, 'index'])->name('foods.index');
+    Route::get('foods/statistics', [FoodController::class, 'statistics'])->name('foods.statistics');
+    // Chỉ Admin & Staff: CRUD (đặt trước show để tránh nuốt '/create')
+    Route::middleware('role:admin,staff')->group(function () {
+        Route::get('foods/create', [FoodController::class, 'create'])->name('foods.create');
+        Route::post('foods', [FoodController::class, 'store'])->name('foods.store');
+        Route::get('foods/{food}/edit', [FoodController::class, 'edit'])->name('foods.edit');
+        Route::put('foods/{food}', [FoodController::class, 'update'])->name('foods.update');
+        Route::delete('foods/{food}', [FoodController::class, 'destroy'])->name('foods.destroy');
+        Route::patch('foods/{food}/toggle-status', [FoodController::class, 'toggleStatus'])->name('foods.toggle-status');
+    });
+    // Admin & Staff: chi tiết (ràng buộc là số để tránh nuốt '/create')
+    Route::get('foods/{food}', [FoodController::class, 'show'])->whereNumber('food')->name('foods.show');
 
     // Quản lý Scan vé
     Route::prefix('scan')->name('scan.')->group(function () {

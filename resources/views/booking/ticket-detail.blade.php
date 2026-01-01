@@ -21,15 +21,18 @@
             $room = $showtime->phongChieu ?? null;
             $seats = $booking->chiTietDatVe;
             $comboItems = isset($comboItems) ? $comboItems : ($booking->chiTietCombo ?? collect());
+            $foodItems = isset($foodItems) ? $foodItems : ($booking->chiTietFood ?? collect());
             $combos = $comboItems;
+            $foods = $foodItems;
             $payment = $booking->thanhToan;
             $promo = isset($promo) ? $promo : ($booking->khuyenMai ?? null);
             $promoDiscount = isset($promoDiscount) ? $promoDiscount : 0;
             $paidTotal = optional($payment)->so_tien;
             $storedTotal = $booking->tong_tien ?? null;
             $comboSum = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); });
+            $foodSum = $foodItems->sum(function($f){ return (float)$f->price * max(1,(int)$f->quantity); });
             $seatSum = (float) $booking->chiTietDatVe->sum('gia');
-            $computedTotal = isset($computedTotal) ? $computedTotal : (float) ($seatSum + $comboSum - $promoDiscount);
+            $computedTotal = isset($computedTotal) ? $computedTotal : (float) ($seatSum + $comboSum + $foodSum - $promoDiscount);
             $displayTotal = is_numeric($paidTotal) && $paidTotal > 0 ? (float)$paidTotal : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)max(0,$computedTotal));
             
             $statusMap = [
@@ -162,7 +165,7 @@
                     </div>
                 @endif
 
-                <!-- Seats -->
+                <!-- Seats - Each seat will be printed on separate page -->
                 <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                         <i class="fas fa-chair text-[#0077c8]"></i>
@@ -175,7 +178,7 @@
                                 $seatType = $seat->seatType ?? null;
                                 $isVip = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
                             @endphp
-                            <div class="text-center">
+                            <div class="text-center seat-item" data-seat-code="{{ $seat->so_ghe }}">
                                 <div class="px-3 py-2 rounded-lg text-sm font-semibold mb-1 {{ $isVip ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-[#0077c8]/20 text-[#0077c8] border border-[#0077c8]/50' }}">
                                     <i class="fas fa-{{ $isVip ? 'crown' : 'chair' }} mr-1"></i>
                                     {{ $seat->so_ghe }}
@@ -190,14 +193,15 @@
                     </div>
                 </div>
 
-                <!-- Combos -->
-                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                <!-- Combos - Will be printed on separate page -->
+                @if($combos->isNotEmpty())
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 combo-foods-section">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                         <i class="fas fa-box text-[#ffcc00]"></i>
                         <span>Combo đã chọn</span>
                     </h3>
                     <div class="space-y-3">
-                        @forelse($combos as $comboDetail)
+                        @foreach($combos as $comboDetail)
                             @php
                                 $c = $comboDetail->combo;
                                 $comboName = $c->ten ?? $c->ten_combo ?? 'Combo';
@@ -227,15 +231,55 @@
                                     <div class="text-xs text-[#a6a6b0]">= {{ number_format($unit) }}đ x {{ $qty }}</div>
                                 </div>
                             </div>
-                        @empty
-                            <div class="text-sm text-[#a6a6b0]">Chưa có combo nào.</div>
-                        @endforelse
+                        @endforeach
                     </div>
                 </div>
+                @endif
+
+                <!-- Foods - Will be printed on same page as combos -->
+                @if(isset($foods) && $foods->isNotEmpty())
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 combo-foods-section">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-utensils text-[#ff784e]"></i>
+                        <span>Đồ ăn đã chọn</span>
+                    </h3>
+                    <div class="space-y-3">
+                        @foreach($foods as $foodDetail)
+                            @php
+                                $f = $foodDetail->food;
+                                $foodName = $f->name ?? 'Đồ ăn';
+                                $foodImg = $f->image_url ?? $f->image ?? null;
+                                $qty = max(1, (int)($foodDetail->quantity ?? 1));
+                                $unit = (float)($foodDetail->price ?? $f->price ?? 0);
+                                $lineTotal = $unit * $qty;
+                            @endphp
+                            <div class="flex items-center justify-between p-3 bg-[#151822] rounded-lg border border-[#2a2d3a]">
+                                <div class="flex items-center gap-3">
+                                    <img 
+                                        src="{{ $foodImg ?: asset('images/no-poster.svg') }}" 
+                                        alt="{{ $foodName }}"
+                                        class="w-16 h-16 object-cover rounded-lg"
+                                        onerror="this.src='{{ asset('images/no-poster.svg') }}'"
+                                    >
+                                    <div>
+                                        <div class="text-white font-semibold">{{ $foodName }}</div>
+                                        <div class="text-xs text-[#a6a6b0]">Đơn giá: {{ number_format($unit) }}đ</div>
+                                        <div class="text-sm text-[#a6a6b0]">Số lượng: {{ $qty }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#ff784e] font-bold">{{ number_format($lineTotal) }}đ</div>
+                                    <div class="text-xs text-[#a6a6b0]">= {{ number_format($unit) }}đ x {{ $qty }}</div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
 
                 <!-- Payment Info -->
                 @if($payment)
-                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 print-hide">
                         <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                             <i class="fas fa-credit-card text-[#10b981]"></i>
                             <span>Thông tin thanh toán</span>
@@ -269,7 +313,7 @@
                 @endphp
                 
                 @if($booking->trang_thai == 1)
-                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 print-hide">
                         <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                             <i class="fas fa-qrcode text-[#0077c8]"></i>
                             <span>Mã QR Vé</span>
@@ -518,6 +562,20 @@ function generateQRCodeFallback(qrData) {
         display: none !important;
     }
     
+    /* Hide payment info and QR code when printing */
+    .print-hide {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Hide QR code sections */
+    .bg-\[#0a1a2f\]:has(img[alt="QR Code"]),
+    .bg-\[#0a1a2f\]:has(#qrcode-img),
+    .bg-\[#0a1a2f\]:has(#qrcode-fallback) {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
     /* Improve print colors */
     .bg-gradient-to-br, .bg-gradient-to-r {
         background: white !important;
@@ -562,23 +620,50 @@ function generateQRCodeFallback(qrData) {
         display: block !important;
     }
     
-    /* Force QR code section to be visible */
-    .bg-\[#0a1a2f\]:has(img[alt="QR Code"]),
-    .bg-\[#0a1a2f\]:has(#qrcode-img) {
-        display: block !important;
-        visibility: visible !important;
+    /* Hide payment info and QR code when printing */
+    .print-hide {
+        display: none !important;
+        visibility: hidden !important;
     }
     
-    /* Show print-only QR code section */
+    /* Hide QR code sections */
+    img[alt="QR Code"], #qrcode-img, #qrcode-fallback {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    #qrcode-fallback canvas {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Hide print-only sections */
     .print-only {
-        display: block !important;
-        visibility: visible !important;
+        display: none !important;
+        visibility: hidden !important;
     }
     
     /* Keep status badges visible but readable */
     .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20 {
         background: #f0f0f0 !important;
         border: 1px solid #000 !important;
+    }
+    
+    /* Print each seat on separate page */
+    .seat-item {
+        page-break-inside: avoid;
+    }
+    
+    /* Combo and Foods section on separate page */
+    .combo-foods-section {
+        page-break-before: always;
+        page-break-inside: avoid;
+    }
+    
+    /* Ensure each seat ticket is on its own page when printing individual seats */
+    .ticket-per-seat {
+        page-break-after: always;
+        page-break-inside: avoid;
     }
 }
 </style>

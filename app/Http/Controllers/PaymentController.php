@@ -146,6 +146,19 @@ class PaymentController extends Controller
                     } catch (\Exception $e) {
                         Log::error("Lỗi release ghế sau thanh toán: " . $e->getMessage());
                     }
+
+                    // D. Trừ kho đồ ăn khi thanh toán thành công
+                    try {
+                        $foodOrders = \App\Models\ChiTietFood::where('id_dat_ve', $booking->id)->get();
+                        foreach ($foodOrders as $foodOrder) {
+                            $food = \App\Models\Food::find($foodOrder->food_id);
+                            if ($food) {
+                                $food->decrement('stock', $foodOrder->quantity);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Lỗi trừ kho đồ ăn sau thanh toán: " . $e->getMessage());
+                    }
                 });
 
                 // Chuyển hướng về trang chi tiết vé

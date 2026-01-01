@@ -332,12 +332,16 @@
                     Xem
                   </a>
                   @if(auth()->check() && request()->is('admin/*') && in_array(optional(auth()->user()->vaiTro)->ten, ['admin','staff']))
+                  @if($suat->thoi_gian_ket_thuc && $suat->thoi_gian_ket_thuc->isPast())
+                    {{-- Suất chiếu đã kết thúc - ẩn nút sửa --}}
+                  @else
                   <a href="{{ route('admin.suat-chieu.edit', $suat) }}" 
                      class="inline-flex items-center px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
                      title="Sửa lịch">
                     <i class="fas fa-edit mr-1"></i>
                     Sửa
                   </a>
+                  @endif
                   <button onclick="confirmDelete({{ $suat->id }})" 
                           class="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-md transition-colors duration-200" 
                           title="Xóa">

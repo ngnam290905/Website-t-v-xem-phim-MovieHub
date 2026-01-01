@@ -87,6 +87,21 @@
             </div>
             @endif
 
+            @if(isset($foodDetails) && count($foodDetails) > 0)
+            <div>
+            <h2 class="section-title">Đồ ăn đã chọn</h2>
+            @foreach($foodDetails as $f)
+                <div class="row">
+                <div>
+                    <div>{{ $f['name'] }} x{{ $f['qty'] }}</div>
+                    <div class="muted">{{ number_format($f['price'], 0, ',', '.') }}đ / món</div>
+                </div>
+                <div>{{ number_format($f['total'], 0, ',', '.') }}đ</div>
+                </div>
+            @endforeach
+            </div>
+            @endif
+
 
             @if(isset($khuyenmais))
             <div>
@@ -173,10 +188,17 @@
             <div class="total" id="seatTotal" data-seat-total="{{ (int)($totalSeatPrice ?? 0) }}">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
             </div>
 
-            @if(isset($comboTotal))
+            @if(isset($comboTotal) && $comboTotal > 0)
             <div class="row">
             <div class="total">Tổng tiền combo</div>
             <div class="total" id="comboTotal" data-combo-total="{{ (int)($comboTotal ?? 0) }}">{{ number_format($comboTotal ?? 0, 0, ',', '.') }}đ</div>
+            </div>
+            @endif
+
+            @if(isset($foodTotal) && $foodTotal > 0)
+            <div class="row">
+            <div class="total">Tổng tiền đồ ăn</div>
+            <div class="total" id="foodTotal" data-food-total="{{ (int)($foodTotal ?? 0) }}">{{ number_format($foodTotal ?? 0, 0, ',', '.') }}đ</div>
             </div>
             @endif
 
@@ -187,7 +209,7 @@
 
             <div class="row" id="finalRow" style="margin-top:8px; background:#2a2f3a; border-color:#FF784E;">
             <div class="total" style="color:#FF784E;">Tổng thanh toán</div>
-            <div class="total" id="finalTotal" style="color:#FF784E; font-size:20px;">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
+            <div class="total" id="finalTotal" style="color:#FF784E; font-size:20px;">{{ number_format(($totalSeatPrice ?? 0) + ($comboTotal ?? 0) + ($foodTotal ?? 0), 0, ',', '.') }}đ</div>
             </div>
 
             <div style="display:flex; justify-content:flex-end; margin-top:16px; gap:8px;">
@@ -206,9 +228,11 @@
     (function(){
       const seatTotalEl = document.getElementById('seatTotal');
       const comboTotalEl = document.getElementById('comboTotal');
+      const foodTotalEl = document.getElementById('foodTotal');
       const seatBase = parseInt(seatTotalEl?.getAttribute('data-seat-total') || '0');
       const comboBase = parseInt(comboTotalEl?.getAttribute('data-combo-total') || '0');
-      const baseTotal = seatBase + comboBase;
+      const foodBase = parseInt(foodTotalEl?.getAttribute('data-food-total') || '0');
+      const baseTotal = seatBase + comboBase + foodBase;
       const discountRow = document.getElementById('discountRow');
       const discountAmountEl = document.getElementById('discountAmount');
       const finalTotalEl = document.getElementById('finalTotal');

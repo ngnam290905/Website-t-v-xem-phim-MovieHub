@@ -53,7 +53,9 @@ class Phim extends Model
 
     public function suatChieu()
     {
-        return $this->hasMany(SuatChieu::class, 'id_phim');
+        return $this->hasMany(SuatChieu::class, 'id_phim')
+            ->orderByRaw('CASE WHEN thoi_gian_ket_thuc >= NOW() THEN 0 ELSE 1 END')
+            ->orderBy('thoi_gian_bat_dau', 'asc');
     }
 
     public function datVe()

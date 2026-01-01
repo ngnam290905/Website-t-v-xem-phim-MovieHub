@@ -36,9 +36,16 @@
       <p class="text-[#a6a6b0] mt-1">{{ $suatChieu->phim->ten_phim }} - {{ $suatChieu->phongChieu->ten_phong }}</p>
     </div>
     <div class="flex space-x-3">
+      @if($suatChieu->thoi_gian_ket_thuc && $suatChieu->thoi_gian_ket_thuc->isPast())
+        {{-- Suất chiếu đã kết thúc - ẩn nút sửa --}}
+        <div class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg flex items-center cursor-not-allowed" title="Suất chiếu đã kết thúc, không thể chỉnh sửa">
+          <i class="fas fa-lock mr-2"></i>Đã kết thúc
+        </div>
+      @else
       <a href="{{ route('admin.suat-chieu.edit', $suatChieu) }}" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center">
         <i class="fas fa-edit mr-2"></i>Chỉnh Sửa
       </a>
+      @endif
       <a href="{{ route('admin.suat-chieu.index') }}" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center">
         <i class="fas fa-arrow-left mr-2"></i>Quay lại
       </a>

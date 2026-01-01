@@ -175,12 +175,29 @@ class BookingController extends Controller
         // Cộng tiền Combo
         $selectedCombos = collect(session('booking.selected_combos', []));
         if ($selectedCombos->isNotEmpty()) {
-            $comboTotal = (int) $selectedCombos->sum(function ($c) {
-                $price = (float) ($c['gia'] ?? 0);
-                $qty = (int) ($c['so_luong'] ?? 0);
-                return (int) round($price) * max(0, $qty);
-            });
+            $comboTotal = 0;
+            foreach ($selectedCombos as $c) {
+                $price = isset($c['gia']) ? (float) $c['gia'] : 0;
+                $qty = isset($c['so_luong']) ? (int) $c['so_luong'] : 0;
+                if ($price > 0 && $qty > 0) {
+                    $comboTotal += (int) round($price * $qty);
+                }
+            }
             $amount += $comboTotal;
+        }
+
+        // Cộng tiền Foods
+        $selectedFoods = collect(session('booking.selected_foods', []));
+        if ($selectedFoods->isNotEmpty()) {
+            $foodTotal = 0;
+            foreach ($selectedFoods as $f) {
+                $price = isset($f['price']) ? (float) $f['price'] : 0;
+                $qty = isset($f['quantity']) ? (int) $f['quantity'] : 0;
+                if ($price > 0 && $qty > 0) {
+                    $foodTotal += (int) round($price * $qty);
+                }
+            }
+            $amount += $foodTotal;
         }
 
         // Áp dụng khuyến mãi
@@ -220,7 +237,8 @@ class BookingController extends Controller
 
         // Bắt đầu Transaction tạo đơn hàng
         try {
-            $booking = \DB::transaction(function () use ($showtimeId, $selectedSeatCodes, $seats, $amount, $paymentMethod, $promoId, $selectedCombos) {
+            $selectedFoods = collect(session('booking.selected_foods', []));
+            $booking = \DB::transaction(function () use ($showtimeId, $selectedSeatCodes, $seats, $amount, $paymentMethod, $promoId, $selectedCombos, $selectedFoods) {
                 $userId = Auth::id();
                 $conflictedSeats = [];
 
@@ -275,59 +293,155 @@ class BookingController extends Controller
                     $phuongThucDB = 1;
                 }
 
-                // 1) Tạo Booking
-                $booking = \App\Models\DatVe::create([
-                    'id_nguoi_dung' => $userId,
-                    'id_suat_chieu' => $showtimeId,
-                    'trang_thai' => 0, // Trạng thái ban đầu luôn là Pending
-                    'expires_at' => $expiresAt,
-                    'tong_tien' => $amount,
-                    'id_khuyen_mai' => $promoId,
-                    'phuong_thuc_thanh_toan' => $phuongThucDB
-                ]);
+                $createdBookings = [];
 
-                // 2) Tạo chi tiết vé
+                // 1) Tạo Booking cho MỖI GHẾ (mỗi ghế = 1 hóa đơn)
                 foreach ($selectedSeatCodes as $code) {
                     $seat = $seats->get($code);
                     if (!$seat) continue;
-                    // Cập nhật giá lưu vào DB theo giá mới
-                    $price = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 150000 : 100000);
+                    
+                    // Tính giá ghế
+                    $seatPrice = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 150000 : 100000);
+                    
+                    // Áp dụng khuyến mãi cho từng ghế (nếu có)
+                    $finalSeatPrice = $seatPrice;
+                    if ($promoId) {
+                        $promo = \App\Models\KhuyenMai::where('trang_thai', 1)
+                            ->where('ngay_bat_dau', '<=', now())
+                            ->where('ngay_ket_thuc', '>=', now())
+                            ->find($promoId);
+                        if ($promo) {
+                            $type = strtolower($promo->loai_giam);
+                            $val = (float)$promo->gia_tri_giam;
+                            $discount = 0;
+                            if ($type === 'phantram') {
+                                $discount = round($seatPrice * ($val / 100));
+                            } else {
+                                $discount = ($val >= 1000) ? $val : $val * 1000;
+                            }
+                            $finalSeatPrice = max(0, $seatPrice - (int)$discount);
+                        }
+                    }
 
-                    \App\Models\ChiTietDatVe::create([
-                        'id_dat_ve' => $booking->id,
-                        'id_ghe' => $seat->id,
-                        'gia' => $price,
+                    // Tạo booking cho ghế này
+                    $seatBooking = \App\Models\DatVe::create([
+                        'id_nguoi_dung' => $userId,
+                        'id_suat_chieu' => $showtimeId,
+                        'trang_thai' => 0, // Trạng thái ban đầu luôn là Pending
+                        'expires_at' => $expiresAt,
+                        'tong_tien' => $finalSeatPrice,
+                        'id_khuyen_mai' => $promoId,
+                        'phuong_thuc_thanh_toan' => $phuongThucDB
                     ]);
+
+                    // Tạo chi tiết vé cho ghế này
+                    \App\Models\ChiTietDatVe::create([
+                        'id_dat_ve' => $seatBooking->id,
+                        'id_ghe' => $seat->id,
+                        'gia' => $seatPrice, // Lưu giá gốc, không phải giá sau khuyến mãi
+                    ]);
+
+                    // Tạo bản ghi thanh toán cho ghế này
+                    \App\Models\ThanhToan::create([
+                        'id_dat_ve' => $seatBooking->id,
+                        'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
+                        'so_tien' => $finalSeatPrice,
+                        'trang_thai' => 0, // Chưa thanh toán
+                        'thoi_gian' => now(),
+                    ]);
+
+                    $createdBookings[] = $seatBooking;
                 }
 
-                // Lưu Combo
+                // 2) Tạo Booking riêng cho TẤT CẢ COMBO (tất cả combo = 1 hóa đơn)
+                $hasCombos = false;
+                $comboTotal = 0;
                 foreach ($selectedCombos as $c) {
                     if (($c['so_luong'] ?? 0) > 0) {
-                        \App\Models\ChiTietCombo::create([
-                            'id_dat_ve' => $booking->id,
-                            'id_combo' => $c['id_combo'],
-                            'so_luong' => $c['so_luong'],
-                            'gia_ap_dung' => $c['gia']
-                        ]);
+                        $hasCombos = true;
+                        $comboTotal += ($c['gia'] ?? 0) * ($c['so_luong'] ?? 0);
                     }
                 }
 
-                // 3) Tạo bản ghi thanh toán
-                \App\Models\ThanhToan::create([
-                    'id_dat_ve' => $booking->id,
-                    'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
-                    'so_tien' => $amount,
-                    'trang_thai' => 0, // Chưa thanh toán
-                    'thoi_gian' => now(),
-                ]);
+                if ($hasCombos && $comboTotal > 0) {
+                    // Áp dụng khuyến mãi cho combo (nếu có)
+                    $finalComboPrice = $comboTotal;
+                    if ($promoId) {
+                        $promo = \App\Models\KhuyenMai::where('trang_thai', 1)
+                            ->where('ngay_bat_dau', '<=', now())
+                            ->where('ngay_ket_thuc', '>=', now())
+                            ->find($promoId);
+                        if ($promo) {
+                            $type = strtolower($promo->loai_giam);
+                            $val = (float)$promo->gia_tri_giam;
+                            $discount = 0;
+                            if ($type === 'phantram') {
+                                $discount = round($comboTotal * ($val / 100));
+                            } else {
+                                $discount = ($val >= 1000) ? $val : $val * 1000;
+                            }
+                            $finalComboPrice = max(0, $comboTotal - (int)$discount);
+                        }
+                    }
 
-                // 4) Nhả ghế đang giữ trong Service (Vì giờ ghế đã được lưu an toàn trong dat_ve)
+                    // Tạo booking cho combo
+                    $comboBooking = \App\Models\DatVe::create([
+                        'id_nguoi_dung' => $userId,
+                        'id_suat_chieu' => $showtimeId,
+                        'trang_thai' => 0,
+                        'expires_at' => $expiresAt,
+                        'tong_tien' => $finalComboPrice,
+                        'id_khuyen_mai' => $promoId,
+                        'phuong_thuc_thanh_toan' => $phuongThucDB
+                    ]);
+
+                    // Lưu tất cả combo vào booking này
+                    foreach ($selectedCombos as $c) {
+                        if (($c['so_luong'] ?? 0) > 0) {
+                            \App\Models\ChiTietCombo::create([
+                                'id_dat_ve' => $comboBooking->id,
+                                'id_combo' => $c['id_combo'],
+                                'so_luong' => $c['so_luong'],
+                                'gia_ap_dung' => $c['gia']
+                            ]);
+                        }
+                    }
+
+                    // Lưu Foods vào booking combo (nếu có)
+                    foreach ($selectedFoods as $f) {
+                        if (($f['quantity'] ?? 0) > 0) {
+                            $food = \App\Models\Food::find($f['food_id'] ?? null);
+                            if ($food && $food->stock >= ($f['quantity'] ?? 0)) {
+                                \App\Models\ChiTietFood::create([
+                                    'id_dat_ve' => $comboBooking->id,
+                                    'food_id' => $f['food_id'],
+                                    'quantity' => $f['quantity'],
+                                    'price' => $f['price']
+                                ]);
+                            }
+                        }
+                    }
+
+                    // Tạo bản ghi thanh toán cho combo
+                    \App\Models\ThanhToan::create([
+                        'id_dat_ve' => $comboBooking->id,
+                        'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
+                        'so_tien' => $finalComboPrice,
+                        'trang_thai' => 0,
+                        'thoi_gian' => now(),
+                    ]);
+
+                    $createdBookings[] = $comboBooking;
+                }
+
+                // 3) Nhả ghế đang giữ trong Service (Vì giờ ghế đã được lưu an toàn trong dat_ve)
                 if ($paymentMethod === 'offline') {
                     $seatIds = $seats->whereIn('so_ghe', $selectedSeatCodes)->pluck('id')->toArray();
                     app(\App\Services\SeatHoldService::class)->releaseSeats($showtimeId, $seatIds, $userId);
                 }
 
-                return $booking;
+                // Trả về booking đầu tiên (để tương thích với code cũ)
+                return $createdBookings[0] ?? null;
             });
 
             // Store session map
@@ -434,6 +548,7 @@ class BookingController extends Controller
                 // Safe to cleanup unpaid expired pending bookings
                 ChiTietDatVe::where('id_dat_ve', $expiredBooking->id)->delete();
                 ChiTietCombo::where('id_dat_ve', $expiredBooking->id)->delete();
+                \App\Models\ChiTietFood::where('id_dat_ve', $expiredBooking->id)->delete();
                 ThanhToan::where('id_dat_ve', $expiredBooking->id)->delete();
                 $expiredBooking->delete();
             }
@@ -527,6 +642,7 @@ class BookingController extends Controller
             'chiTietDatVe.ghe',
             'khuyenMai',
             'chiTietCombo.combo',
+            'chiTietFood.food',
             'thanhToan',
             'nguoiDung'
         ])
@@ -543,12 +659,16 @@ class BookingController extends Controller
 
         // Calculate totals
         $comboItems = $booking->chiTietCombo ?? collect();
+        $foodItems = $booking->chiTietFood ?? collect();
         $promo = $booking->khuyenMai;
         $comboTotal = $comboItems->sum(function ($i) {
             return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong);
         });
+        $foodTotal = $foodItems->sum(function ($f) {
+            return (float)$f->price * max(1, (int)$f->quantity);
+        });
         $seatTotal = (float) $booking->chiTietDatVe->sum('gia');
-        $subtotal = $seatTotal + $comboTotal;
+        $subtotal = $seatTotal + $comboTotal + $foodTotal;
         $promoDiscount = 0;
 
         if ($promo) {
@@ -597,6 +717,7 @@ class BookingController extends Controller
             'room',
             'seatList',
             'comboItems',
+            'foodItems',
             'promo',
             'promoDiscount',
             'computedTotal',
@@ -644,14 +765,30 @@ class BookingController extends Controller
     public function showSeatsPage($showtimeId)
     {
         try {
+            \Log::info('showSeatsPage called', ['showtimeId' => $showtimeId]);
+            
             $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($showtimeId);
+            
+            \Log::info('Showtime found', [
+                'id' => $showtime->id,
+                'trang_thai' => $showtime->trang_thai,
+                'thoi_gian_bat_dau' => $showtime->thoi_gian_bat_dau,
+                'has_movie' => $showtime->phim ? true : false,
+                'has_room' => $showtime->phongChieu ? true : false,
+            ]);
 
             if ($showtime->trang_thai != 1) {
+                \Log::warning('Showtime not active', ['showtimeId' => $showtimeId, 'trang_thai' => $showtime->trang_thai]);
                 return redirect()->route('booking.index')
                     ->with('error', 'Suất chiếu không khả dụng.');
             }
 
             if ($showtime->thoi_gian_bat_dau < now()) {
+                \Log::warning('Showtime already started', [
+                    'showtimeId' => $showtimeId, 
+                    'thoi_gian_bat_dau' => $showtime->thoi_gian_bat_dau,
+                    'now' => now()
+                ]);
                 return redirect()->route('booking.index')
                     ->with('error', 'Suất chiếu đã bắt đầu.');
             }
@@ -660,12 +797,23 @@ class BookingController extends Controller
             $room = $showtime->phongChieu;
 
             if (!$movie || !$room) {
+                \Log::error('Showtime missing movie or room', [
+                    'showtimeId' => $showtimeId,
+                    'has_movie' => $movie ? true : false,
+                    'has_room' => $room ? true : false,
+                ]);
                 return redirect()->route('booking.index')
                     ->with('error', 'Thông tin suất chiếu không hợp lệ.');
             }
 
-            // Get combos and promotions
+            // Get combos, foods and promotions
             $combos = Combo::where('trang_thai', 1)->get();
+            try {
+                $foods = \App\Models\Food::where('is_active', true)->where('stock', '>', 0)->get();
+            } catch (\Exception $e) {
+                \Log::warning('Foods table not available', ['error' => $e->getMessage()]);
+                $foods = collect(); // Empty collection if foods table doesn't exist
+            }
             $khuyenmais = KhuyenMai::where('trang_thai', 1)
                 ->where('ngay_bat_dau', '<=', now())
                 ->where('ngay_ket_thuc', '>=', now())
@@ -702,15 +850,62 @@ class BookingController extends Controller
                 // ignore preload errors; frontend refresh will handle
             }
 
-            // Selected combos placeholder for view compatibility
+            // Load selected combos and foods from session or existing booking
             $selectedCombos = collect();
-
-            $existingBooking = null; // default to avoid undefined in view
-            return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'khuyenmais', 'existingBooking', 'seats', 'selectedCombos'));
-        } catch (\Exception $e) {
-            Log::error('Error loading seat selection page', [
+            $selectedFoods = collect();
+            $existingBooking = null;
+            
+            // Try to load from session first (for new selections)
+            $sessionCombos = collect(session('booking.selected_combos', []));
+            $sessionFoods = collect(session('booking.selected_foods', []));
+            
+            if ($sessionCombos->isNotEmpty() || $sessionFoods->isNotEmpty()) {
+                // Load combos from session
+                if ($sessionCombos->isNotEmpty()) {
+                    $comboIds = $sessionCombos->pluck('id_combo')->unique();
+                    $comboMap = Combo::whereIn('id', $comboIds)->get()->keyBy('id');
+                    $selectedCombos = $sessionCombos->map(function ($c) use ($comboMap) {
+                        $combo = $comboMap->get($c['id_combo'] ?? null);
+                        if (!$combo) return null;
+                        return (object)[
+                            'id_combo' => $c['id_combo'],
+                            'so_luong' => $c['so_luong'] ?? 0,
+                            'gia_ap_dung' => $c['gia'] ?? $combo->gia,
+                            'combo' => $combo
+                        ];
+                    })->filter();
+                }
+                
+                // Load foods from session
+                if ($sessionFoods->isNotEmpty()) {
+                    $foodIds = $sessionFoods->pluck('food_id')->unique();
+                    $foodMap = \App\Models\Food::whereIn('id', $foodIds)->get()->keyBy('id');
+                    $selectedFoods = $sessionFoods->map(function ($f) use ($foodMap) {
+                        $food = $foodMap->get($f['food_id'] ?? null);
+                        if (!$food) return null;
+                        return (object)[
+                            'food_id' => $f['food_id'],
+                            'quantity' => $f['quantity'] ?? 0,
+                            'price' => $f['price'] ?? $food->price,
+                            'food' => $food
+                        ];
+                    })->filter();
+                }
+            }
+            
+            return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'foods', 'khuyenmais', 'existingBooking', 'seats', 'selectedCombos', 'selectedFoods'));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Showtime not found', [
                 'showtime_id' => $showtimeId,
                 'error' => $e->getMessage()
+            ]);
+            return redirect()->route('booking.index')
+                ->with('error', 'Không tìm thấy suất chiếu.');
+        } catch (\Exception $e) {
+            \Log::error('Error loading seat selection page', [
+                'showtime_id' => $showtimeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return redirect()->route('booking.index')
                 ->with('error', 'Không thể tải trang chọn ghế. Vui lòng thử lại.');
@@ -720,9 +915,10 @@ class BookingController extends Controller
     /**
      * Backward-compatible alias for routes that call showSeats
      */
-    public function showSeats($showtimeId)
+    public function showSeats($showId)
     {
-        return $this->showSeatsPage($showtimeId);
+        \Log::info('showSeats called', ['showId' => $showId, 'showtimeId param' => $showId]);
+        return $this->showSeatsPage($showId);
     }
 
     /**
@@ -1004,7 +1200,11 @@ class BookingController extends Controller
             'combos' => 'nullable|array',
             'combos.*.id_combo' => 'required_with:combos|integer',
             'combos.*.so_luong' => 'required_with:combos|integer|min:0',
-            'combos.*.gia' => 'required_with:combos|numeric|min:0'
+            'combos.*.gia' => 'required_with:combos|numeric|min:0',
+            'foods' => 'nullable|array',
+            'foods.*.food_id' => 'required_with:foods|integer',
+            'foods.*.quantity' => 'required_with:foods|integer|min:0',
+            'foods.*.price' => 'required_with:foods|numeric|min:0'
         ]);
 
         $holdId = session('booking.hold_id');
@@ -1019,12 +1219,15 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'message' => $nsr['message'] ?? 'Không được để ghế trống lẻ.'], 422);
         }
 
-        // Save selected seat codes, combos and showtime for the next step
+        // Save selected seat codes, combos, foods and showtime for the next step
         session([
             'booking.selected_seat_codes' => $validated['seats'],
             'booking.showtime_id' => $validated['showtime_id'],
             'booking.selected_combos' => collect($validated['combos'] ?? [])->filter(function ($c) {
                 return isset($c['id_combo']) && ($c['so_luong'] ?? 0) > 0;
+            })->values()->all(),
+            'booking.selected_foods' => collect($validated['foods'] ?? [])->filter(function ($f) {
+                return isset($f['food_id']) && ($f['quantity'] ?? 0) > 0;
             })->values()->all(),
         ]);
 
@@ -1128,6 +1331,31 @@ class BookingController extends Controller
             }
         }
 
+        // Load selected foods from session and compute totals for display
+        $foodDetails = [];
+        $foodTotal = 0;
+        $selectedFoodsSession = collect(session('booking.selected_foods', []));
+        if ($selectedFoodsSession->isNotEmpty()) {
+            $foodIds = $selectedFoodsSession->pluck('food_id')->unique()->values();
+            $foodMap = \App\Models\Food::whereIn('id', $foodIds)->get()->keyBy('id');
+            foreach ($selectedFoodsSession as $f) {
+                $id = (int) ($f['food_id'] ?? 0);
+                $qty = (int) ($f['quantity'] ?? 0);
+                $price = (float) ($f['price'] ?? 0);
+                if ($qty <= 0) continue;
+                $name = optional($foodMap->get($id))->name ?? ('Đồ ăn #' . $id);
+                $line = (int) round($price * $qty);
+                $foodDetails[] = [
+                    'id' => $id,
+                    'name' => $name,
+                    'price' => (int) round($price),
+                    'qty' => $qty,
+                    'total' => $line,
+                ];
+                $foodTotal += $line;
+            }
+        }
+
         // Read VNPAY env for on-screen debug (with legacy fallbacks)
         $dbg_vnp_TmnCode = trim((string) env('VNPAY_TMN_CODE', ''));
         $dbg_vnp_HashSecret = trim((string) env('VNPAY_HASH_SECRET', ''));
@@ -1173,6 +1401,8 @@ class BookingController extends Controller
             'totalSeatPrice' => $totalSeatPrice,
             'comboDetails' => $comboDetails,
             'comboTotal' => $comboTotal,
+            'foodDetails' => $foodDetails,
+            'foodTotal' => $foodTotal,
             'khuyenmais' => $khuyenmais,
             'vnpDebug' => $vnpDebug,
         ]);

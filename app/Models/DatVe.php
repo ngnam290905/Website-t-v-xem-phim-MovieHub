@@ -74,6 +74,12 @@ class DatVe extends Model
         return $this->hasMany(ChiTietCombo::class, 'id_dat_ve');
     }
 
+    // Relationship with ChiTietFood
+    public function chiTietFood(): HasMany
+    {
+        return $this->hasMany(ChiTietFood::class, 'id_dat_ve');
+    }
+
     // Relationship with ThanhToan
     public function thanhToan(): HasOne
     {
@@ -102,6 +108,10 @@ class DatVe extends Model
             ->where('id_dat_ve', $this->id)
             ->sum(DB::raw('gia_ap_dung * COALESCE(so_luong,1)'));
 
+        $foodTotal = (float) DB::table('chi_tiet_dat_ve_food')
+            ->where('id_dat_ve', $this->id)
+            ->sum(DB::raw('price * quantity'));
+
         $discount = 0;
         if ($this->id_khuyen_mai) {
             $promo = KhuyenMai::where('id', $this->id_khuyen_mai)
@@ -111,12 +121,12 @@ class DatVe extends Model
                 ->first();
             if ($promo) {
                 if ($promo->loai_giam === 'phantram') {
-                    $discount = round(($seatTotal + $comboTotal) * ((float)$promo->gia_tri_giam / 100));
+                    $discount = round(($seatTotal + $comboTotal + $foodTotal) * ((float)$promo->gia_tri_giam / 100));
                 } else {
                     $discount = (float) $promo->gia_tri_giam;
                 }
             }
         }
-        return max(0, ($seatTotal + $comboTotal) - $discount);
+        return max(0, ($seatTotal + $comboTotal + $foodTotal) - $discount);
     }
 }

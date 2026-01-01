@@ -102,10 +102,16 @@
         <div class="space-y-2">
           <label for="end_time" class="block text-sm font-medium text-gray-300">
             <i class="fas fa-stop mr-2 text-[#F53003]"></i>Thời Gian Kết Thúc <span class="text-red-500">*</span>
+            <span class="text-xs text-green-400 ml-2" id="auto-calc-badge" style="display: none;">
+              <i class="fas fa-magic mr-1"></i>Tự động tính
+            </span>
           </label>
           <input type="datetime-local" name="end_time" id="end_time" 
                  class="w-full px-4 py-3 bg-[#1a1d24] border border-[#262833] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition-all duration-200 @error('end_time') border-red-500 @enderror" 
                  value="{{ old('end_time') }}" required>
+          <p class="text-xs text-[#a6a6b0] mt-1">
+            <i class="fas fa-info-circle mr-1"></i>Thời gian kết thúc sẽ được tự động tính khi chọn thời gian bắt đầu và phim
+          </p>
           @error('end_time')
             <p class="mt-1 text-sm text-red-500 flex items-center">
               <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
@@ -167,10 +173,21 @@
       const minDateTime = now.toISOString().slice(0, 16);
       startTimeInput.min = minDateTime;
       
+      // Parse datetime-local to Date object (local time, not UTC)
+      function parseDateTimeLocal(dateTimeString) {
+        if (!dateTimeString) return null;
+        const [datePart, timePart] = dateTimeString.split('T');
+        if (!datePart || !timePart) return null;
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        return new Date(year, month - 1, day, hours, minutes);
+      }
+      
       // Kiểm tra thời gian quá khứ
       function checkPastTime(element, isStart) {
         if (!element.value) return true;
-        const selectedTime = new Date(element.value);
+        const selectedTime = parseDateTimeLocal(element.value);
+        if (!selectedTime) return true;
         const now = new Date();
         
         if (selectedTime <= now) {
@@ -188,19 +205,23 @@
       // Kiểm tra giờ hoạt động: 8:00 - 24:00
       function checkBusinessHours(dateTimeString, isStart) {
         if (!dateTimeString) return true;
-        const date = new Date(dateTimeString);
-        const hour = date.getHours();
-        const minute = date.getMinutes();
+        
+        // Parse datetime-local format (YYYY-MM-DDTHH:mm) as local time
+        const [datePart, timePart] = dateTimeString.split('T');
+        if (!datePart || !timePart) return true;
+        
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
         
         // Giờ hoạt động: 8:00 - 24:00 (00:00 ngày hôm sau)
-        if (hour < 8 || (hour >= 24 && minute > 0)) {
+        if (hours < 8 || (hours >= 24 && minutes > 0)) {
           return false;
         }
         // Cho phép kết thúc đúng lúc 24:00 (00:00 ngày hôm sau)
-        if (!isStart && hour === 24 && minute === 0) {
+        if (!isStart && hours === 24 && minutes === 0) {
           return true;
         }
-        return hour < 24 || (hour === 24 && minute === 0);
+        return hours < 24 || (hours === 24 && minutes === 0);
       }
       
       function showError(element, message) {
@@ -236,17 +257,42 @@
         }
       }
       
+      // Format date to datetime-local format (YYYY-MM-DDTHH:mm) without timezone conversion
+      function formatDateTimeLocal(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+      
       // Calculate end time based on movie duration and start time
       function calculateEndTime() {
         const selectedOption = movieSelect.options[movieSelect.selectedIndex];
         const duration = parseInt(selectedOption.getAttribute('data-duration')) || 0;
         const startTime = startTimeInput.value;
+        const autoCalcBadge = document.getElementById('auto-calc-badge');
         
         if (duration > 0 && startTime) {
           const roundedDuration = roundDuration(duration);
-          const startDate = new Date(startTime);
+          
+          // Parse start time correctly (datetime-local format: YYYY-MM-DDTHH:mm)
+          // Create date object treating input as local time, not UTC
+          const [datePart, timePart] = startTime.split('T');
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hours, minutes] = timePart.split(':').map(Number);
+          
+          const startDate = new Date(year, month - 1, day, hours, minutes);
           const endDate = new Date(startDate.getTime() + (roundedDuration * 60 * 1000));
-          endTimeInput.value = endDate.toISOString().slice(0, 16);
+          
+          // Format to datetime-local format without timezone conversion
+          endTimeInput.value = formatDateTimeLocal(endDate);
+          
+          // Hiển thị badge tự động tính
+          if (autoCalcBadge) {
+            autoCalcBadge.style.display = 'inline';
+          }
           
           // Kiểm tra giờ hoạt động cho end time
           if (!checkBusinessHours(endTimeInput.value, false)) {
@@ -258,6 +304,18 @@
           // Show rounded duration info
           if (roundedDuration !== duration) {
             console.log(`Thời lượng gốc: ${duration} phút → Làm tròn: ${roundedDuration} phút`);
+          }
+        } else if (!movieSelect.value && startTime) {
+          // Nếu chưa chọn phim nhưng đã chọn thời gian bắt đầu
+          endTimeInput.value = '';
+          if (autoCalcBadge) {
+            autoCalcBadge.style.display = 'none';
+          }
+          // Không hiển thị lỗi, chỉ để trống
+        } else {
+          // Reset nếu không đủ thông tin
+          if (autoCalcBadge) {
+            autoCalcBadge.style.display = 'none';
           }
         }
       }
@@ -272,8 +330,11 @@
         const movieDuration = parseInt(selectedOption.getAttribute('data-duration')) || 0;
         
         if (movieDuration > 0) {
-          const startDate = new Date(startTimeInput.value);
-          const endDate = new Date(endTimeInput.value);
+          const startDate = parseDateTimeLocal(startTimeInput.value);
+          const endDate = parseDateTimeLocal(endTimeInput.value);
+          
+          if (!startDate || !endDate) return true;
+          
           const showtimeDuration = Math.round((endDate - startDate) / (1000 * 60)); // phút
           
           if (showtimeDuration < movieDuration) {
@@ -287,7 +348,7 @@
         return true;
       }
       
-      // Validate start time
+      // Validate start time - tự động tính thời gian kết thúc khi chọn thời gian bắt đầu
       startTimeInput.addEventListener('change', function() {
         if (this.value) {
           // Kiểm tra thời gian quá khứ trước
@@ -300,42 +361,40 @@
             showError(this, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
           } else {
             hideError(this);
+            // Tự động tính thời gian kết thúc khi chọn thời gian bắt đầu
             calculateEndTime();
             checkDuration();
           }
-        }
-      });
-      
-      // Validate end time
-      endTimeInput.addEventListener('change', function() {
-        if (this.value) {
-          // Kiểm tra thời gian quá khứ trước
-          if (!checkPastTime(this, false)) {
-            return;
-          }
-          
-          if (!checkBusinessHours(this.value, false)) {
-            showError(this, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
-          } else {
-            hideError(this);
-            checkDuration();
+        } else {
+          // Nếu xóa thời gian bắt đầu, xóa luôn thời gian kết thúc
+          endTimeInput.value = '';
+          const autoCalcBadge = document.getElementById('auto-calc-badge');
+          if (autoCalcBadge) {
+            autoCalcBadge.style.display = 'none';
           }
         }
       });
       
-      // Validate khi chọn phim
+      // End time là readonly, không cho chỉnh sửa thủ công
+      // Nhưng vẫn cần validate khi form submit
+      
+      // Validate khi chọn phim - tự động tính lại thời gian kết thúc nếu đã có thời gian bắt đầu
       movieSelect.addEventListener('change', function() {
-        if (startTimeInput.value && endTimeInput.value) {
+        // Nếu đã có thời gian bắt đầu, tự động tính lại thời gian kết thúc
+        if (startTimeInput.value) {
+          calculateEndTime();
           checkDuration();
         }
       });
       
-      // Auto calculate when movie is selected
-      movieSelect.addEventListener('change', calculateEndTime);
-      
       // Validate form before submit
       form.addEventListener('submit', function(e) {
         let hasError = false;
+        
+        // Đảm bảo thời gian kết thúc đã được tính toán
+        if (startTimeInput.value && movieSelect.value && !endTimeInput.value) {
+          calculateEndTime();
+        }
         
         // Kiểm tra thời gian quá khứ
         if (startTimeInput.value && !checkPastTime(startTimeInput, true)) {
@@ -358,6 +417,17 @@
         
         // Kiểm tra thời lượng
         if (!checkDuration()) {
+          hasError = true;
+        }
+        
+        // Kiểm tra đã chọn phim và thời gian bắt đầu
+        if (!movieSelect.value) {
+          showError(movieSelect, 'Vui lòng chọn phim trước.');
+          hasError = true;
+        }
+        
+        if (!startTimeInput.value) {
+          showError(startTimeInput, 'Vui lòng chọn thời gian bắt đầu.');
           hasError = true;
         }
         

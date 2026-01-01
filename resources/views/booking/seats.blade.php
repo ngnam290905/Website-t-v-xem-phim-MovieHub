@@ -584,6 +584,85 @@
               <p class="text-[14px] text-[#A0A6B1]">Hiện tại không có combo nào</p>
             </div>
           @endif
+
+          <!-- Đồ ăn Section -->
+          @if($foods && $foods->count() > 0)
+            <div class="mt-6 pt-6 border-t border-[#2A2F3A]">
+              <h4 class="text-[14px] font-semibold text-[#E6E7EB] mb-4 flex items-center gap-2">
+                <i class="fas fa-utensils text-[#FF784E]"></i>
+                <span>Đồ ăn</span>
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="food-carousel">
+                @foreach($foods as $food)
+                  @php
+                    $isSelected = $selectedFoods->where('food_id', $food->id)->first();
+                    $quantity = $isSelected ? $isSelected->quantity : 0;
+                  @endphp
+                  <div class="food-card bg-[#151822] border {{ $isSelected ? 'border-[#FF784E]' : 'border-[#2A2F3A]' }} rounded-[16px] p-4 transition-all duration-300 hover:border-[#FF784E]/50 hover:shadow-xl hover:scale-[1.02] relative overflow-hidden">
+                    @if($isSelected)
+                      <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-gradient-to-r from-[#FF784E] to-[#FFB25E] flex items-center justify-center z-10 shadow-lg">
+                        <i class="fas fa-check text-white text-xs"></i>
+                      </div>
+                    @endif
+                    
+                    <div class="flex items-start gap-4 mb-4">
+                      <!-- Food Image -->
+                      <div class="w-20 h-20 rounded-xl bg-gradient-to-br from-[#FF784E] to-[#FFB25E] flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
+                        @if($food->image_url ?? false)
+                          <img src="{{ $food->image_url }}" alt="{{ $food->name }}" class="w-full h-full object-cover">
+                        @else
+                          <div class="flex flex-col items-center justify-center text-white">
+                            <i class="fas fa-utensils text-2xl mb-1"></i>
+                          </div>
+                        @endif
+                      </div>
+                      
+                      <div class="flex-1 min-w-0">
+                        <h4 class="text-[16px] font-bold text-[#E6E7EB] mb-1">{{ $food->name }}</h4>
+                        <p class="text-[12px] text-[#A0A6B1] mb-2">Còn lại: {{ $food->stock }} sản phẩm</p>
+                        
+                        <div class="flex items-center gap-2">
+                          <span class="text-[18px] font-bold text-[#FF784E]">{{ number_format($food->price) }}đ</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Quantity Selector -->
+                    <div class="flex items-center gap-3">
+                      @if($quantity > 0)
+                        <div class="flex items-center gap-2 bg-[#2A2F3A] rounded-[12px] px-3 py-2 flex-1">
+                          <button 
+                            onclick="updateFoodQuantity({{ $food->id }}, {{ $quantity - 1 }}, {{ $food->price }}, '{{ addslashes($food->name) }}', {{ $food->stock }})"
+                            class="w-8 h-8 rounded-md bg-[#1a1d24] hover:bg-[#FF784E] text-[#E6E7EB] hover:text-white transition-all duration-200 flex items-center justify-center font-bold">
+                            <i class="fas fa-minus text-xs"></i>
+                          </button>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            max="{{ $food->stock }}"
+                            value="{{ $quantity }}" 
+                            onchange="updateFoodQuantity({{ $food->id }}, parseInt(this.value), {{ $food->price }}, '{{ addslashes($food->name) }}', {{ $food->stock }})"
+                            class="w-12 text-center bg-transparent text-[#E6E7EB] font-bold text-[14px] border-none focus:outline-none">
+                          <button 
+                            onclick="updateFoodQuantity({{ $food->id }}, {{ min($quantity + 1, $food->stock) }}, {{ $food->price }}, '{{ addslashes($food->name) }}', {{ $food->stock }})"
+                            class="w-8 h-8 rounded-md bg-[#1a1d24] hover:bg-[#FF784E] text-[#E6E7EB] hover:text-white transition-all duration-200 flex items-center justify-center font-bold">
+                            <i class="fas fa-plus text-xs"></i>
+                          </button>
+                        </div>
+                      @else
+                        <button 
+                          onclick="updateFoodQuantity({{ $food->id }}, 1, {{ $food->price }}, '{{ addslashes($food->name) }}', {{ $food->stock }})"
+                          class="flex-1 py-2.5 rounded-[12px] font-semibold text-[14px] transition-all duration-300 bg-gradient-to-r from-[#FF784E] to-[#FFB25E] hover:from-[#FF6B3D] hover:to-[#FFA54E] text-white shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2">
+                          <i class="fas fa-plus"></i>
+                          <span>Thêm vào đơn</span>
+                        </button>
+                      @endif
+                    </div>
+                  </div>
+                @endforeach
+              </div>
+            </div>
+          @endif
         </div>
       </div>
 
@@ -698,11 +777,20 @@
             </div>
             <div class="flex justify-between text-[14px] items-center">
               <span class="text-[#A0A6B1] flex items-center gap-2">
-                <i class="fas fa-utensils text-[#FF784E] text-xs"></i>
+                <i class="fas fa-box text-[#FF784E] text-xs"></i>
                 <span>Combo</span>
               </span>
               <span class="text-[#E6E7EB] font-semibold price-value" id="combo-total-price">
                 {{ $selectedCombos ? number_format($selectedCombos->sum(function($item) { return $item->gia_ap_dung * $item->so_luong; })) : 0 }}đ
+              </span>
+            </div>
+            <div class="flex justify-between text-[14px] items-center">
+              <span class="text-[#A0A6B1] flex items-center gap-2">
+                <i class="fas fa-utensils text-[#FF784E] text-xs"></i>
+                <span>Đồ ăn</span>
+              </span>
+              <span class="text-[#E6E7EB] font-semibold price-value" id="food-total-price">
+                {{ $selectedFoods ? number_format($selectedFoods->sum(function($item) { return $item->price * $item->quantity; })) : 0 }}đ
               </span>
             </div>
           </div>
@@ -715,7 +803,13 @@
                 <span>Tổng</span>
               </span>
               <span id="total-price" class="text-[22px] font-bold text-[#FF784E] price-value">
-                {{ $existingBooking ? number_format($existingBooking->tong_tien + ($selectedCombos ? $selectedCombos->sum(function($item) { return $item->gia_ap_dung * $item->so_luong; }) : 0)) : 0 }}đ
+                @php
+                  $seatTotal = $existingBooking ? $existingBooking->chiTietDatVe->sum('gia') : 0;
+                  $comboTotal = $selectedCombos ? $selectedCombos->sum(function($item) { return $item->gia_ap_dung * $item->so_luong; }) : 0;
+                  $foodTotal = $selectedFoods ? $selectedFoods->sum(function($item) { return $item->price * $item->quantity; }) : 0;
+                  $initialTotal = $seatTotal + $comboTotal + $foodTotal;
+                @endphp
+                {{ number_format($initialTotal) }}đ
               </span>
             </div>
           </div>
@@ -962,6 +1056,17 @@ let selectedCombos = new Map();
   @endforeach
 @endif
 
+let selectedFoods = new Map();
+@if($selectedFoods)
+  @foreach($selectedFoods as $selected)
+    selectedFoods.set({{ $selected->food_id }}, {
+      name: '{{ addslashes($selected->food->name) }}',
+      price: {{ $selected->price }},
+      quantity: {{ $selected->quantity }}
+    });
+  @endforeach
+@endif
+
 function animatePriceUpdate(element, newValue) {
   element.style.transform = 'scale(1.2)';
   element.style.color = '#FF784E';
@@ -1020,16 +1125,33 @@ function updateUI() {
 
   // Update combo summary
   updateComboSummary();
+  updateFoodSummary();
   
   // Update prices with animation
-  const comboTotalPrice = Array.from(selectedCombos.values()).reduce((sum, combo) => sum + (combo.price * combo.quantity), 0);
+  const comboTotalPrice = Array.from(selectedCombos.values()).reduce((sum, combo) => {
+    const price = parseFloat(combo.price) || 0;
+    const qty = parseInt(combo.quantity) || 0;
+    return sum + (price * qty);
+  }, 0);
+  const foodTotalPrice = Array.from(selectedFoods.values()).reduce((sum, food) => {
+    const price = parseFloat(food.price) || 0;
+    const qty = parseInt(food.quantity) || 0;
+    return sum + (price * qty);
+  }, 0);
   const seatPriceEl = document.getElementById('seat-total-price');
   const comboPriceEl = document.getElementById('combo-total-price');
+  const foodPriceEl = document.getElementById('food-total-price');
   const totalPriceEl = document.getElementById('total-price');
   
-  animatePriceUpdate(seatPriceEl, formatPrice(seatTotalPrice) + 'đ');
-  animatePriceUpdate(comboPriceEl, formatPrice(comboTotalPrice) + 'đ');
-  animatePriceUpdate(totalPriceEl, formatPrice(seatTotalPrice + comboTotalPrice) + 'đ');
+  const finalSeatTotal = parseFloat(seatTotalPrice) || 0;
+  const finalComboTotal = parseFloat(comboTotalPrice) || 0;
+  const finalFoodTotal = parseFloat(foodTotalPrice) || 0;
+  const finalTotal = finalSeatTotal + finalComboTotal + finalFoodTotal;
+  
+  animatePriceUpdate(seatPriceEl, formatPrice(finalSeatTotal) + 'đ');
+  animatePriceUpdate(comboPriceEl, formatPrice(finalComboTotal) + 'đ');
+  if (foodPriceEl) animatePriceUpdate(foodPriceEl, formatPrice(finalFoodTotal) + 'đ');
+  animatePriceUpdate(totalPriceEl, formatPrice(finalTotal) + 'đ');
   
   // Update lock timer visibility
   const lockTimer = document.getElementById('lock-timer');
@@ -1072,6 +1194,102 @@ function updateComboSummary() {
       </div>
     `).join('');
   }
+}
+
+function updateFoodSummary() {
+  const foodSummary = document.getElementById('selected-foods-summary');
+  if (!foodSummary) return;
+  
+  if (selectedFoods.size === 0) {
+    foodSummary.innerHTML = '<p class="text-[14px] text-[#A0A6B1]">–</p>';
+  } else {
+    foodSummary.innerHTML = Array.from(selectedFoods.values()).map(food => {
+      const price = parseFloat(food.price) || 0;
+      const qty = parseInt(food.quantity) || 0;
+      const total = price * qty;
+      return `
+      <div class="flex items-center justify-between text-[14px] animate-fade-in">
+        <span class="text-[#E6E7EB] flex items-center gap-2">
+          <i class="fas fa-circle text-[6px] text-[#FF784E]"></i>
+          ${food.name} x${qty}
+        </span>
+        <span class="text-[#A0A6B1] price-value">${formatPrice(total)}đ</span>
+      </div>
+    `;
+    }).join('');
+  }
+}
+
+function updateFoodQuantity(foodId, quantity, price, name, maxStock) {
+  quantity = Math.max(0, Math.min(maxStock, parseInt(quantity) || 0));
+  price = parseFloat(price) || 0;
+  
+  if (quantity === 0) {
+    selectedFoods.delete(foodId);
+  } else {
+    selectedFoods.set(foodId, {
+      name: name,
+      price: price,
+      quantity: quantity
+    });
+  }
+  
+  // Update food card UI
+  const foodCard = document.querySelector(`[onclick*="updateFoodQuantity(${foodId}"]`)?.closest('.food-card');
+  if (foodCard) {
+    const quantitySelector = foodCard.querySelector('.flex.items-center.gap-2.bg-\\[\\#2A2F3A\\]');
+    const addButton = foodCard.querySelector('button[onclick*="updateFoodQuantity"]');
+    
+    if (quantity > 0) {
+      foodCard.classList.add('border-[#FF784E]');
+      foodCard.classList.remove('border-[#2A2F3A]');
+      
+      // Show quantity selector
+      if (!quantitySelector) {
+        addButton.outerHTML = `
+          <div class="flex items-center gap-2 bg-[#2A2F3A] rounded-[12px] px-3 py-2 flex-1">
+            <button onclick="updateFoodQuantity(${foodId}, ${quantity - 1}, ${price}, '${name}', ${maxStock})" class="w-8 h-8 rounded-md bg-[#1a1d24] hover:bg-[#FF784E] text-[#E6E7EB] hover:text-white transition-all duration-200 flex items-center justify-center font-bold">
+              <i class="fas fa-minus text-xs"></i>
+            </button>
+            <input type="number" min="0" max="${maxStock}" value="${quantity}" onchange="updateFoodQuantity(${foodId}, parseInt(this.value), ${price}, '${name}', ${maxStock})" class="w-12 text-center bg-transparent text-[#E6E7EB] font-bold text-[14px] border-none focus:outline-none">
+            <button onclick="updateFoodQuantity(${foodId}, ${Math.min(quantity + 1, maxStock)}, ${price}, '${name}', ${maxStock})" class="w-8 h-8 rounded-md bg-[#1a1d24] hover:bg-[#FF784E] text-[#E6E7EB] hover:text-white transition-all duration-200 flex items-center justify-center font-bold">
+              <i class="fas fa-plus text-xs"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        quantitySelector.querySelector('input').value = quantity;
+      }
+      
+      // Show check icon
+      if (!foodCard.querySelector('.absolute.top-2.right-2')) {
+        const checkIcon = document.createElement('div');
+        checkIcon.className = 'absolute top-2 right-2 w-6 h-6 rounded-full bg-gradient-to-r from-[#FF784E] to-[#FFB25E] flex items-center justify-center z-10 shadow-lg';
+        checkIcon.innerHTML = '<i class="fas fa-check text-white text-xs"></i>';
+        foodCard.appendChild(checkIcon);
+      }
+    } else {
+      foodCard.classList.remove('border-[#FF784E]');
+      foodCard.classList.add('border-[#2A2F3A]');
+      
+      // Show add button
+      if (quantitySelector) {
+        quantitySelector.outerHTML = `
+          <button onclick="updateFoodQuantity(${foodId}, 1, ${price}, '${name}', ${maxStock})" class="flex-1 py-2.5 rounded-[12px] font-semibold text-[14px] transition-all duration-300 bg-gradient-to-r from-[#FF784E] to-[#FFB25E] hover:from-[#FF6B3D] hover:to-[#FFA54E] text-white shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2">
+            <i class="fas fa-plus"></i>
+            <span>Thêm vào đơn</span>
+          </button>
+        `;
+      }
+      
+      // Remove check icon
+      const checkIcon = foodCard.querySelector('.absolute.top-2.right-2');
+      if (checkIcon) checkIcon.remove();
+    }
+  }
+  
+  updateFoodSummary();
+  updateUI();
 }
 
 function updateComboQuantity(comboId, quantity, price, name) {
@@ -1389,6 +1607,12 @@ async function continueToAddons() {
       gia: info.price
     }));
 
+    const foodsPayload = Array.from(selectedFoods.entries()).map(([id, info]) => ({
+      food_id: id,
+      quantity: info.quantity,
+      price: info.price
+    }));
+
     const res = await fetch('/booking/continue', {
       method: 'POST',
       headers: {
@@ -1402,7 +1626,8 @@ async function continueToAddons() {
         showtime_id: showId,
         seats: seatsArray,
         booking_hold_id: bookingHoldId,
-        combos: combosPayload
+        combos: combosPayload,
+        foods: foodsPayload
       })
     });
 
