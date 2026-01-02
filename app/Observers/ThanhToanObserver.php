@@ -21,25 +21,35 @@ class ThanhToanObserver
         $soTien = $thanhToan->so_tien;
 
         // === 1. CẬP NHẬT TỔNG CHI TIÊU ===
-        if ($user && method_exists($user, 'increment')) {
+        if ($user) {
+            // increment trả về int/void, không cập nhật instance model ngay lập tức nếu không refresh, 
+            // nhưng ở đây ta không dùng giá trị sau đó nên không sao.
             $user->increment('tong_chi_tieu', $soTien);
         }
 
         // === 2. TÍCH ĐIỂM: 100.000đ = 1 điểm ===
         $diemMoi = floor($soTien / 100000);
+        
         if ($diemMoi > 0) {
             $diemTV = DiemThanhVien::updateOrCreate(
                 ['id_nguoi_dung' => $user->id],
                 ['tong_diem' => DB::raw("COALESCE(tong_diem, 0) + {$diemMoi}")]
             );
 
+            // [QUAN TRỌNG] Refresh để lấy giá trị số thực từ DB thay vì object DB::raw
+            $diemTV->refresh();
+
             // === 3. TỰ ĐỘNG LÊN HẠNG ===
-            $this->capNhatHangThanhVien($user, $diemTV->tong_diem);
+            // Ép kiểu (int) cho chắc chắn, dù refresh() đã trả về số
+            $this->capNhatHangThanhVien($user, (int)$diemTV->tong_diem);
         }
     }
 
     private function capNhatHangThanhVien(NguoiDung $user, $tongDiem)
     {
+        // Đảm bảo $tongDiem là số
+        $tongDiem = (int) $tongDiem;
+
         $hangMoi = match (true) {
             $tongDiem >= 40 => 'Kim Cương',
             $tongDiem >= 30 => 'Bạch Kim',
@@ -48,8 +58,10 @@ class ThanhToanObserver
             default => 'Thường',
         };
 
-        // Chỉ cập nhật nếu thay đổi
+        // Load lại quan hệ hạng thành viên để đảm bảo so sánh đúng
+        $user->load('hangThanhVien');
         $hangHienTai = $user->hangThanhVien?->ten_hang;
+
         if ($hangHienTai !== $hangMoi) {
             HangThanhVien::updateOrCreate(
                 ['id_nguoi_dung' => $user->id],

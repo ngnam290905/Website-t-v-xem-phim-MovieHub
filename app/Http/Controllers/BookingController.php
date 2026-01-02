@@ -41,12 +41,14 @@ class BookingController extends Controller
 
     private function buildRowStates(int $showtimeId, array $selectedSeatCodes): array
     {
+        // 1. Luôn dọn dẹp vé cũ trước khi tính toán trạng thái ghế
+        $this->cleanupExpiredBookings();
+
         $showtime = \App\Models\SuatChieu::find($showtimeId);
         if (!$showtime) return [];
 
-        // Load all seats of the room ordered by row then number
+        // Lấy danh sách tất cả ghế trong phòng
         $seats = \App\Models\Ghe::where('id_phong', $showtime->id_phong)
-            ->with('loaiGhe')
             ->get()
             ->sortBy(function ($g) {
                 $row = is_string($g->so_ghe) ? substr($g->so_ghe, 0, 1) : 'A';
@@ -55,31 +57,61 @@ class BookingController extends Controller
             })
             ->values();
 
-        // Map booked seats for this showtime (treat pending/paid as occupied)
+        $currentUserId = Auth::id();
+
+        // 2. Xác định danh sách ghế ĐÃ BỊ CHIẾM (State 1)
+        // Bao gồm: Ghế đã thanh toán (của bất kỳ ai) HOẶC Ghế đang chờ (của NGƯỜI KHÁC)
         $occupiedIds = \DB::table('chi_tiet_dat_ve as c')
             ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
             ->where('d.id_suat_chieu', $showtimeId)
-            ->whereIn('d.trang_thai', [0, 1])
+            ->where(function($query) use ($currentUserId) {
+                $query->where('d.trang_thai', 1) // Đã thanh toán
+                      ->orWhere(function($q) use ($currentUserId) {
+                          // Hoặc đang chờ thanh toán NHƯNG KHÔNG PHẢI CỦA MÌNH
+                          $q->where('d.trang_thai', 0)
+                            ->where('d.id_nguoi_dung', '!=', $currentUserId);
+                      });
+            })
             ->pluck('c.id_ghe')
             ->toArray();
 
+        // 3. Xác định danh sách ghế MÌNH ĐANG GIỮ (State 2)
+        // Ghế đang chờ thanh toán (trang_thai = 0) và CỦA MÌNH
+        $myPendingIds = [];
+        if ($currentUserId) {
+            $myPendingIds = \DB::table('chi_tiet_dat_ve as c')
+                ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
+                ->where('d.id_suat_chieu', $showtimeId)
+                ->where('d.trang_thai', 0)
+                ->where('d.id_nguoi_dung', $currentUserId)
+                ->pluck('c.id_ghe')
+                ->toArray();
+        }
+
+        // Merge với các ghế đang chọn hiện tại trong session (nếu có)
         $selectedSet = collect($selectedSeatCodes)->map(function ($code) {
             return strtoupper(trim($code));
         })->filter()->values()->all();
 
+        // 4. Xây dựng mảng trạng thái trả về
         $rows = [];
         foreach ($seats as $g) {
             $label = (string)$g->so_ghe;
             $row = substr($label, 0, 1);
             if ($row === '' || !ctype_alpha($row)) continue;
+            
             $rows[$row] = $rows[$row] ?? [];
-            $state = 0;
+            
+            $state = 0; // Mặc định: Trống (Available)
+
             if (in_array($g->id, $occupiedIds)) {
-                $state = 1;
+                $state = 1; // Đã bán/Người khác giữ (Sold/Blocked) - Màu đỏ/Xám
+            } elseif (in_array($g->id, $myPendingIds)) {
+                $state = 2; // Của mình đang giữ (Selected) - Màu xanh
+            } elseif (in_array(strtoupper($label), $selectedSet, true)) {
+                $state = 2; // Đang chọn trong session - Màu xanh
             }
-            if (in_array(strtoupper($label), $selectedSet, true)) {
-                $state = 2; // selection overrides
-            }
+
             $rows[$row][] = $state;
         }
 
@@ -644,24 +676,24 @@ class BookingController extends Controller
     public function showSeatsPage($showtimeId)
     {
         try {
+            // 1. Dọn dẹp vé quá hạn 10p trước khi load trang
+            $this->cleanupExpiredBookings();
+
             $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($showtimeId);
 
             if ($showtime->trang_thai != 1) {
-                return redirect()->route('booking.index')
-                    ->with('error', 'Suất chiếu không khả dụng.');
+                return redirect()->route('booking.index')->with('error', 'Suất chiếu không khả dụng.');
             }
 
             if ($showtime->thoi_gian_bat_dau < now()) {
-                return redirect()->route('booking.index')
-                    ->with('error', 'Suất chiếu đã bắt đầu.');
+                return redirect()->route('booking.index')->with('error', 'Suất chiếu đã bắt đầu.');
             }
 
             $movie = $showtime->phim;
             $room = $showtime->phongChieu;
 
             if (!$movie || !$room) {
-                return redirect()->route('booking.index')
-                    ->with('error', 'Thông tin suất chiếu không hợp lệ.');
+                return redirect()->route('booking.index')->with('error', 'Thông tin suất chiếu không hợp lệ.');
             }
 
             // Get combos and promotions
@@ -675,38 +707,39 @@ class BookingController extends Controller
             $seats = Ghe::where('id_phong', $showtime->id_phong)
                 ->with('loaiGhe')
                 ->get()
-                ->map(function ($seat) use ($showtime) {
+                ->map(function ($seat) {
                     $seat->seatType = $seat->loaiGhe;
-                    $seat->booking_status = 'available';
-                    $seat->so_hang = is_string($seat->so_ghe) && strlen($seat->so_ghe) > 0
-                        ? substr($seat->so_ghe, 0, 1)
-                        : null;
+                    $seat->booking_status = 'available'; // Default
+                    $seat->so_hang = is_string($seat->so_ghe) ? substr($seat->so_ghe, 0, 1) : null;
                     return $seat;
                 });
 
-            // Preload booked/held statuses so UI disables them immediately
-            try {
-                $seatHoldService = app(\App\Services\SeatHoldService::class);
-                $currentUserId = \Illuminate\Support\Facades\Auth::id();
-                foreach ($seats as $s) {
-                    $st = $seatHoldService->getSeatStatus($showtime->id, $s->id, $currentUserId);
-                    if ($st === 'booked') {
-                        $s->booking_status = 'booked';
-                    } elseif ($st === 'held_by_other') {
-                        $s->booking_status = 'locked_by_other';
-                    } elseif ($st === 'held_by_me') {
-                        $s->booking_status = 'locked_by_me';
-                    }
-                }
-            } catch (\Throwable $e) {
-                // ignore preload errors; frontend refresh will handle
+            // 2. Lấy danh sách mã ghế (A1, B2...) mà user hiện tại đang treo (Pending)
+            // Để truyền xuống View cho JS tự động tô xanh (selected)
+            $currentUserId = Auth::id();
+            $myPendingSeats = [];
+            
+            if ($currentUserId) {
+                $myPendingSeats = \DB::table('chi_tiet_dat_ve as c')
+                    ->join('dat_ve as d', 'd.id', '=', 'c.id_dat_ve')
+                    ->join('ghe as g', 'g.id', '=', 'c.id_ghe')
+                    ->where('d.id_suat_chieu', $showtimeId)
+                    ->where('d.trang_thai', 0) // Trạng thái chờ
+                    ->where('d.id_nguoi_dung', $currentUserId)
+                    ->pluck('g.so_ghe')
+                    ->toArray();
             }
 
-            // Selected combos placeholder for view compatibility
+            // Selected combos placeholder
             $selectedCombos = collect();
+            $existingBooking = null; 
 
-            $existingBooking = null; // default to avoid undefined in view
-            return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'khuyenmais', 'existingBooking', 'seats', 'selectedCombos'));
+            // Truyền thêm biến $myPendingSeats ra view
+            return view('booking.seats', compact(
+                'showtime', 'movie', 'room', 'combos', 'khuyenmais', 
+                'existingBooking', 'seats', 'selectedCombos', 'myPendingSeats'
+            ));
+
         } catch (\Exception $e) {
             Log::error('Error loading seat selection page', [
                 'showtime_id' => $showtimeId,
@@ -2479,5 +2512,27 @@ class BookingController extends Controller
         ];
 
         return view('booking.tickets', compact('bookings', 'stats'));
+    }
+    /**
+     * Hàm dọn dẹp vé pending quá hạn (10 phút)
+     */
+    private function cleanupExpiredBookings()
+    {
+        // Xóa vé trạng thái 0 (Pending) và tạo quá 10 phút
+        $expiredTime = now()->subMinutes(10);
+
+        $expiredBookings = DatVe::where('trang_thai', 0)
+            ->where('created_at', '<', $expiredTime)
+            ->get();
+
+        foreach ($expiredBookings as $booking) {
+            // Xóa chi tiết trước để tránh lỗi khóa ngoại
+            ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+            ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+            ThanhToan::where('id_dat_ve', $booking->id)->delete();
+
+            // Xóa vé
+            $booking->delete();
+        }
     }
 }

@@ -24,10 +24,8 @@
     .header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
     .pill { background:#1a1d24; border:1px solid #2a2f3a; border-radius:999px; padding:6px 10px; font-size:12px; color:#a0a6b1; }
     
-    /* Style cho radio thanh toán */
-    .payment-option { cursor:pointer; align-items:center; gap:12px; justify-content: flex-start; transition: all 0.2s; }
-    .payment-option:hover { border-color: #FF784E; }
-    .payment-option input[type="radio"] { accent-color:#FF784E; width: 18px; height: 18px; }
+    /* Style mới cho block thanh toán mặc định */
+    .payment-info-block { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; background:#1a1d24; border:1px solid #FF784E; }
     .payment-icon { width: 40px; height: 28px; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px;}
   </style>
 </head>
@@ -55,6 +53,9 @@
         @csrf
         <input type="hidden" name="promo_id" id="promo_id" value="" />
         <input type="hidden" name="promo_code" id="promo_code" value="" />
+        
+        {{-- INPUT ẨN ĐỂ BACKEND VẪN NHẬN ĐƯỢC GIÁ TRỊ --}}
+        <input type="hidden" name="payment_method" value="online" />
 
         <div class="grid">
             <div>
@@ -142,32 +143,21 @@
             </div>
             @endif
 
+            {{-- PHẦN SỬA ĐỔI: HIỂN THỊ CỐ ĐỊNH THAY VÌ CHỌN --}}
             <div>
                 <h2 class="section-title" style="border-top:1px solid #2a2f3a; padding-top:16px;">Phương thức thanh toán</h2>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <label class="row payment-option">
-                        <input type="radio" name="payment_method" value="online" checked />
-                        <div class="payment-icon">
-                            <img src="https://vnpay.vn/assets/img/logo-primary.svg" alt="VNPAY" style="height:16px;">
-                        </div>
-                        <div style="flex:1;">
-                            <div style="font-weight:600;">Ví VNPAY / Ngân hàng</div>
-                            <div class="muted">Thanh toán ngay qua cổng VNPAY</div>
-                        </div>
-                    </label>
-
-                    <label class="row payment-option">
-                        <input type="radio" name="payment_method" value="offline" />
-                        <div class="payment-icon" style="background:#2a2f3a;">
-                            🏪
-                        </div>
-                        <div style="flex:1;">
-                            <div style="font-weight:600;">Thanh toán tại quầy</div>
-                            <div class="muted">Đặt vé và thanh toán tại rạp trong 30 phút</div>
-                        </div>
-                    </label>
+                <div class="payment-info-block">
+                    <div class="payment-icon">
+                        <img src="https://vnpay.vn/assets/img/logo-primary.svg" alt="VNPAY" style="height:16px;">
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600; color: #FF784E;">Ví VNPAY / Ngân hàng</div>
+                        <div class="muted">Thanh toán bảo mật, tiện lợi qua cổng VNPAY</div>
+                    </div>
+                    <div style="color:#FF784E;">✓</div>
                 </div>
             </div>
+            
             <div class="row" style="margin-top:8px;">
             <div class="total">Tổng tiền ghế</div>
             <div class="total" id="seatTotal" data-seat-total="{{ (int)($totalSeatPrice ?? 0) }}">{{ number_format($totalSeatPrice ?? 0, 0, ',', '.') }}đ</div>
@@ -194,7 +184,7 @@
             <a href="{{ url()->previous() }}" class="btn btn-secondary">Quay lại</a>
             
             <button type="submit" class="btn" id="btnSubmit">
-                Thanh toán VNPAY
+                Thanh toán ngay
             </button>
             </div>
         </div>
@@ -216,14 +206,12 @@
       const promoCodeHidden = document.getElementById('promo_code');
       const radios = document.querySelectorAll('input[name="promo_pick"]');
       
-      // Elements cho thanh toán
-      const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
-      const btnSubmit = document.getElementById('btnSubmit');
-
+      // Hàm định dạng tiền
       function fmt(n){
         return (n||0).toLocaleString('vi-VN');
       }
 
+      // Hàm tính toán lại giá tiền khi chọn khuyến mãi
       function recalc(){
         let discount = 0;
         let selected = document.querySelector('input[name="promo_pick"]:checked');
@@ -249,23 +237,20 @@
         const final = Math.max(0, baseTotal - discount);
         finalTotalEl.textContent = fmt(final) + 'đ';
       }
-
-      // Logic thay đổi nút bấm khi chọn phương thức thanh toán
-      function updateButtonText() {
-        const method = document.querySelector('input[name="payment_method"]:checked').value;
-        if (method === 'online') {
-            btnSubmit.textContent = 'Thanh toán VNPAY';
-        } else {
-            btnSubmit.textContent = 'Đặt vé giữ chỗ';
-        }
-      }
-
       radios.forEach(r => r.addEventListener('change', recalc));
-      paymentRadios.forEach(r => r.addEventListener('change', updateButtonText));
 
       recalc();
-      updateButtonText(); // Chạy lần đầu
+      
     })();
+    window.addEventListener( "pageshow", function ( event ) {
+      var historyTraversal = event.persisted || 
+                             ( typeof window.performance != "undefined" && 
+                                  window.performance.navigation.type === 2 );
+      if ( historyTraversal ) {
+        // Handle page restore.
+        window.location.reload();
+      }
+    });
   </script>
 </body>
 </html>

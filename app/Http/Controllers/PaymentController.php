@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\DatVe;
 use App\Models\ThanhToan;
+use App\Models\ChiTietDatVe;
+use App\Models\ChiTietCombo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\SeatHoldService;
@@ -67,14 +69,13 @@ class PaymentController extends Controller
     }
 
     /**
-     * Xử lý kết quả trả về từ VNPAY (User được redirect về đây)
+     * Xử lý kết quả trả về từ VNPAY
      */
     public function vnpayReturn(Request $request)
     {
         $vnp_HashSecret = env('VNP_HASH_SECRET');
         $inputData = array();
         
-        // Lấy toàn bộ tham số trả về
         foreach ($request->all() as $key => $value) {
             if (substr($key, 0, 4) == "vnp_") {
                 $inputData[$key] = $value;
@@ -98,67 +99,107 @@ class PaymentController extends Controller
 
         $secureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
         
-        // Lấy ID booking từ TxnRef (Ví dụ: 431_1766136978 -> lấy 431)
         $txnRef = $request->vnp_TxnRef;
         $parts = explode('_', $txnRef);
         $bookingId = $parts[0];
 
-        // Tìm đơn hàng
         $booking = DatVe::find($bookingId);
 
+        // Trường hợp vé không tồn tại (đã bị xóa trước đó)
         if (!$booking) {
-            return redirect()->route('home')->with('error', 'Đơn hàng không tồn tại');
+            return redirect()->route('home')->with('error', 'Đơn hàng không tồn tại hoặc đã bị hủy.');
         }
 
         // 1. Kiểm tra chữ ký bảo mật
         if ($secureHash == $vnp_SecureHash) {
-            // 2. Kiểm tra mã lỗi (00 là thành công)
+            // 2. Kiểm tra mã lỗi
             if ($request->vnp_ResponseCode == '00') {
-                
-                // === [LOGIC TỰ ĐỘNG XÁC NHẬN] ===
+                // --- THANH TOÁN THÀNH CÔNG ---
                 DB::transaction(function () use ($booking) {
-                    
-                    // A. Cập nhật trạng thái vé thành 1 (Đã xác nhận/Đã thanh toán)
-                    // Đây chính là dòng code giúp vé tự động "xanh" mà không cần admin duyệt
-                    $booking->update([
-                        'trang_thai' => 1, 
-                        'expires_at' => null // Xóa hạn hủy vì đã mua xong
-                    ]);
-
-                    // B. Cập nhật bảng thanh toán thành công
-                    $thanhToan = ThanhToan::where('id_dat_ve', $booking->id)->first();
-                    if ($thanhToan) {
-                        $thanhToan->update([
+                    if ($booking->trang_thai == 0) {
+                        $booking->update([
                             'trang_thai' => 1, 
-                            'ma_giao_dich' => request()->vnp_TransactionNo ?? null
+                            'expires_at' => null
                         ]);
-                    }
-
-                    // C. Giải phóng ghế khỏi bảng tạm giữ
-                    // (Vì ghế đã được lưu cứng vào bảng chi_tiet_dat_ve rồi)
-                    try {
-                        $seatIds = $booking->chiTietDatVe->pluck('id_ghe')->toArray();
-                        app(SeatHoldService::class)->releaseSeats(
-                            $booking->id_suat_chieu, 
-                            $seatIds, 
-                            $booking->id_nguoi_dung
-                        );
-                    } catch (\Exception $e) {
-                        Log::error("Lỗi release ghế sau thanh toán: " . $e->getMessage());
+                        
+                        $thanhToan = ThanhToan::where('id_dat_ve', $booking->id)->first();
+                        if ($thanhToan) {
+                            $thanhToan->update([
+                                'trang_thai' => 1, 
+                                'ma_giao_dich' => request()->vnp_TransactionNo ?? null
+                            ]);
+                        }
+                        
+                        try {
+                            $seatIds = $booking->chiTietDatVe->pluck('id_ghe')->toArray();
+                            app(SeatHoldService::class)->confirmBooking(
+                                $booking->id_suat_chieu, 
+                                $seatIds, 
+                                $booking->id_nguoi_dung
+                            );
+                        } catch (\Exception $e) {
+                            Log::error("Confirm booking error: " . $e->getMessage());
+                        }
                     }
                 });
 
-                // Chuyển hướng về trang chi tiết vé
                 return redirect()->route('booking.ticket.detail', ['id' => $booking->id])
-                    ->with('success', 'Thanh toán thành công! Vé của bạn đã được xác nhận tự động.');
+                    ->with('success', 'Thanh toán thành công! Vé của bạn đã được xác nhận.');
 
             } else {
-                // Thanh toán thất bại hoặc hủy bỏ
-                return redirect()->route('booking.ticket.detail', ['id' => $booking->id])
-                    ->with('error', 'Giao dịch không thành công hoặc đã bị hủy.');
+                // --- THANH TOÁN THẤT BẠI / HỦY BỎ ---
+                // Code 24: Khách hàng hủy giao dịch
+                
+                $showtimeId = $booking->id_suat_chieu;
+                
+                // GỌI HÀM XÓA VÉ NGAY LẬP TỨC
+                $this->cancelAndCleanupBooking($booking);
+
+                $message = 'Giao dịch không thành công.';
+                if ($request->vnp_ResponseCode == '24') {
+                    $message = 'Bạn đã hủy giao dịch. Vé chưa được lưu.';
+                }
+
+                // Quay về trang chọn ghế để khách đặt lại
+                return redirect()->route('booking.seats', ['showId' => $showtimeId])
+                    ->with('error', $message);
             }
         } else {
             return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
+        }
+    }
+
+    /**
+     * Hàm xóa sạch dữ liệu vé và nhả ghế
+     */
+    private function cancelAndCleanupBooking($booking)
+    {
+        try {
+            DB::beginTransaction();
+
+            if (!$booking) return;
+
+            $seatIds = ChiTietDatVe::where('id_dat_ve', $booking->id)->pluck('id_ghe')->toArray();
+            $userId = $booking->id_nguoi_dung;
+            $showtimeId = $booking->id_suat_chieu;
+
+            // Xóa các bảng chi tiết trước
+            ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+            ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+            ThanhToan::where('id_dat_ve', $booking->id)->delete();
+
+            // Xóa vé chính
+            $booking->delete();
+
+            // Nhả ghế trong Redis/Cache (Quan trọng để ghế chuyển màu trắng lại ngay)
+            if (!empty($seatIds)) {
+                app(SeatHoldService::class)->releaseSeats($showtimeId, $seatIds, $userId);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Lỗi khi hủy vé VNPAY: ' . $e->getMessage());
         }
     }
 }

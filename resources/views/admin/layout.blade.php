@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin - MovieHub')</title>
+    {{-- 1. NHÚNG BOOTSTRAP 5 CSS (Bắt buộc) --}}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    {{-- 2. NHÚNG FONT AWESOME (Để hiện icon) --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
       // Defensive shim for external/minified scripts that may expect globals
       (function(){

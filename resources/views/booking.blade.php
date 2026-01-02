@@ -89,16 +89,16 @@
 
                                     function btnHtml(date) {
                                         return '<div class="text-center">\
-                                                                                                                                                    <div class="text-[11px] opacity-75">' +
+                                                                                                                                                                            <div class="text-[11px] opacity-75">' +
                                             dayVi(date.day_name) +
                                             '</div>\
-                                                                                                                                                    <div class="font-semibold mt-1">' +
+                                                                                                                                                                            <div class="font-semibold mt-1">' +
                                             (date
                                                 .is_today ? 'Hôm nay' : (
                                                     date.is_tomorrow ?
                                                     'Ngày mai' : date.formatted)) +
                                             '</div>\
-                                                                                                                                                  </div>';
+                                                                                                                                                                          </div>';
                                     }
 
                                     function mkFallback() {
