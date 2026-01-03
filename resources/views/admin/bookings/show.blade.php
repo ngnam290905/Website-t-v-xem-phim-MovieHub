@@ -25,12 +25,17 @@
             return ($i->gia_ap_dung ?? 0) * max(1, (int)$i->so_luong); 
         }) ?? 0);
         
+        // Tính tiền Đồ ăn
+        $foodTotal = (float) ($booking->chiTietFood->sum(function($f){ 
+            return ($f->price ?? 0) * max(1, (int)$f->quantity); 
+        }) ?? 0);
+        
         // Tính khuyến mãi
         $discount = 0;
         if ($booking->khuyenMai) {
             $type = strtolower($booking->khuyenMai->loai_giam);
             $val  = (float) $booking->khuyenMai->gia_tri_giam;
-            $base = $seatTotal + $comboTotal;
+            $base = $seatTotal + $comboTotal + $foodTotal;
             
             if ($type === 'phantram') {
                 $discount = round($base * ($val / 100));
@@ -41,7 +46,7 @@
         }
         
         // Tổng tiền cuối cùng
-        $base = $seatTotal + $comboTotal;
+        $base = $seatTotal + $comboTotal + $foodTotal;
         $calculated = max(0, $base - $discount);
         
         // Ưu tiên hiển thị giá trị tính toán lại để khớp với giá mới bạn yêu cầu
@@ -77,21 +82,7 @@
                             </form>
                         @endif
 
-                        {{-- Nút Duyệt/Hủy (Chỉ hiện khi chưa hoàn tất/hủy) --}}
-                        @if($booking->trang_thai == 0 || $booking->trang_thai == 3)
-                            <form action="{{ route('admin.bookings.confirm', $booking->id) }}" method="POST">
-                                @csrf 
-                                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition shadow-lg shadow-green-900/20 flex items-center gap-2">
-                                    <i class="fas fa-check"></i> Xác nhận
-                                </button>
-                            </form>
-                            <form action="{{ route('admin.bookings.cancel', $booking->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn hủy vé này không?');">
-                                @csrf
-                                <button type="submit" class="px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/30 rounded-lg text-sm transition flex items-center gap-2">
-                                    <i class="fas fa-times"></i> Hủy vé
-                                </button>
-                            </form>
-                        @endif
+                        {{-- Chỉ xem thông tin, không có nút xác nhận/hủy --}}
                     @endif
                 @endauth
             </div>
@@ -168,6 +159,28 @@
                 </div>
                 @endif
 
+                @if($booking->chiTietFood->isNotEmpty())
+                <div class="bg-[#151822] border border-[#262833] rounded-xl p-5">
+                    <h3 class="text-lg font-semibold text-white mb-4 border-b border-[#262833] pb-3">🍔 Đồ ăn</h3>
+                    <div class="space-y-3">
+                        @foreach($booking->chiTietFood as $detail)
+                            <div class="flex items-center justify-between bg-[#1d202a] p-3 rounded-lg border border-[#262833]">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-xl">🍔</div>
+                                    <div>
+                                        <div class="text-white font-medium">{{ $detail->food->name ?? 'Đồ ăn đã xóa' }}</div>
+                                        <div class="text-xs text-gray-500">{{ number_format($detail->price, 0) }}đ x {{ $detail->quantity }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-green-400 font-mono font-bold">
+                                    {{ number_format($detail->price * $detail->quantity, 0) }}đ
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
             </div>
 
             <div class="space-y-6">
@@ -204,10 +217,18 @@
                             <span>Tổng tiền ghế</span>
                             <span class="text-white font-mono">{{ number_format($seatTotal, 0) }}đ</span>
                         </div>
+                        @if($comboTotal > 0)
                         <div class="flex justify-between text-gray-400">
                             <span>Tổng tiền Combo</span>
                             <span class="text-white font-mono">{{ number_format($comboTotal, 0) }}đ</span>
                         </div>
+                        @endif
+                        @if($foodTotal > 0)
+                        <div class="flex justify-between text-gray-400">
+                            <span>Tổng tiền Đồ ăn</span>
+                            <span class="text-white font-mono">{{ number_format($foodTotal, 0) }}đ</span>
+                        </div>
+                        @endif
                         
                         @if($discount > 0)
                             <div class="flex justify-between text-red-400">

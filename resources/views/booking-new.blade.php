@@ -103,11 +103,24 @@
                         </div>
                         <div class="flex-1 h-1 bg-gray-700 mx-4 step-line"></div>
                     </div>
-                    
-                    <div class="flex items-center">
-                        <div class="step-item flex items-center" data-step="4">
+
+                    <div class="flex items-center flex-1">
+                        <div class="step-item flex items-center flex-1" data-step="4">
                             <div class="step-number flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 text-gray-400 font-bold text-lg border-4 border-gray-900">
                                 4
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold text-gray-400">Chọn combo</p>
+                                <p class="text-sm text-gray-500">Chọn thêm đồ ăn/ưu đãi</p>
+                            </div>
+                        </div>
+                        <div class="flex-1 h-1 bg-gray-700 mx-4 step-line"></div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <div class="step-item flex items-center" data-step="5">
+                            <div class="step-number flex items-center justify-center w-12 h-12 rounded-full bg-gray-700 text-gray-400 font-bold text-lg border-4 border-gray-900">
+                                5
                             </div>
                             <div class="ml-4">
                                 <p class="font-semibold text-gray-400">Thanh toán</p>
@@ -214,22 +227,34 @@
                                     <span class="text-gray-300">Đang chọn</span>
                                 </div>
                             </div>
+
+                            <div class="flex justify-end mt-6">
+                                <button id="continue-to-combo" class="ml-4 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold disabled:opacity-60" disabled>
+                                    Tiếp tục
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Step 4: Payment -->
+                    <!-- Step 4: Combo Selection -->
                     <div id="step-4" class="step-content hidden">
                         <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50">
-                            <h3 class="text-2xl font-bold mb-6">Thanh toán</h3>
-                            
-                            <!-- Combo Selection -->
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-2xl font-bold">Chọn Combo (tuỳ chọn)</h3>
+                                <button type="button" id="back-to-seats" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    Đổi ghế
+                                </button>
+                            </div>
+
                             <div class="mb-6">
-                                <label class="block text-lg font-semibold text-gray-300 mb-4">Chọn Combo (tuỳ chọn)</label>
                                 <div class="space-y-3">
                                     @forelse($combos as $c)
                                         <label class="flex items-center p-4 bg-gray-900/50 rounded-xl cursor-pointer hover:bg-gray-800/50 transition border border-gray-700/50">
                                             <input type="radio" name="combo" value="{{ $c->id }}"
-                                                data-price="{{ (int) $c->gia }}" class="mr-4 text-red-600 w-5 h-5">
+                                                data-price="{{ (int) $c->gia }}" class="mr-4 text-red-600 w-5 h-5 combo-radio">
                                             <div class="flex-1">
                                                 <div class="text-white font-medium">{{ $c->ten }}</div>
                                                 <div class="text-gray-400 text-sm">{{ number_format((int) $c->gia, 0) }}đ</div>
@@ -239,7 +264,7 @@
                                         <div class="text-sm text-gray-500 p-4 bg-gray-900/50 rounded-xl">Hiện chưa có combo khả dụng</div>
                                     @endforelse
                                     <label class="flex items-center p-4 bg-gray-900/50 rounded-xl cursor-pointer hover:bg-gray-800/50 transition border border-gray-700/50">
-                                        <input type="radio" name="combo" value="" checked class="mr-4 text-red-600 w-5 h-5">
+                                        <input type="radio" name="combo" value="" checked class="mr-4 text-red-600 w-5 h-5 combo-radio">
                                         <div class="flex-1 text-gray-400 text-sm">Không chọn combo</div>
                                     </label>
                                 </div>
@@ -259,6 +284,27 @@
                                         </option>
                                     @endforeach
                                 </select>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <button id="continue-to-payment" class="ml-4 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold disabled:opacity-60" >
+                                    Tiếp tục
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Payment -->
+                    <div id="step-5" class="step-content hidden">
+                        <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-2xl font-bold">Thanh toán</h3>
+                                <button type="button" id="back-to-combo" class="text-gray-400 hover:text-white flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    Đổi combo
+                                </button>
                             </div>
 
                             <!-- Payment Method -->
@@ -318,6 +364,13 @@
                                 <p class="text-sm text-gray-400 mb-1">Ghế</p>
                                 <p class="font-semibold text-white" id="summary-seats">Chưa chọn ghế</p>
                                 <p class="text-xs text-gray-500 mt-1" id="summary-seat-types">-</p>
+                            </div>
+
+                            <!-- Combo Info -->
+                            <div class="pb-4 border-b border-gray-700">
+                                <p class="text-sm text-gray-400 mb-1">Combo</p>
+                                <p class="font-semibold text-white" id="summary-combo">Không chọn combo</p>
+                                <p class="text-xs text-gray-500 mt-1" id="summary-combo-price">-</p>
                             </div>
 
                             <!-- Price Breakdown -->
@@ -392,6 +445,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             updateStepper();
             attachEventListeners();
+            refreshActionButtons();
         });
 
         function updateStepper() {
@@ -410,10 +464,12 @@
             document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
             
             // Show target step
-            document.getElementById(`step-${step}`).classList.remove('hidden');
+            const target = document.getElementById(`step-${step}`);
+            if (target) target.classList.remove('hidden');
             
             currentStep = step;
             updateStepper();
+            refreshActionButtons();
         }
 
         function attachEventListeners() {
@@ -441,16 +497,85 @@
 
             document.getElementById('back-to-showtime')?.addEventListener('click', () => {
                 selectedSeats.clear();
+                updateSummary();
                 goToStep(2);
             });
 
-            // Payment button
+            // From seats to combo -> call API to hold seats before moving on
+            document.getElementById('continue-to-combo')?.addEventListener('click', async () => {
+                if (selectedSeats.size === 0) {
+                    alert('Vui lòng chọn ghế trước!');
+                    return;
+                }
+
+                // Attempt to hold seats on server
+                try {
+                    const seatsArray = Array.from(selectedSeats);
+                    const resp = await fetch(`/api/showtimes/${selectedShowtime}/select-seats`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({ seats: seatsArray })
+                    });
+
+                    const result = await resp.json();
+                    if (!resp.ok || !result.success) {
+                        alert(result.message || 'Không thể giữ ghế, vui lòng thử lại.');
+                        // refresh seat map to reflect current state
+                        await loadSeatsForShowtime(selectedShowtime);
+                        return;
+                    }
+
+                    // Hold successful
+                    currentBookingId = result.booking_hold_id || null;
+                    holdExpiresAt = result.hold_expires_at || null;
+                    // Optionally you can show a timer UI using hold_expires_at
+                    updateSummary();
+                    goToStep(4);
+                } catch (err) {
+                    console.error('Error holding seats:', err);
+                    alert('Lỗi khi giữ ghế. Vui lòng thử lại.');
+                }
+            });
+
+            // Back from combo to seats
+            document.getElementById('back-to-seats')?.addEventListener('click', () => {
+                goToStep(3);
+            });
+
+            // From combo to payment
+            document.getElementById('continue-to-payment')?.addEventListener('click', () => {
+                // promotion/combo optional; proceed to payment
+                goToStep(5);
+            });
+
+            // Back from payment to combo
+            document.getElementById('back-to-combo')?.addEventListener('click', () => {
+                goToStep(4);
+            });
+
+            // Payment button (final)
             document.getElementById('pay-button')?.addEventListener('click', () => {
                 if (selectedSeats.size === 0 || !selectedShowtime) {
                     alert('Vui lòng chọn ghế trước!');
                     return;
                 }
                 submitBooking();
+            });
+
+            // Combo and promotion listeners
+            document.querySelectorAll('.combo-radio').forEach(r => {
+                r.addEventListener('change', function() {
+                    selectedCombo = this.value || null;
+                    updateSummary();
+                });
+            });
+
+            document.getElementById('promotion')?.addEventListener('change', function() {
+                selectedPromotion = this.value || null;
+                updateSummary();
             });
         }
 
@@ -463,15 +588,14 @@
                 dateText.innerHTML = `Ngày: <span class="text-white font-semibold">${date}</span>`;
             }
 
+            // Render showtime buttons: display ONLY the time. Do not show room, available seats, price, etc.
             container.innerHTML = showtimes.map(st => `
                 <button type="button" 
-                    class="showtime-btn p-4 rounded-xl border-2 border-gray-700 hover:border-red-600 transition-all duration-200 bg-gray-900/50 hover:bg-gray-800 text-left"
+                    class="showtime-btn p-4 rounded-xl border-2 border-gray-700 hover:border-red-600 transition-all duration-200 bg-gray-900/50 hover:bg-gray-800 text-center"
                     data-showtime-id="${st.id}"
                     data-showtime-time="${st.time}"
-                    data-showtime-date="${st.date}"
-                    data-showtime-room="${st.room}">
+                    data-showtime-date="${st.date}">
                     <p class="text-xl font-bold mb-1">${st.time}</p>
-                    <p class="text-sm text-gray-400">${st.room}</p>
                 </button>
             `).join('');
 
@@ -484,12 +608,20 @@
                     selectedShowtime = this.dataset.showtimeId;
                     const time = this.dataset.showtimeTime;
                     const date = this.dataset.showtimeDate;
-                    const room = this.dataset.showtimeRoom;
                     
-                    // Update summary
-                    document.getElementById('summary-showtime').textContent = `${time} - ${room}`;
-                    document.getElementById('summary-date').textContent = `Ngày: ${date}`;
-                    document.getElementById('summary-time').textContent = `Giờ: ${time}`;
+                    // Update summary (show only time)
+                    document.getElementById('summary-showtime').textContent = `${time}`;
+                    // Clear/hide extra date/time summary lines so only the time is visible
+                    const sd = document.getElementById('summary-date');
+                    const st = document.getElementById('summary-time');
+                    if (sd) sd.textContent = '';
+                    if (st) st.textContent = '';
+
+                    // Reset seats/combo when changing showtime
+                    selectedSeats.clear();
+                    selectedCombo = null;
+                    selectedPromotion = null;
+                    updateSummary();
                     
                     // Load seats and go to step 3
                     loadSeatsForShowtime(selectedShowtime).then(() => {
@@ -501,15 +633,13 @@
 
         async function loadSeatsForShowtime(showtimeId) {
             try {
-                // Load seat map
-                const response = await fetch(`/api/showtimes/${showtimeId}/seats`);
+                // Use the existing API that returns seat layout/status
+                const response = await fetch(`/api/showtime-seats/${showtimeId}`);
                 const data = await response.json();
-                
+
                 // Generate seat map
                 generateSeatMap(data);
-                
-                // Load booked seats
-                await loadBookedSeats(showtimeId);
+
             } catch (error) {
                 console.error('Error loading seats:', error);
                 alert('Không thể tải dữ liệu ghế');
@@ -517,13 +647,147 @@
         }
 
         function generateSeatMap(data) {
-            // This will be implemented based on your seat layout
-            // For now, placeholder
             const container = document.getElementById('seat-map-container');
-            container.innerHTML = '<p class="text-gray-400">Đang tải sơ đồ ghế...</p>';
-            
-            // You'll need to implement the actual seat map generation
-            // based on your room layout from the database
+            container.innerHTML = '';
+
+            const seatsObj = data && data.seats ? data.seats : data || {};
+
+            // Group seats by row letter
+            const rows = {};
+            Object.keys(seatsObj).forEach(code => {
+                const match = code.match(/^([A-Z]+)(\d+)$/i);
+                if (!match) return;
+                const row = match[1].toUpperCase();
+                const num = parseInt(match[2], 10);
+                if (!rows[row]) rows[row] = [];
+                rows[row].push({ code, num, meta: seatsObj[code] });
+            });
+
+            // Sort rows by letter
+            const sortedRowKeys = Object.keys(rows).sort();
+
+            sortedRowKeys.forEach(rowKey => {
+                const rowSeats = rows[rowKey].sort((a, b) => a.num - b.num);
+
+                const rowEl = document.createElement('div');
+                rowEl.className = 'w-full max-w-3xl';
+
+                const label = document.createElement('div');
+                label.className = 'text-sm text-gray-400 mb-2';
+                label.textContent = `Hàng ${rowKey}`;
+                rowEl.appendChild(label);
+
+                const seatsRow = document.createElement('div');
+                seatsRow.className = 'flex flex-wrap gap-2 items-center';
+
+                rowSeats.forEach(s => {
+                    const seat = s.meta;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'seat-btn px-3 py-2 rounded-md text-sm font-medium';
+                    btn.dataset.code = s.code;
+                    btn.dataset.id = seat.id || '';
+                    btn.dataset.price = seat.price || 0;
+                    btn.title = `${s.code} — ${seat.type} — ${new Intl.NumberFormat('vi-VN').format(seat.price || 0)}đ`;
+
+                    // Visual by status/type
+                    if (seat.status === 'sold' || seat.status === 'blocked') {
+                        btn.classList.add('bg-red-600', 'text-white', 'opacity-80');
+                        btn.disabled = true;
+                    } else if (seat.status === 'hold') {
+                        btn.classList.add('bg-gray-700', 'text-white');
+                        btn.disabled = true;
+                    } else {
+                        // available
+                        // color by type
+                        const typeLower = (seat.type || '').toLowerCase();
+                        if (typeLower.includes('vip')) btn.classList.add('bg-yellow-600', 'text-white');
+                        else if (typeLower.includes('đôi') || typeLower.includes('doi') || typeLower.includes('couple')) btn.classList.add('bg-pink-600', 'text-white');
+                        else btn.classList.add('bg-gray-700', 'text-white');
+                    }
+
+                    btn.textContent = s.code;
+
+                    // Click handler for selectable seats
+                    btn.addEventListener('click', function () {
+                        const code = this.dataset.code;
+                        const seatMeta = seatsObj[code];
+                        if (!seatMeta || !seatMeta.available) {
+                            return;
+                        }
+
+                        // If seat is couple type, auto-select its pair
+                        const typeLower = (seatMeta.type || '').toLowerCase();
+                        if (typeLower.includes('đôi') || typeLower.includes('doi') || typeLower.includes('couple')) {
+                            const match = code.match(/^([A-Z]+)(\d+)$/i);
+                            if (match) {
+                                const row = match[1].toUpperCase();
+                                const num = parseInt(match[2], 10);
+                                const pairNum = (num % 2 === 1) ? num + 1 : num - 1;
+                                const pairCode = row + pairNum;
+                                const pairMeta = seatsObj[pairCode];
+                                if (!pairMeta || !pairMeta.available) {
+                                    alert('Bạn phải đặt cả ghế đôi; ghế đôi kề bên hiện không khả dụng.');
+                                    return;
+                                }
+
+                                // Toggle selection of both
+                                const alreadySelected = selectedSeats.has(code);
+                                if (alreadySelected) {
+                                    selectedSeats.delete(code);
+                                    selectedSeats.delete(pairCode);
+                                } else {
+                                    selectedSeats.add(code);
+                                    selectedSeats.add(pairCode);
+                                }
+                                // update classes for both buttons
+                                updateSeatButtonSelection(code, !alreadySelected);
+                                updateSeatButtonSelection(pairCode, !alreadySelected);
+                                updateSummary();
+                                return;
+                            }
+                        }
+
+                        // Normal seat toggle
+                        if (selectedSeats.has(code)) {
+                            selectedSeats.delete(code);
+                            updateSeatButtonSelection(code, false);
+                        } else {
+                            selectedSeats.add(code);
+                            updateSeatButtonSelection(code, true);
+                        }
+                        updateSummary();
+                    });
+
+                    seatsRow.appendChild(btn);
+                });
+
+                rowEl.appendChild(seatsRow);
+                container.appendChild(rowEl);
+            });
+
+            // helper: update visual for seat code
+            function updateSeatButtonSelection(code, selected) {
+                const btn = container.querySelector(`button[data-code="${code}"]`);
+                if (!btn) return;
+                if (selected) {
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-green-600');
+                } else {
+                    // revert based on original meta color (simplified)
+                    const meta = seatsObj[code];
+                    const typeLower = (meta.type || '').toLowerCase();
+                    btn.classList.remove('bg-green-600');
+                    if (typeLower.includes('vip')) {
+                        btn.classList.add('bg-yellow-600');
+                    } else if (typeLower.includes('đôi') || typeLower.includes('doi') || typeLower.includes('couple')) {
+                        btn.classList.add('bg-pink-600');
+                    } else {
+                        btn.classList.add('bg-gray-700');
+                    }
+                }
+                refreshActionButtons();
+            }
         }
 
         async function loadBookedSeats(showtimeId) {
@@ -569,6 +833,59 @@
                 console.error('Error:', error);
                 alert('Có lỗi kết nối');
             }
+        }
+
+        // UI helpers
+        function refreshActionButtons() {
+            // Continue from seats to combo
+            const continueBtn = document.getElementById('continue-to-combo');
+            if (continueBtn) {
+                continueBtn.disabled = selectedSeats.size === 0;
+            }
+
+            // Final pay button should only be enabled on step 5 and if seats selected
+            const payBtn = document.getElementById('pay-button');
+            if (payBtn) {
+                payBtn.disabled = !(currentStep === 5 && selectedSeats.size > 0);
+            }
+        }
+
+        function updateSummary() {
+            // Seats summary
+            const seatsEl = document.getElementById('summary-seats');
+            if (seatsEl) {
+                seatsEl.textContent = selectedSeats.size > 0 ? `${selectedSeats.size} ghế` : 'Chưa chọn ghế';
+            }
+
+            // Combo summary
+            const comboEl = document.getElementById('summary-combo');
+            const comboPriceEl = document.getElementById('summary-combo-price');
+            const selectedComboRadio = document.querySelector('input[name="combo"]:checked');
+            const comboPrice = selectedComboRadio ? parseInt(selectedComboRadio.dataset.price || 0) : 0;
+            if (comboEl) comboEl.textContent = selectedComboRadio && selectedComboRadio.value ? selectedComboRadio.parentElement.querySelector('.text-white')?.textContent || 'Combo' : 'Không chọn combo';
+            if (comboPriceEl) comboPriceEl.textContent = comboPrice > 0 ? `${new Intl.NumberFormat('vi-VN').format(comboPrice)}đ` : '-';
+
+            // Price breakdown (basic)
+            const priceBreakdown = document.getElementById('price-breakdown');
+            const totalPriceEl = document.getElementById('total-price');
+            // We don't know seat unit price here; show combo price + seats as placeholder
+            const seatsTotal = 0; // seat price calculation requires seat data
+            const total = seatsTotal + comboPrice;
+            if (priceBreakdown) {
+                priceBreakdown.innerHTML = `
+                    <div class="flex justify-between text-sm text-gray-400">
+                        <span>Ghế (${selectedSeats.size})</span>
+                        <span>${new Intl.NumberFormat('vi-VN').format(seatsTotal)}đ</span>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-400">
+                        <span>Combo</span>
+                        <span>${new Intl.NumberFormat('vi-VN').format(comboPrice)}đ</span>
+                    </div>
+                `;
+            }
+            if (totalPriceEl) totalPriceEl.textContent = `${new Intl.NumberFormat('vi-VN').format(total)}đ`;
+
+            refreshActionButtons();
         }
     </script>
 @endsection

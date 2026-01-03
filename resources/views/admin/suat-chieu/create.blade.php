@@ -202,7 +202,7 @@
         }
       }
       
-      // Kiểm tra giờ hoạt động: 8:00 - 24:00
+      // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
       function checkBusinessHours(dateTimeString, isStart) {
         if (!dateTimeString) return true;
         
@@ -213,8 +213,9 @@
         const [year, month, day] = datePart.split('-').map(Number);
         const [hours, minutes] = timePart.split(':').map(Number);
         
-        // Giờ hoạt động: 8:00 - 24:00 (00:00 ngày hôm sau)
-        if (hours < 8 || (hours >= 24 && minutes > 0)) {
+        // Giờ hoạt động: 00:00 - 24:00 (cho phép bất kỳ giờ nào trong ngày)
+        // Bỏ giới hạn 8:00 để cho phép suất chiếu ban đêm từ 00:00 trở đi
+        if (hours >= 24 && minutes > 0) {
           return false;
         }
         // Cho phép kết thúc đúng lúc 24:00 (00:00 ngày hôm sau)
@@ -296,7 +297,7 @@
           
           // Kiểm tra giờ hoạt động cho end time
           if (!checkBusinessHours(endTimeInput.value, false)) {
-            showError(endTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+            showError(endTimeInput, 'Giờ kết thúc không hợp lệ.');
           } else {
             hideError(endTimeInput);
           }
@@ -358,14 +359,14 @@
           
           endTimeInput.min = this.value;
           if (!checkBusinessHours(this.value, true)) {
-            showError(this, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+            showError(this, 'Giờ bắt đầu không hợp lệ.');
           } else {
             hideError(this);
             // Tự động tính thời gian kết thúc khi chọn thời gian bắt đầu
             calculateEndTime();
             checkDuration();
           }
-        } else {
+          } else {
           // Nếu xóa thời gian bắt đầu, xóa luôn thời gian kết thúc
           endTimeInput.value = '';
           const autoCalcBadge = document.getElementById('auto-calc-badge');
@@ -406,12 +407,12 @@
         }
         
         if (startTimeInput.value && !checkBusinessHours(startTimeInput.value, true)) {
-          showError(startTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          showError(startTimeInput, 'Giờ bắt đầu không hợp lệ.');
           hasError = true;
         }
         
         if (endTimeInput.value && !checkBusinessHours(endTimeInput.value, false)) {
-          showError(endTimeInput, 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          showError(endTimeInput, 'Giờ kết thúc không hợp lệ.');
           hasError = true;
         }
         
@@ -433,7 +434,7 @@
         
         if (hasError) {
           e.preventDefault();
-          alert('Vui lòng kiểm tra lại thông tin. Thời gian suất chiếu phải trong tương lai, >= thời lượng phim và trong giờ hoạt động 08:00–24:00.');
+          alert('Vui lòng kiểm tra lại thông tin. Thời gian suất chiếu phải trong tương lai và >= thời lượng phim.');
         }
       });
     });

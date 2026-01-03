@@ -28,7 +28,7 @@
       @endphp
       
       <!-- Doanh thu hôm nay -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 {{ $isAdmin ? 'cursor-pointer' : '' }}" @if($isAdmin) onclick="window.location='{{ route('admin.reports.dashboard') }}'" @endif>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Doanh thu hôm nay</div>
@@ -45,7 +45,7 @@
       </div>
 
       <!-- Doanh thu tháng này -->
-      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300 {{ $isAdmin ? 'cursor-pointer' : '' }}" @if($isAdmin) onclick="window.location='{{ route('admin.reports.dashboard') }}'" @endif>
+      <div class="bg-[#151822] border border-[#262833] rounded-xl p-6 hover:shadow-lg transition-all duration-300">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm text-[#a6a6b0] mb-1">Doanh thu tháng này</div>
@@ -203,15 +203,6 @@
             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
           </a>
           
-          @if($isAdmin)
-            <a href="{{ route('admin.reports.dashboard') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
-              <div class="flex items-center space-x-3">
-                <i class="fas fa-chart-bar text-yellow-400"></i>
-                <span class="text-white text-sm">Xem báo cáo</span>
-              </div>
-              <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-            </a>
-          @endif
           
           <a href="{{ route('admin.khuyenmai.index') }}" class="flex items-center justify-between p-3 bg-[#1a1d24] hover:bg-[#222533] rounded-lg transition-colors">
             <div class="flex items-center space-x-3">

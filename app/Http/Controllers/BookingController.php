@@ -293,160 +293,112 @@ class BookingController extends Controller
                     $phuongThucDB = 1;
                 }
 
-                $createdBookings = [];
+                // 1) Tạo Booking
+                $booking = \App\Models\DatVe::create([
+                    'id_nguoi_dung' => $userId,
+                    'id_suat_chieu' => $showtimeId,
+                    'trang_thai' => 0, // Trạng thái ban đầu luôn là Pending
+                    'expires_at' => $expiresAt,
+                    'tong_tien' => $amount,
+                    'id_khuyen_mai' => $promoId,
+                    'phuong_thuc_thanh_toan' => $phuongThucDB
+                ]);
 
-                // 1) Tạo Booking cho MỖI GHẾ (mỗi ghế = 1 hóa đơn)
+                // 2) Tạo chi tiết vé
                 foreach ($selectedSeatCodes as $code) {
                     $seat = $seats->get($code);
                     if (!$seat) continue;
-                    
-                    // Tính giá ghế
-                    $seatPrice = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 150000 : 100000);
-                    
-                    // Áp dụng khuyến mãi cho từng ghế (nếu có)
-                    $finalSeatPrice = $seatPrice;
-                    if ($promoId) {
-                        $promo = \App\Models\KhuyenMai::where('trang_thai', 1)
-                            ->where('ngay_bat_dau', '<=', now())
-                            ->where('ngay_ket_thuc', '>=', now())
-                            ->find($promoId);
-                        if ($promo) {
-                            $type = strtolower($promo->loai_giam);
-                            $val = (float)$promo->gia_tri_giam;
-                            $discount = 0;
-                            if ($type === 'phantram') {
-                                $discount = round($seatPrice * ($val / 100));
-                            } else {
-                                $discount = ($val >= 1000) ? $val : $val * 1000;
-                            }
-                            $finalSeatPrice = max(0, $seatPrice - (int)$discount);
-                        }
-                    }
+                    // Cập nhật giá lưu vào DB theo giá mới
+                    $price = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 150000 : 100000);
 
-                    // Tạo booking cho ghế này
-                    $seatBooking = \App\Models\DatVe::create([
-                        'id_nguoi_dung' => $userId,
-                        'id_suat_chieu' => $showtimeId,
-                        'trang_thai' => 0, // Trạng thái ban đầu luôn là Pending
-                        'expires_at' => $expiresAt,
-                        'tong_tien' => $finalSeatPrice,
-                        'id_khuyen_mai' => $promoId,
-                        'phuong_thuc_thanh_toan' => $phuongThucDB
-                    ]);
-
-                    // Tạo chi tiết vé cho ghế này
                     \App\Models\ChiTietDatVe::create([
-                        'id_dat_ve' => $seatBooking->id,
+                        'id_dat_ve' => $booking->id,
                         'id_ghe' => $seat->id,
-                        'gia' => $seatPrice, // Lưu giá gốc, không phải giá sau khuyến mãi
+                        'gia' => $price,
                     ]);
-
-                    // Tạo bản ghi thanh toán cho ghế này
-                    \App\Models\ThanhToan::create([
-                        'id_dat_ve' => $seatBooking->id,
-                        'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
-                        'so_tien' => $finalSeatPrice,
-                        'trang_thai' => 0, // Chưa thanh toán
-                        'thoi_gian' => now(),
-                    ]);
-
-                    $createdBookings[] = $seatBooking;
                 }
 
-                // 2) Tạo Booking riêng cho TẤT CẢ COMBO (tất cả combo = 1 hóa đơn)
-                $hasCombos = false;
-                $comboTotal = 0;
+                // Lưu Combo
                 foreach ($selectedCombos as $c) {
                     if (($c['so_luong'] ?? 0) > 0) {
-                        $hasCombos = true;
-                        $comboTotal += ($c['gia'] ?? 0) * ($c['so_luong'] ?? 0);
+                        \App\Models\ChiTietCombo::create([
+                            'id_dat_ve' => $booking->id,
+                            'id_combo' => $c['id_combo'],
+                            'so_luong' => $c['so_luong'],
+                            'gia_ap_dung' => $c['gia']
+                        ]);
                     }
                 }
 
-                if ($hasCombos && $comboTotal > 0) {
-                    // Áp dụng khuyến mãi cho combo (nếu có)
-                    $finalComboPrice = $comboTotal;
-                    if ($promoId) {
-                        $promo = \App\Models\KhuyenMai::where('trang_thai', 1)
-                            ->where('ngay_bat_dau', '<=', now())
-                            ->where('ngay_ket_thuc', '>=', now())
-                            ->find($promoId);
-                        if ($promo) {
-                            $type = strtolower($promo->loai_giam);
-                            $val = (float)$promo->gia_tri_giam;
-                            $discount = 0;
-                            if ($type === 'phantram') {
-                                $discount = round($comboTotal * ($val / 100));
-                            } else {
-                                $discount = ($val >= 1000) ? $val : $val * 1000;
-                            }
-                            $finalComboPrice = max(0, $comboTotal - (int)$discount);
-                        }
-                    }
-
-                    // Tạo booking cho combo
-                    $comboBooking = \App\Models\DatVe::create([
-                        'id_nguoi_dung' => $userId,
-                        'id_suat_chieu' => $showtimeId,
-                        'trang_thai' => 0,
-                        'expires_at' => $expiresAt,
-                        'tong_tien' => $finalComboPrice,
-                        'id_khuyen_mai' => $promoId,
-                        'phuong_thuc_thanh_toan' => $phuongThucDB
-                    ]);
-
-                    // Lưu tất cả combo vào booking này
-                    foreach ($selectedCombos as $c) {
-                        if (($c['so_luong'] ?? 0) > 0) {
-                            \App\Models\ChiTietCombo::create([
-                                'id_dat_ve' => $comboBooking->id,
-                                'id_combo' => $c['id_combo'],
-                                'so_luong' => $c['so_luong'],
-                                'gia_ap_dung' => $c['gia']
+                // Lưu Foods
+                foreach ($selectedFoods as $f) {
+                    if (($f['quantity'] ?? 0) > 0) {
+                        $food = \App\Models\Food::find($f['food_id'] ?? null);
+                        if ($food && $food->stock >= ($f['quantity'] ?? 0)) {
+                            \App\Models\ChiTietFood::create([
+                                'id_dat_ve' => $booking->id,
+                                'food_id' => $f['food_id'],
+                                'quantity' => $f['quantity'],
+                                'price' => $f['price']
                             ]);
                         }
                     }
-
-                    // Lưu Foods vào booking combo (nếu có)
-                    foreach ($selectedFoods as $f) {
-                        if (($f['quantity'] ?? 0) > 0) {
-                            $food = \App\Models\Food::find($f['food_id'] ?? null);
-                            if ($food && $food->stock >= ($f['quantity'] ?? 0)) {
-                                \App\Models\ChiTietFood::create([
-                                    'id_dat_ve' => $comboBooking->id,
-                                    'food_id' => $f['food_id'],
-                                    'quantity' => $f['quantity'],
-                                    'price' => $f['price']
-                                ]);
-                            }
-                        }
-                    }
-
-                    // Tạo bản ghi thanh toán cho combo
-                    \App\Models\ThanhToan::create([
-                        'id_dat_ve' => $comboBooking->id,
-                        'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
-                        'so_tien' => $finalComboPrice,
-                        'trang_thai' => 0,
-                        'thoi_gian' => now(),
-                    ]);
-
-                    $createdBookings[] = $comboBooking;
                 }
 
-                // 3) Nhả ghế đang giữ trong Service (Vì giờ ghế đã được lưu an toàn trong dat_ve)
+                // 3) Tạo bản ghi thanh toán
+                \App\Models\ThanhToan::create([
+                    'id_dat_ve' => $booking->id,
+                    'phuong_thuc' => ($paymentMethod === 'offline') ? 'Tiền mặt' : 'VNPAY',
+                    'so_tien' => $amount,
+                    'trang_thai' => 0, // Chưa thanh toán
+                    'thoi_gian' => now(),
+                ]);
+
+                // 4) Nhả ghế đang giữ trong Service (Vì giờ ghế đã được lưu an toàn trong dat_ve)
                 if ($paymentMethod === 'offline') {
                     $seatIds = $seats->whereIn('so_ghe', $selectedSeatCodes)->pluck('id')->toArray();
                     app(\App\Services\SeatHoldService::class)->releaseSeats($showtimeId, $seatIds, $userId);
                 }
 
-                // Trả về booking đầu tiên (để tương thích với code cũ)
-                return $createdBookings[0] ?? null;
+                return $booking;
             });
 
             // Store session map
             if ($holdId && $booking) {
                 session(['booking.mapped.' . $holdId => $booking->id]);
+            }
+
+            // Lưu combo và food vào session để lần sau đặt lại vẫn còn
+            if ($booking) {
+                $booking->load(['chiTietCombo', 'chiTietFood']);
+                
+                // Lưu combo vào session
+                $savedCombos = [];
+                foreach ($booking->chiTietCombo as $ct) {
+                    $savedCombos[] = [
+                        'id_combo' => $ct->id_combo,
+                        'so_luong' => $ct->so_luong,
+                        'gia' => $ct->gia_ap_dung
+                    ];
+                }
+                
+                // Lưu food vào session
+                $savedFoods = [];
+                foreach ($booking->chiTietFood as $ct) {
+                    $savedFoods[] = [
+                        'food_id' => $ct->food_id,
+                        'quantity' => $ct->quantity,
+                        'price' => $ct->price
+                    ];
+                }
+                
+                // Lưu vào session (không ghi đè nếu đã có)
+                if (!empty($savedCombos)) {
+                    session(['booking.selected_combos' => $savedCombos]);
+                }
+                if (!empty($savedFoods)) {
+                    session(['booking.selected_foods' => $savedFoods]);
+                }
             }
 
             // --- RẼ NHÁNH CHUYỂN HƯỚNG ---
@@ -850,47 +802,15 @@ class BookingController extends Controller
                 // ignore preload errors; frontend refresh will handle
             }
 
-            // Load selected combos and foods from session or existing booking
+            // Không tự động load combo/food - để người dùng tự chọn
             $selectedCombos = collect();
             $selectedFoods = collect();
             $existingBooking = null;
             
-            // Try to load from session first (for new selections)
-            $sessionCombos = collect(session('booking.selected_combos', []));
-            $sessionFoods = collect(session('booking.selected_foods', []));
-            
-            if ($sessionCombos->isNotEmpty() || $sessionFoods->isNotEmpty()) {
-                // Load combos from session
-                if ($sessionCombos->isNotEmpty()) {
-                    $comboIds = $sessionCombos->pluck('id_combo')->unique();
-                    $comboMap = Combo::whereIn('id', $comboIds)->get()->keyBy('id');
-                    $selectedCombos = $sessionCombos->map(function ($c) use ($comboMap) {
-                        $combo = $comboMap->get($c['id_combo'] ?? null);
-                        if (!$combo) return null;
-                        return (object)[
-                            'id_combo' => $c['id_combo'],
-                            'so_luong' => $c['so_luong'] ?? 0,
-                            'gia_ap_dung' => $c['gia'] ?? $combo->gia,
-                            'combo' => $combo
-                        ];
-                    })->filter();
-                }
-                
-                // Load foods from session
-                if ($sessionFoods->isNotEmpty()) {
-                    $foodIds = $sessionFoods->pluck('food_id')->unique();
-                    $foodMap = \App\Models\Food::whereIn('id', $foodIds)->get()->keyBy('id');
-                    $selectedFoods = $sessionFoods->map(function ($f) use ($foodMap) {
-                        $food = $foodMap->get($f['food_id'] ?? null);
-                        if (!$food) return null;
-                        return (object)[
-                            'food_id' => $f['food_id'],
-                            'quantity' => $f['quantity'] ?? 0,
-                            'price' => $f['price'] ?? $food->price,
-                            'food' => $food
-                        ];
-                    })->filter();
-                }
+            // Xóa combo/food cũ khỏi session khi vào showtime mới để đảm bảo người dùng tự chọn
+            $sessionShowtimeId = session('booking.showtime_id');
+            if ($sessionShowtimeId != $showtimeId) {
+                session()->forget(['booking.selected_combos', 'booking.selected_foods']);
             }
             
             return view('booking.seats', compact('showtime', 'movie', 'room', 'combos', 'foods', 'khuyenmais', 'existingBooking', 'seats', 'selectedCombos', 'selectedFoods'));
@@ -2136,15 +2056,26 @@ class BookingController extends Controller
                     app(\App\Services\SeatHoldService::class)->releaseSeats($showtimeId, $seatIds, $userId);
                 }
 
+                // Commit transaction bên ngoài (DB::transaction() đã commit transaction bên trong)
+                DB::commit();
+                
+                // Nếu thanh toán online, tạo URL VNPAY và redirect
+                if ($paymentMethod === 'online') {
+                    $vnpUrl = app(\App\Http\Controllers\PaymentController::class)->createVnpayUrl($booking->id, $totalAmount);
+                    return response()->json([
+                        'success' => true,
+                        'booking_id' => $booking->id,
+                        'is_redirect' => true,
+                        'payment_url' => $vnpUrl,
+                        'message' => 'Đang chuyển hướng thanh toán...'
+                    ]);
+                }
+                
                 return response()->json([
                     'success' => true,
                     'booking_id' => $booking->id,
-                    'message' => ($paymentMethod === 'offline')
-                        ? 'Đặt vé thành công! Vui lòng thanh toán tại quầy.'
-                        : 'Đang chuyển hướng thanh toán...',
-                    'redirect_url' => ($paymentMethod === 'online')
-                        ? route('payment.vnpay_return') // Hoặc logic tạo URL
-                        : route('booking.ticket.detail', ['id' => $booking->id])
+                    'message' => 'Đặt vé thành công! Vui lòng thanh toán tại quầy.',
+                    'redirect_url' => route('booking.ticket.detail', ['id' => $booking->id])
                 ]);
             } catch (\Exception $e) {
                 if (strpos($e->getMessage(), 'đã được đặt') !== false) {
@@ -2709,5 +2640,49 @@ class BookingController extends Controller
         ];
 
         return view('booking.tickets', compact('bookings', 'stats'));
+    }
+
+    /**
+     * Hủy booking chưa thanh toán khi người dùng back lại
+     */
+    public function cancelPendingBooking($bookingId)
+    {
+        try {
+            $booking = DatVe::where('id', $bookingId)
+                ->where('id_nguoi_dung', Auth::id())
+                ->where('trang_thai', 0) // Chỉ hủy booking chưa thanh toán
+                ->first();
+
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy booking hoặc booking đã được thanh toán.'
+                ], 404);
+            }
+
+            DB::transaction(function () use ($booking) {
+                // Xóa chi tiết ghế
+                ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+                // Xóa chi tiết combo
+                ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+                // Xóa chi tiết food
+                \App\Models\ChiTietFood::where('id_dat_ve', $booking->id)->delete();
+                // Xóa thanh toán
+                ThanhToan::where('id_dat_ve', $booking->id)->delete();
+                // Xóa booking
+                $booking->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã hủy booking thành công.'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi hủy booking: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi hủy booking.'
+            ], 500);
+        }
     }
 }

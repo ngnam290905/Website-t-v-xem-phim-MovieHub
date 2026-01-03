@@ -1063,8 +1063,13 @@
 
                                                 const data = await res.json();
                                                 if (data.success) {
-                                                    if (data.is_redirect) window.location.href = data.payment_url;
-                                                    else {
+                                                    if (data.is_redirect) {
+                                                        // Lưu booking_id vào sessionStorage để có thể hủy nếu người dùng back lại
+                                                        if (data.booking_id) {
+                                                            sessionStorage.setItem('pending_booking_id', data.booking_id);
+                                                        }
+                                                        window.location.href = data.payment_url;
+                                                    } else {
                                                         alert(data.message);
                                                         window.location.href = '/user/bookings';
                                                     }
@@ -1088,6 +1093,31 @@
 
                                     // 5. Refresh mỗi 5 giây
                                     refreshInterval = setInterval(loadSeatStatus, 5000);
+
+                                    // 6. Tự động hủy booking chưa thanh toán khi người dùng quay lại
+                                    const pendingBookingId = sessionStorage.getItem('pending_booking_id');
+                                    if (pendingBookingId) {
+                                        // Kiểm tra xem booking đã được thanh toán chưa
+                                        fetch(`/booking/${pendingBookingId}/cancel`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                                            }
+                                        })
+                                        .then(res => res.json())
+                                        .then(data => {
+                                            if (data.success) {
+                                                console.log('Đã hủy booking chưa thanh toán:', pendingBookingId);
+                                            }
+                                            // Xóa booking_id khỏi sessionStorage
+                                            sessionStorage.removeItem('pending_booking_id');
+                                        })
+                                        .catch(err => {
+                                            console.error('Lỗi khi hủy booking:', err);
+                                            sessionStorage.removeItem('pending_booking_id');
+                                        });
+                                    }
                                 });
                             </script>
                         @endsection

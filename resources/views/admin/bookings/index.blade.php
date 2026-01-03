@@ -277,17 +277,7 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
 
-                                        @if ($booking->trang_thai == 0)
-                                            <form action="{{ route('admin.bookings.update', $booking->id) }}" method="POST" class="inline">
-                                                @csrf @method('PUT')
-                                                <input type="hidden" name="trang_thai" value="1">
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition"
-                                                    title="Xác nhận">
-                                                    <i class="fas fa-check"></i>
-                                                </button>
-                                            </form>
-                                        @endif
+                                        {{-- Chỉ xem thông tin, không có nút xác nhận --}}
                                     </div>
                                 </td>
                             </tr>

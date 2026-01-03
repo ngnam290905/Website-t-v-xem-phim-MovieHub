@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\DatVe;
 use App\Models\ThanhToan;
+use App\Models\ChiTietDatVe;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Services\SeatHoldService;
 
 class PaymentController extends Controller
@@ -159,6 +161,37 @@ class PaymentController extends Controller
                     } catch (\Exception $e) {
                         Log::error("Lỗi trừ kho đồ ăn sau thanh toán: " . $e->getMessage());
                     }
+                    
+                    // Lưu combo và food vào session để lần sau đặt lại vẫn còn
+                    $booking->load(['chiTietCombo', 'chiTietFood']);
+                    
+                    // Lưu combo vào session
+                    $savedCombos = [];
+                    foreach ($booking->chiTietCombo as $ct) {
+                        $savedCombos[] = [
+                            'id_combo' => $ct->id_combo,
+                            'so_luong' => $ct->so_luong,
+                            'gia' => $ct->gia_ap_dung
+                        ];
+                    }
+                    
+                    // Lưu food vào session
+                    $savedFoods = [];
+                    foreach ($booking->chiTietFood as $ct) {
+                        $savedFoods[] = [
+                            'food_id' => $ct->food_id,
+                            'quantity' => $ct->quantity,
+                            'price' => $ct->price
+                        ];
+                    }
+                    
+                    // Lưu vào session
+                    if (!empty($savedCombos)) {
+                        session(['booking.selected_combos' => $savedCombos]);
+                    }
+                    if (!empty($savedFoods)) {
+                        session(['booking.selected_foods' => $savedFoods]);
+                    }
                 });
 
                 // Chuyển hướng về trang chi tiết vé
@@ -166,9 +199,29 @@ class PaymentController extends Controller
                     ->with('success', 'Thanh toán thành công! Vé của bạn đã được xác nhận tự động.');
 
             } else {
-                // Thanh toán thất bại hoặc hủy bỏ
-                return redirect()->route('booking.ticket.detail', ['id' => $booking->id])
-                    ->with('error', 'Giao dịch không thành công hoặc đã bị hủy.');
+                // Thanh toán thất bại hoặc hủy bỏ - XÓA BOOKING CHƯA THANH TOÁN
+                try {
+                    DB::transaction(function () use ($booking) {
+                        // Chỉ xóa nếu booking chưa thanh toán (trang_thai = 0)
+                        if ($booking->trang_thai == 0) {
+                            // Xóa chi tiết ghế
+                            ChiTietDatVe::where('id_dat_ve', $booking->id)->delete();
+                            // Xóa chi tiết combo
+                            \App\Models\ChiTietCombo::where('id_dat_ve', $booking->id)->delete();
+                            // Xóa chi tiết food
+                            \App\Models\ChiTietFood::where('id_dat_ve', $booking->id)->delete();
+                            // Xóa thanh toán
+                            ThanhToan::where('id_dat_ve', $booking->id)->delete();
+                            // Xóa booking
+                            $booking->delete();
+                        }
+                    });
+                } catch (\Exception $e) {
+                    Log::error('Lỗi xóa booking khi thanh toán thất bại: ' . $e->getMessage());
+                }
+                
+                return redirect()->route('home')
+                    ->with('error', 'Giao dịch không thành công hoặc đã bị hủy. Vé đã được hủy tự động.');
             }
         } else {
             return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');

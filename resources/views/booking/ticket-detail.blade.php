@@ -45,8 +45,8 @@
             $isCancelled = $booking->trang_thai == 2;
         @endphp
 
-        <!-- Ticket Card -->
-        <div class="bg-gradient-to-br from-[#1a1d24] to-[#151822] border border-[#2a2d3a] rounded-xl overflow-hidden mb-6">
+        <!-- Ticket Card (Main - Hidden when printing individual seat invoices) -->
+        <div class="main-ticket-card bg-gradient-to-br from-[#1a1d24] to-[#151822] border border-[#2a2d3a] rounded-xl overflow-hidden mb-6">
             <!-- Header -->
             <div class="relative p-8 bg-gradient-to-r from-[#0077c8]/20 to-[#0099e6]/20 border-b border-[#2a2d3a]">
                 <div class="flex items-start justify-between">
@@ -165,8 +165,8 @@
                     </div>
                 @endif
 
-                <!-- Seats - Each seat will be printed on separate page -->
-                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                <!-- Seats Summary (for screen view only) -->
+                <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5 print-hide">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                         <i class="fas fa-chair text-[#0077c8]"></i>
                         <span>Ghế đã chọn ({{ $seats->count() }})</span>
@@ -192,6 +192,185 @@
                         @endforelse
                     </div>
                 </div>
+
+                <!-- Individual Invoice for Each Seat - Will print separately -->
+                @forelse($seats as $index => $seatDetail)
+                    @php
+                        $seat = $seatDetail->ghe;
+                        $seatType = $seat->seatType ?? null;
+                        $isVip = $seatType && strpos(strtolower($seatType->ten_loai ?? ''), 'vip') !== false;
+                        $seatPrice = (float)($seatDetail->gia ?? $seatDetail->gia_ve ?? 0);
+                        // Calculate proportional price for this seat (if combos/foods are shared)
+                        $totalSeats = $seats->count();
+                        $seatProportionalCombo = $totalSeats > 0 ? ($comboSum / $totalSeats) : 0;
+                        $seatProportionalFood = $totalSeats > 0 ? ($foodSum / $totalSeats) : 0;
+                        $seatProportionalDiscount = $totalSeats > 0 ? ($promoDiscount / $totalSeats) : 0;
+                        $seatTotal = $seatPrice + $seatProportionalCombo + $seatProportionalFood - $seatProportionalDiscount;
+                    @endphp
+                    <div class="ticket-per-seat bg-white border-2 border-gray-300 rounded-lg overflow-hidden mb-6 shadow-lg print-ticket">
+                        <!-- Header with Logo/Title -->
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 border-b-4 border-blue-800">
+                            <div class="text-center mb-4">
+                                <h1 class="text-3xl font-bold mb-2">🎬 VÉ XEM PHIM</h1>
+                                <p class="text-blue-100 text-lg">MovieHub Cinema</p>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex-1">
+                                    <div class="text-sm text-blue-100 mb-2">
+                                        <span class="font-semibold">Mã vé:</span> 
+                                        <span class="font-mono text-white">{{ $booking->ticket_code ?? 'MV' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) }}</span>
+                                    </div>
+                                    <div class="text-sm text-blue-100">
+                                        <span class="font-semibold">Ghế:</span> 
+                                        <span class="font-mono text-white text-lg font-bold">{{ $seat->so_ghe }}</span>
+                                    </div>
+                                </div>
+                                @if($movie && $movie->poster_url)
+                                    <div class="ml-4">
+                                        <img 
+                                          src="{{ $movie->poster_url }}" 
+                                          alt="{{ $movie->ten_phim }}"
+                                          class="w-24 h-36 rounded border-2 border-white shadow-lg object-cover"
+                                          onerror="this.src='{{ asset('images/no-poster.svg') }}'"
+                                        />
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Body -->
+                        <div class="p-6 space-y-4">
+                            <!-- Movie Info -->
+                            @if($movie)
+                                <div class="bg-gray-50 border-l-4 border-blue-600 p-4 rounded">
+                                    <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ $movie->ten_phim }}</h2>
+                                    <p class="text-gray-600">{{ $movie->the_loai ?? 'Phim điện ảnh' }}</p>
+                                </div>
+                            @endif
+
+                            <!-- Showtime Info Grid -->
+                            @if($showtime)
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <i class="fas fa-calendar-alt text-blue-600"></i>
+                                            <span class="text-xs text-gray-500 font-semibold uppercase">Ngày chiếu</span>
+                                        </div>
+                                        <div class="text-lg font-bold text-gray-900">
+                                            {{ $showtime->thoi_gian_bat_dau->format('d/m/Y') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <i class="fas fa-clock text-blue-600"></i>
+                                            <span class="text-xs text-gray-500 font-semibold uppercase">Giờ chiếu</span>
+                                        </div>
+                                        <div class="text-lg font-bold text-gray-900">
+                                            {{ $showtime->thoi_gian_bat_dau->format('H:i') }} - {{ $showtime->thoi_gian_ket_thuc->format('H:i') }}
+                                        </div>
+                                    </div>
+
+                                    @if($room)
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <i class="fas fa-door-open text-blue-600"></i>
+                                                <span class="text-xs text-gray-500 font-semibold uppercase">Phòng chiếu</span>
+                                            </div>
+                                            <div class="text-lg font-bold text-gray-900">
+                                                {{ $room->ten_phong ?? $room->name ?? 'N/A' }}
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <i class="fas fa-money-bill-wave text-green-600"></i>
+                                            <span class="text-xs text-gray-500 font-semibold uppercase">Giá vé</span>
+                                        </div>
+                                        <div class="text-lg font-bold text-green-600">
+                                            {{ number_format($seatPrice) }}đ
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Seat Info Highlight -->
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 text-center">
+                                <div class="text-sm text-gray-600 mb-2 font-semibold uppercase">Ghế ngồi</div>
+                                <div class="inline-block px-8 py-4 rounded-lg text-4xl font-bold {{ $isVip ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-400' : 'bg-blue-100 text-blue-700 border-2 border-blue-400' }}">
+                                    <i class="fas fa-{{ $isVip ? 'crown' : 'chair' }} mr-2"></i>
+                                    {{ $seat->so_ghe }}
+                                </div>
+                                @if($seatType)
+                                    <div class="mt-2 text-sm text-gray-600">{{ $seatType->ten_loai }}</div>
+                                @endif
+                            </div>
+
+                            <!-- QR Code and Booking Info Side by Side -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- QR Code -->
+                                @if($booking->trang_thai == 1)
+                                    @php
+                                        $qrData = $qrCodeData ?? ('ticket_id=' . $booking->id);
+                                        if ($booking->ticket_code) {
+                                            $qrData = 'ticket_id=' . $booking->ticket_code . '&seat=' . $seat->so_ghe;
+                                        }
+                                        $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrData);
+                                    @endphp
+                                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                                        <div class="text-sm text-gray-600 mb-3 font-semibold uppercase">
+                                            <i class="fas fa-qrcode mr-2"></i>Mã QR
+                                        </div>
+                                        <div class="bg-white p-3 rounded-lg mb-3 inline-block border-2 border-gray-300">
+                                            <img src="{{ $qrCodeUrl }}" alt="QR Code" style="width: 150px; height: 150px; display: block;">
+                                        </div>
+                                        <p class="text-xs text-gray-500">
+                                            Quét mã để vào rạp
+                                        </p>
+                                    </div>
+                                @endif
+
+                                <!-- Booking Info -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <div class="text-sm text-gray-600 mb-3 font-semibold uppercase">
+                                        <i class="fas fa-info-circle mr-2"></i>Thông tin
+                                    </div>
+                                    <div class="space-y-2 text-sm">
+                                        <div>
+                                            <span class="text-gray-500">Ngày đặt:</span>
+                                            <div class="font-semibold text-gray-900">{{ $booking->created_at->format('d/m/Y H:i') }}</div>
+                                        </div>
+                                        @if($booking->nguoiDung)
+                                            <div>
+                                                <span class="text-gray-500">Khách hàng:</span>
+                                                <div class="font-semibold text-gray-900">{{ $booking->nguoiDung->ho_ten ?? 'N/A' }}</div>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <span class="text-gray-500">Trạng thái:</span>
+                                            <div class="font-semibold text-green-600">
+                                                <i class="fas fa-check-circle mr-1"></i>Đã thanh toán
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Footer Note -->
+                            <div class="border-t-2 border-dashed border-gray-300 pt-4 mt-4">
+                                <p class="text-xs text-center text-gray-500">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    Vui lòng đến rạp trước giờ chiếu 15 phút. Xuất trình mã QR để vào xem phim.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="bg-[#0a1a2f] border border-[#2a2d3a] rounded-lg p-5">
+                        <div class="text-sm text-[#a6a6b0]">Chưa có ghế nào.</div>
+                    </div>
+                @endforelse
 
                 <!-- Combos - Will be printed on separate page -->
                 @if($combos->isNotEmpty())
@@ -537,17 +716,31 @@ function generateQRCodeFallback(qrData) {
 @media print {
     @page {
         size: A4;
-        margin: 10mm;
+        margin: 15mm;
     }
     
+    /* Hide everything by default */
     body * {
         visibility: hidden;
     }
     
-    .min-h-screen, .min-h-screen * {
-        visibility: visible;
+    /* Show only ticket-per-seat sections when printing */
+    .ticket-per-seat,
+    .ticket-per-seat * {
+        visibility: visible !important;
+        display: block !important;
     }
     
+    /* Hide the main ticket card and summary sections */
+    .main-ticket-card,
+    .main-ticket-card *,
+    .print-hide,
+    .print-hide * {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Container styling for print */
     .min-h-screen {
         position: absolute;
         left: 0;
@@ -555,86 +748,154 @@ function generateQRCodeFallback(qrData) {
         width: 100%;
         max-width: 100%;
         padding: 0 !important;
-    }
-    
-    /* Hide buttons and navigation */
-    button, a[href*="tickets"] {
-        display: none !important;
-    }
-    
-    /* Hide payment info and QR code when printing */
-    .print-hide {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* Hide QR code sections */
-    .bg-\[#0a1a2f\]:has(img[alt="QR Code"]),
-    .bg-\[#0a1a2f\]:has(#qrcode-img),
-    .bg-\[#0a1a2f\]:has(#qrcode-fallback) {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* Improve print colors */
-    .bg-gradient-to-br, .bg-gradient-to-r {
+        margin: 0 !important;
         background: white !important;
-        color: black !important;
+    }
+    
+    /* Each ticket should take full page */
+    .ticket-per-seat {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        page-break-after: always;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        min-height: 100vh;
+        display: flex !important;
+        flex-direction: column;
+    }
+    
+    /* First ticket should not have page break before */
+    .ticket-per-seat:first-of-type {
+        page-break-before: auto;
+    }
+    
+    /* Last ticket should not have page break after */
+    .ticket-per-seat:last-of-type {
+        page-break-after: auto;
+    }
+    
+    /* Hide all buttons, navigation, and non-ticket elements */
+    button,
+    a[href*="tickets"],
+    a[href*="booking"],
+    .print-hide,
+    .main-ticket-card,
+    .max-w-4xl > a:first-child {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* Show QR code in ticket-per-seat */
+    .ticket-per-seat img[alt="QR Code"] {
+        display: block !important;
+        visibility: visible !important;
+        max-width: 200px !important;
+        height: auto !important;
+    }
+    
+    /* Print ticket styling - professional ticket design */
+    .print-ticket {
+        background: white !important;
+        border: 2px solid #000 !important;
+        box-shadow: none !important;
+    }
+    
+    /* Header colors for print */
+    .ticket-per-seat .bg-gradient-to-r.from-blue-600.to-blue-700 {
+        background: #1e40af !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        color: white !important;
+    }
+    
+    /* Ensure text is readable */
+    .ticket-per-seat .text-white {
+        color: white !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
     
-    .bg-[#0a1a2f], .bg-[#1a1d24], .bg-[#151822] {
-        background: #f5f5f5 !important;
-        border: 1px solid #ddd !important;
-    }
-    
-    .text-white {
+    .ticket-per-seat .text-gray-900 {
         color: #000 !important;
     }
     
-    .text-[#a6a6b0] {
-        color: #666 !important;
+    .ticket-per-seat .text-gray-600 {
+        color: #4b5563 !important;
     }
     
-    .border {
-        border-color: #000 !important;
+    .ticket-per-seat .text-gray-500 {
+        color: #6b7280 !important;
     }
     
-    /* Ensure QR code is always visible when printing */
-    img[alt="QR Code"], 
-    img[id*="qrcode"], 
-    #qrcode-img, 
-    #qrcode-fallback,
-    .bg-white img {
+    /* Background colors for info boxes */
+    .ticket-per-seat .bg-gray-50 {
+        background: #f9fafb !important;
+        border: 1px solid #e5e7eb !important;
+    }
+    
+    .ticket-per-seat .bg-blue-50 {
+        background: #eff6ff !important;
+        border: 2px solid #93c5fd !important;
+    }
+    
+    .ticket-per-seat .bg-blue-100 {
+        background: #dbeafe !important;
+        border: 2px solid #60a5fa !important;
+    }
+    
+    .ticket-per-seat .bg-yellow-100 {
+        background: #fef3c7 !important;
+        border: 2px solid #fbbf24 !important;
+    }
+    
+    /* Colors for icons and highlights */
+    .ticket-per-seat .text-blue-600 {
+        color: #2563eb !important;
+    }
+    
+    .ticket-per-seat .text-green-600 {
+        color: #16a34a !important;
+    }
+    
+    .ticket-per-seat .text-yellow-700 {
+        color: #a16207 !important;
+    }
+    
+    .ticket-per-seat .text-blue-700 {
+        color: #1d4ed8 !important;
+    }
+    
+    /* Border colors */
+    .ticket-per-seat .border-blue-300 {
+        border-color: #93c5fd !important;
+    }
+    
+    .ticket-per-seat .border-blue-400 {
+        border-color: #60a5fa !important;
+    }
+    
+    .ticket-per-seat .border-yellow-400 {
+        border-color: #fbbf24 !important;
+    }
+    
+    .ticket-per-seat .border-gray-200 {
+        border-color: #e5e7eb !important;
+    }
+    
+    .ticket-per-seat .border-gray-300 {
+        border-color: #d1d5db !important;
+    }
+    
+    /* Ensure QR code is visible in ticket-per-seat when printing */
+    .ticket-per-seat img[alt="QR Code"] {
         visibility: visible !important;
         display: block !important;
-        max-width: 100% !important;
+        max-width: 200px !important;
         height: auto !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-    }
-    
-    #qrcode-fallback canvas {
-        visibility: visible !important;
-        display: block !important;
-    }
-    
-    /* Hide payment info and QR code when printing */
-    .print-hide {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* Hide QR code sections */
-    img[alt="QR Code"], #qrcode-img, #qrcode-fallback {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    #qrcode-fallback canvas {
-        display: none !important;
-        visibility: hidden !important;
     }
     
     /* Hide print-only sections */
@@ -643,27 +904,49 @@ function generateQRCodeFallback(qrData) {
         visibility: hidden !important;
     }
     
-    /* Keep status badges visible but readable */
-    .bg-green-500\/20, .bg-yellow-500\/20, .bg-red-500\/20 {
+    /* Keep status badges visible but readable in tickets */
+    .ticket-per-seat .bg-green-500\/20,
+    .ticket-per-seat .bg-yellow-500\/20,
+    .ticket-per-seat .bg-red-500\/20 {
         background: #f0f0f0 !important;
         border: 1px solid #000 !important;
     }
     
-    /* Print each seat on separate page */
-    .seat-item {
+    /* Ensure proper spacing and layout for each ticket */
+    .ticket-per-seat .p-6 {
+        padding: 20px !important;
+    }
+    
+    .ticket-per-seat .p-4 {
+        padding: 16px !important;
+    }
+    
+    /* Make sure all content is visible in print */
+    .ticket-per-seat img {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        max-width: 100% !important;
+    }
+    
+    /* Ensure ticket content doesn't break across pages */
+    .ticket-per-seat > div {
         page-break-inside: avoid;
     }
     
-    /* Combo and Foods section on separate page */
-    .combo-foods-section {
-        page-break-before: always;
-        page-break-inside: avoid;
+    /* Ensure QR code prints clearly */
+    .ticket-per-seat img[alt="QR Code"] {
+        background: white !important;
+        padding: 8px !important;
+        border: 2px solid #000 !important;
     }
     
-    /* Ensure each seat ticket is on its own page when printing individual seats */
+    /* Print-friendly fonts */
     .ticket-per-seat {
-        page-break-after: always;
-        page-break-inside: avoid;
+        font-family: Arial, sans-serif !important;
+    }
+    
+    .ticket-per-seat .font-mono {
+        font-family: 'Courier New', monospace !important;
     }
 }
 </style>

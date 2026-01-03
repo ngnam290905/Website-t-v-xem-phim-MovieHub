@@ -78,7 +78,7 @@ class SuatChieuController extends Controller
                 $query->orderByRaw('CASE WHEN thoi_gian_ket_thuc >= NOW() THEN 0 ELSE 1 END')
                       ->orderBy('thoi_gian_bat_dau', 'asc');
             } else {
-                $query->orderBy($actualColumn, $sortOrder);
+            $query->orderBy($actualColumn, $sortOrder);
             }
         } else {
             // Mặc định: ưu tiên suất chưa chiếu, sau đó sắp xếp theo thời gian bắt đầu tăng dần
@@ -154,7 +154,7 @@ class SuatChieuController extends Controller
             'end_time' => 'required|date|after:start_time',
         ]);
 
-        // Kiểm tra giờ hoạt động: 8:00 - 24:00
+        // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
         $startTime = \Carbon\Carbon::parse($request->start_time);
         $endTime = \Carbon\Carbon::parse($request->end_time);
         $now = \Carbon\Carbon::now();
@@ -168,27 +168,25 @@ class SuatChieuController extends Controller
         $endHour = $endTime->hour;
         $endMinute = $endTime->minute;
         
-        // Kiểm tra giờ bắt đầu: phải từ 8:00 đến trước 24:00 (tức là 0:00 - 23:59)
-        // Nhưng chỉ cho phép từ 8:00 trở đi
-        if ($startHour < 8 || $startHour >= 24) {
-            return back()->withErrors(['start_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
+        // Kiểm tra giờ bắt đầu: cho phép từ 00:00 đến 23:59 (bất kỳ giờ nào trong ngày)
+        // Bỏ giới hạn 8:00 để cho phép suất chiếu ban đêm từ 00:00 trở đi
+        if ($startHour >= 24) {
+            return back()->withErrors(['start_time' => 'Giờ bắt đầu không hợp lệ.'])->withInput();
         }
         
         // Kiểm tra giờ kết thúc: 
-        // - Nếu cùng ngày: phải từ 8:00 đến 24:00 (cho phép kết thúc đúng 00:00 ngày hôm sau)
-        // - Nếu khác ngày: chỉ cho phép kết thúc đúng 00:00 (24:00)
+        // - Nếu cùng ngày: cho phép từ 00:00 đến 23:59 hoặc kết thúc đúng 00:00 ngày hôm sau
+        // - Nếu khác ngày: cho phép kết thúc từ 00:00 trở đi
         $isSameDay = $endTime->format('Y-m-d') == $startTime->format('Y-m-d');
         
         if ($isSameDay) {
-            // Cùng ngày: giờ kết thúc phải từ 8:00 đến 24:00
-            if ($endHour < 8 || ($endHour >= 24 && $endMinute > 0)) {
-                return back()->withErrors(['end_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
+            // Cùng ngày: giờ kết thúc phải từ 00:00 đến 23:59 hoặc đúng 00:00 ngày hôm sau
+            if ($endHour >= 24 && $endMinute > 0) {
+                return back()->withErrors(['end_time' => 'Giờ kết thúc không hợp lệ.'])->withInput();
             }
         } else {
-            // Khác ngày: chỉ cho phép kết thúc đúng 00:00 (24:00)
-            if (!($endHour == 0 && $endMinute == 0)) {
-                return back()->withErrors(['end_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
-            }
+            // Khác ngày: cho phép kết thúc từ 00:00 trở đi (không chỉ giới hạn đúng 00:00)
+            // Không cần kiểm tra gì thêm vì đã validate end_time > start_time
         }
 
         // Kiểm tra thời lượng suất chiếu phải >= thời lượng phim
@@ -321,7 +319,7 @@ class SuatChieuController extends Controller
             'status' => 'string|in:coming,ongoing,finished'
         ]);
 
-        // Kiểm tra giờ hoạt động: 8:00 - 24:00
+        // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
         $startTime = \Carbon\Carbon::parse($request->start_time);
         $endTime = \Carbon\Carbon::parse($request->end_time);
         $now = \Carbon\Carbon::now();
@@ -336,24 +334,23 @@ class SuatChieuController extends Controller
         $endHour = $endTime->hour;
         $endMinute = $endTime->minute;
         
-        // Kiểm tra giờ bắt đầu: phải từ 8:00 đến trước 24:00
-        if ($startHour < 8 || $startHour >= 24) {
-            return back()->withErrors(['start_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
+        // Kiểm tra giờ bắt đầu: cho phép từ 00:00 đến 23:59 (bất kỳ giờ nào trong ngày)
+        // Bỏ giới hạn 8:00 để cho phép suất chiếu ban đêm từ 00:00 trở đi
+        if ($startHour >= 24) {
+            return back()->withErrors(['start_time' => 'Giờ bắt đầu không hợp lệ.'])->withInput();
         }
         
         // Kiểm tra giờ kết thúc
         $isSameDay = $endTime->format('Y-m-d') == $startTime->format('Y-m-d');
         
         if ($isSameDay) {
-            // Cùng ngày: giờ kết thúc phải từ 8:00 đến 24:00
-            if ($endHour < 8 || ($endHour >= 24 && $endMinute > 0)) {
-                return back()->withErrors(['end_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
+            // Cùng ngày: giờ kết thúc phải từ 00:00 đến 23:59 hoặc đúng 00:00 ngày hôm sau
+            if ($endHour >= 24 && $endMinute > 0) {
+                return back()->withErrors(['end_time' => 'Giờ kết thúc không hợp lệ.'])->withInput();
             }
         } else {
-            // Khác ngày: chỉ cho phép kết thúc đúng 00:00 (24:00)
-            if (!($endHour == 0 && $endMinute == 0)) {
-                return back()->withErrors(['end_time' => 'Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.'])->withInput();
-            }
+            // Khác ngày: cho phép kết thúc từ 00:00 trở đi (không chỉ giới hạn đúng 00:00)
+            // Không cần kiểm tra gì thêm vì đã validate end_time > start_time
         }
 
         // Kiểm tra thời lượng suất chiếu phải >= thời lượng phim

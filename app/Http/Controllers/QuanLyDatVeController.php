@@ -204,6 +204,7 @@ class QuanLyDatVeController extends Controller
             'chiTietDatVe.ghe.loaiGhe',
             'chiTietDatVe.ghe',
             'chiTietCombo.combo',
+            'chiTietFood.food',
             'thanhToan',
             'khuyenMai',
         ])->findOrFail($id);
@@ -504,8 +505,8 @@ class QuanLyDatVeController extends Controller
                         ShowtimeSeat::where('id_suat_chieu', $booking->id_suat_chieu)
                             ->where('id_ghe', $detail->id_ghe)
                             ->update([
-                                'status' => 'available',
-                                'hold_expires_at' => null
+                                'trang_thai' => 'available',
+                                'thoi_gian_het_han' => now()->subDay() // Set về quá khứ để đảm bảo NOT NULL
                             ]);
                     }
                 }
@@ -689,13 +690,12 @@ class QuanLyDatVeController extends Controller
     }
 
     /**
-     * Staff: Hiển thị form đặt vé mới (chỉ cho chính staff)
+     * Staff/Admin: Hiển thị form đặt vé mới (có thể đặt cho khách hàng tại quầy)
      */
     public function create()
     {
         $this->authorizeAction('đặt vé');
         
-        // Staff chỉ đặt vé cho chính họ
         $user = Auth::user();
         if (!$user || !in_array(optional($user->vaiTro)->ten, ['admin', 'staff'])) {
             abort(403, 'Bạn không có quyền đặt vé.');
@@ -705,12 +705,17 @@ class QuanLyDatVeController extends Controller
             ->orderBy('ngay_khoi_chieu', 'desc')
             ->get();
         $combos = Combo::where('trang_thai', 1)->get();
-        $promotions = KhuyenMai::where('trang_thai', 1)
-            ->where('ngay_bat_dau', '<=', now())
-            ->where('ngay_ket_thuc', '>=', now())
-            ->get();
+        $foods = \App\Models\Food::where('is_active', 1)->get();
+        
+        // Load danh sách khách hàng (không bao gồm admin và staff)
+        $customers = NguoiDung::whereHas('vaiTro', function($q) {
+            $q->whereNotIn('ten', ['admin', 'staff']);
+        })
+        ->orWhereDoesntHave('vaiTro')
+        ->orderBy('ho_ten')
+        ->get(['id', 'ho_ten', 'email', 'sdt']);
 
-        return view('admin.bookings.create', compact('movies', 'combos', 'promotions', 'user'));
+        return view('admin.bookings.create', compact('movies', 'combos', 'foods', 'user', 'customers'));
     }
 
     /**
@@ -773,31 +778,51 @@ class QuanLyDatVeController extends Controller
             'showtime_id' => 'required|integer|exists:suat_chieu,id',
             'seat_ids' => 'required|array|min:1',
             'seat_ids.*' => 'integer|exists:ghe,id',
+            'customer_id' => 'nullable|integer|exists:nguoi_dung,id',
             'combo_ids' => 'nullable|array',
             'combo_quantities' => 'nullable|array',
-            'promotion_id' => 'nullable|integer|exists:khuyen_mai,id',
-            'payment_method' => 'required|in:online,offline,cash',
+            'food_quantities' => 'nullable|array',
+            'payment_method' => 'required|in:offline,cash,transfer',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($request->showtime_id);
+            $showtimeId = (int)$request->showtime_id;
+            $showtime = SuatChieu::with(['phim', 'phongChieu'])->findOrFail($showtimeId);
             
-            // Kiểm tra suất chiếu còn khả dụng
-            if ($showtime->trang_thai != 1) {
+            // ✅ ĐÚNG: Ép kiểu tất cả attributes từ showtime
+            $showtimeIdInt = (int)($showtime->attributes['id'] ?? $showtime->id ?? 0);
+            $showtimeTrangThai = (int)($showtime->attributes['trang_thai'] ?? $showtime->trang_thai ?? 0);
+            
+            if ($showtimeTrangThai != 1) {
                 throw new \Exception('Suất chiếu không khả dụng.');
             }
 
-            if ($showtime->thoi_gian_bat_dau < now()) {
+            $thoiGianBatDau = $showtime->thoi_gian_bat_dau;
+            if ($thoiGianBatDau && $thoiGianBatDau < now()) {
                 throw new \Exception('Suất chiếu đã bắt đầu.');
             }
 
-            // Staff chỉ đặt vé cho chính họ
-            $userId = Auth::id();
+            // Xác định người dùng: nếu có customer_id thì đặt cho khách hàng, không thì đặt cho chính staff/admin
+            $userId = $request->customer_id ? (int)$request->customer_id : (int)Auth::id();
             if (!$userId) {
-                throw new \Exception('Bạn cần đăng nhập để đặt vé.');
+                throw new \Exception('Vui lòng chọn khách hàng hoặc đăng nhập để đặt vé.');
+            }
+            
+            // Kiểm tra khách hàng có tồn tại không
+            $customer = NguoiDung::find($userId);
+            if (!$customer) {
+                throw new \Exception('Không tìm thấy khách hàng.');
+            }
+            
+            // Kiểm tra nếu chọn khách hàng là admin/staff thì không cho phép (chỉ khi có customer_id)
+            if ($request->customer_id) {
+                $customerRole = optional($customer->vaiTro)->ten;
+                if (in_array($customerRole, ['admin', 'staff'])) {
+                    throw new \Exception('Không thể đặt vé cho admin/staff. Vui lòng chọn khách hàng khác.');
+                }
             }
 
             // Kiểm tra ghế đã bị đặt chưa
@@ -817,14 +842,16 @@ class QuanLyDatVeController extends Controller
             }
             
             foreach ($selectedSeatIds as $seatId) {
-                $isTaken = ChiTietDatVe::whereHas('datVe', function ($query) use ($showtime) {
-                    $query->where('id_suat_chieu', $showtime->id)
+                $seatIdInt = (int)$seatId;
+                $showtimeIdInt = (int)$showtime->id;
+                $isTaken = ChiTietDatVe::whereHas('datVe', function ($query) use ($showtimeIdInt) {
+                    $query->where('id_suat_chieu', $showtimeIdInt)
                         ->whereIn('trang_thai', [0, 1]); // Pending hoặc Paid
-                })->where('id_ghe', $seatId)->exists();
+                })->where('id_ghe', $seatIdInt)->exists();
 
                 if ($isTaken) {
-                    $seat = Ghe::find($seatId);
-                    $conflictedSeats[] = $seat->so_ghe ?? "ID: {$seatId}";
+                    $seat = Ghe::find($seatIdInt);
+                    $conflictedSeats[] = $seat->so_ghe ?? "ID: {$seatIdInt}";
                 }
             }
 
@@ -833,238 +860,407 @@ class QuanLyDatVeController extends Controller
             }
 
             // Tính giá ghế
-            $tongGhe = 0;
+            // ✅ ĐÚNG: Tính toán bằng PHP thuần, không dùng DB::raw()
+            $tongGhe = 0.0;
             $seatDetails = [];
+            // ✅ ĐÚNG: Ép kiểu từ attributes trước
+            $showtimePhongId = (int)($showtime->attributes['id_phong'] ?? $showtime->id_phong ?? 0);
+            
             foreach ($selectedSeatIds as $seatId) {
-                $ghe = Ghe::with('loaiGhe')->findOrFail($seatId);
-                if ($ghe->id_phong != $showtime->id_phong) {
+                $seatIdInt = (int)$seatId;
+                $ghe = Ghe::with('loaiGhe')->findOrFail($seatIdInt);
+                
+                // ✅ ĐÚNG: Ép kiểu int từ model attribute
+                $ghePhongId = (int)($ghe->attributes['id_phong'] ?? $ghe->id_phong ?? 0);
+                if ($ghePhongId !== $showtimePhongId) {
                     throw new \Exception("Ghế {$ghe->so_ghe} không thuộc phòng chiếu này.");
                 }
                 
-                $gia = ($ghe->loaiGhe->he_so_gia ?? 1) * self::BASE_TICKET_PRICE;
+                // ✅ ĐÚNG: Ép kiểu float từ relationship attribute, không phải Expression
+                $loaiGhe = $ghe->loaiGhe;
+                if (!$loaiGhe) {
+                    throw new \Exception("Không tìm thấy loại ghế cho ghế {$ghe->so_ghe}.");
+                }
+                
+                $heSoGia = (float)($loaiGhe->attributes['he_so_gia'] ?? $loaiGhe->he_so_gia ?? 1.0);
+                $gia = (float)($heSoGia * self::BASE_TICKET_PRICE);
                 $tongGhe += $gia;
-                $seatDetails[] = ['id' => $ghe->id, 'gia' => $gia];
+                $seatDetails[] = [
+                    'id' => (int)$ghe->id, 
+                    'gia' => $gia
+                ];
             }
 
             // Tính giá combo
-            $tongCombo = 0;
+            // ✅ ĐÚNG: Tính toán bằng PHP thuần, không dùng DB::raw()
+            $tongCombo = 0.0;
             $comboDetails = [];
             $comboQuantities = $request->combo_quantities ?? [];
             
             if (is_array($comboQuantities)) {
                 foreach ($comboQuantities as $comboId => $qty) {
+                    $comboIdInt = (int)$comboId;
                     $qty = (int)($qty ?? 0);
                     if ($qty <= 0) {
                         continue;
                     }
                     
-                    $combo = Combo::find($comboId);
-                    if (!$combo || $combo->trang_thai != 1) {
+                    $combo = Combo::find($comboIdInt);
+                    if (!$combo) {
                         continue;
                     }
                     
-                    $tongCombo += ($combo->gia * $qty);
-                    $comboDetails[] = ['id' => $combo->id, 'so_luong' => $qty, 'gia' => $combo->gia];
+                    // ✅ ĐÚNG: Ép kiểu rõ ràng từ model attribute (đã cast decimal:2)
+                    $comboTrangThai = (int)($combo->trang_thai ?? 0);
+                    if ($comboTrangThai != 1) {
+                        continue;
+                    }
+                    
+                    // ✅ ĐÚNG: Ép kiểu float từ model attribute, không phải Expression
+                    $comboPrice = (float)($combo->attributes['gia'] ?? $combo->gia ?? 0);
+                    $tongCombo += ($comboPrice * $qty);
+                    // ✅ ĐÚNG: Ép kiểu ID từ attributes
+                    $comboIdInt = (int)($combo->attributes['id'] ?? $combo->id ?? 0);
+                    $comboDetails[] = [
+                        'id' => $comboIdInt, 
+                        'so_luong' => $qty, 
+                        'gia' => $comboPrice
+                    ];
                 }
             }
 
-            // Tính khuyến mãi
-            $discount = 0;
-            $promotionId = null;
-            if ($request->promotion_id) {
-                $promo = KhuyenMai::findOrFail($request->promotion_id);
-                if ($promo->trang_thai == 1 && 
-                    $promo->ngay_bat_dau <= now() && 
-                    $promo->ngay_ket_thuc >= now()) {
-                    $promotionId = $promo->id;
-                    $subtotal = $tongGhe + $tongCombo;
-                    $discount = $promo->loai_giam === 'phantram'
-                        ? round($subtotal * ((float)$promo->gia_tri_giam / 100))
-                        : (float)$promo->gia_tri_giam;
+            // Tính giá đồ ăn
+            // ✅ ĐÚNG: Tính toán bằng PHP thuần, không dùng DB::raw()
+            $tongFood = 0.0;
+            $foodDetails = [];
+            $foodQuantities = $request->food_quantities ?? [];
+            
+            if (is_array($foodQuantities)) {
+                foreach ($foodQuantities as $foodId => $qty) {
+                    $foodIdInt = (int)$foodId;
+                    $qty = (int)($qty ?? 0);
+                    if ($qty <= 0) {
+                        continue;
+                    }
+                    
+                    $food = \App\Models\Food::find($foodIdInt);
+                    if (!$food) {
+                        continue;
+                    }
+                    
+                    // ✅ ĐÚNG: Ép kiểu boolean từ model attribute
+                    $isActive = (bool)($food->is_active ?? false);
+                    if (!$isActive) {
+                        continue;
+                    }
+                    
+                    // Kiểm tra số lượng tồn kho
+                    // ✅ ĐÚNG: Ép kiểu int từ model attribute
+                    $stock = (int)($food->attributes['stock'] ?? $food->stock ?? 0);
+                    if ($stock > 0 && $qty > $stock) {
+                        throw new \Exception("Đồ ăn '{$food->name}' chỉ còn {$stock} sản phẩm.");
+                    }
+                    
+                    // ✅ ĐÚNG: Ép kiểu float từ model attribute, không phải Expression
+                    $price = (float)($food->attributes['price'] ?? $food->price ?? 0);
+                    $tongFood += ($price * $qty);
+                    // ✅ ĐÚNG: Ép kiểu ID từ attributes
+                    $foodIdInt = (int)($food->attributes['id'] ?? $food->id ?? 0);
+                    $foodDetails[] = [
+                        'id' => $foodIdInt, 
+                        'quantity' => $qty, 
+                        'price' => $price
+                    ];
                 }
+            }
+
+            // Tính tổng tiền (không áp dụng khuyến mãi cho đặt vé tại quầy)
+            // ✅ ĐÚNG: Tất cả đều là float, không có Expression
+            $tongTien = (float)($tongGhe + $tongCombo + $tongFood);
+            
+            // Đảm bảo tổng tiền hợp lệ
+            if ($tongTien <= 0) {
+                throw new \Exception('Tổng tiền phải lớn hơn 0.');
             }
 
             // Xác định phương thức thanh toán và trạng thái
             $paymentMethod = $request->payment_method;
-            $phuongThucDB = $paymentMethod === 'online' ? 1 : 2; // 1: Online, 2: Offline/Cash
-            $trangThai = ($paymentMethod === 'online') ? 0 : 1; // Online: Pending, Offline/Cash: Đã xác nhận
+            if (!in_array($paymentMethod, ['cash', 'offline', 'transfer'])) {
+                throw new \Exception('Phương thức thanh toán không hợp lệ.');
+            }
             
-            // Tính thời gian hết hạn
+            // Nếu là QR payment (transfer), tạo booking pending để chờ xác nhận
+            $isQrPayment = $paymentMethod === 'transfer';
+            $phuongThucDB = $isQrPayment ? 3 : 2; // 2: Offline/Cash, 3: Chuyển khoản
+            $trangThai = $isQrPayment ? 0 : 1; // 0: Pending (QR), 1: Đã xác nhận
+            $paymentStatus = $isQrPayment ? 0 : 1; // 0: Chưa thanh toán (QR), 1: Đã thanh toán
+            
+            // Đặt vé tại quầy không có thời gian hết hạn (trừ QR payment)
             $expiresAt = null;
-            if ($paymentMethod === 'online') {
-                $expiresAt = Carbon::now()->addMinutes(15);
-            } elseif ($paymentMethod === 'offline') {
-                $start = Carbon::parse($showtime->thoi_gian_bat_dau);
-                if (now()->diffInMinutes($start, false) < 30) {
-                    throw new \Exception('Đã quá trễ để đặt vé giữ chỗ (phải trước 30 phút). Vui lòng thanh toán Online.');
-                }
-                $expiresAt = $start->subMinutes(30);
+
+            // Tạo đặt vé
+            // ✅ ĐÚNG: Ép kiểu tất cả giá trị trước khi create
+            $booking = DatVe::create([
+                'id_nguoi_dung' => (int)$userId,
+                'id_suat_chieu' => (int)$showtimeIdInt, // Sử dụng biến đã ép kiểu
+                'trang_thai' => (int)$trangThai,
+                'tong_tien' => (float)$tongTien,
+                'id_khuyen_mai' => null, // Không áp dụng khuyến mãi cho đặt vé tại quầy
+                'phuong_thuc_thanh_toan' => (int)$phuongThucDB,
+                'expires_at' => $expiresAt,
+                'ghi_chu_noi_bo' => $request->notes,
+            ]);
+            
+            // ✅ ĐÚNG: Ép kiểu booking ID ngay sau khi create
+            $bookingId = (int)($booking->attributes['id'] ?? $booking->id ?? 0);
+            if ($bookingId <= 0) {
+                throw new \Exception('Lỗi khi tạo đặt vé.');
             }
 
-            $createdBookings = [];
-
-            // 1) Tạo Booking cho MỖI GHẾ (mỗi ghế = 1 hóa đơn)
+            // Tạo chi tiết ghế
+            // ✅ ĐÚNG: Sử dụng bookingId đã ép kiểu
             foreach ($seatDetails as $detail) {
-                $seatPrice = $detail['gia'];
-                
-                // Áp dụng khuyến mãi cho từng ghế (nếu có)
-                $finalSeatPrice = $seatPrice;
-                if ($promotionId) {
-                    $promo = KhuyenMai::find($promotionId);
-                    if ($promo && $promo->trang_thai == 1 && 
-                        $promo->ngay_bat_dau <= now() && 
-                        $promo->ngay_ket_thuc >= now()) {
-                        $discount = $promo->loai_giam === 'phantram'
-                            ? round($seatPrice * ((float)$promo->gia_tri_giam / 100))
-                            : (float)$promo->gia_tri_giam;
-                        $finalSeatPrice = max(0, $seatPrice - $discount);
-                    }
-                }
-
-                // Tạo booking cho ghế này
-                $seatBooking = DatVe::create([
-                    'id_nguoi_dung' => $userId,
-                    'id_suat_chieu' => $showtime->id,
-                    'trang_thai' => $trangThai,
-                    'tong_tien' => $finalSeatPrice,
-                    'id_khuyen_mai' => $promotionId,
-                    'phuong_thuc_thanh_toan' => $phuongThucDB,
-                    'expires_at' => $expiresAt,
-                    'ghi_chu_noi_bo' => $request->notes,
-                ]);
-
-                // Tạo chi tiết ghế
                 ChiTietDatVe::create([
-                    'id_dat_ve' => $seatBooking->id,
-                    'id_ghe' => $detail['id'],
-                    'gia' => $seatPrice, // Lưu giá gốc
+                    'id_dat_ve' => $bookingId,
+                    'id_ghe' => (int)$detail['id'],
+                    'gia' => (float)$detail['gia'],
                 ]);
-
-                // Tạo thanh toán cho ghế này
-                $paymentStatus = ($paymentMethod === 'online') ? 0 : 1;
-                $paymentMethodName = $paymentMethod === 'online' ? 'VNPAY' : ($paymentMethod === 'cash' ? 'Tiền mặt' : 'Offline');
-                
-                ThanhToan::create([
-                    'id_dat_ve' => $seatBooking->id,
-                    'so_tien' => $finalSeatPrice,
-                    'phuong_thuc' => $paymentMethodName,
-                    'trang_thai' => $paymentStatus,
-                    'thoi_gian' => $paymentStatus === 1 ? now() : null,
-                ]);
-
-                $createdBookings[] = $seatBooking;
             }
 
-            // 2) Tạo Booking riêng cho TẤT CẢ COMBO (tất cả combo = 1 hóa đơn)
-            if (!empty($comboDetails) && $tongCombo > 0) {
-                // Áp dụng khuyến mãi cho combo (nếu có)
-                $finalComboPrice = $tongCombo;
-                if ($promotionId) {
-                    $promo = KhuyenMai::find($promotionId);
-                    if ($promo && $promo->trang_thai == 1 && 
-                        $promo->ngay_bat_dau <= now() && 
-                        $promo->ngay_ket_thuc >= now()) {
-                        $discount = $promo->loai_giam === 'phantram'
-                            ? round($tongCombo * ((float)$promo->gia_tri_giam / 100))
-                            : (float)$promo->gia_tri_giam;
-                        $finalComboPrice = max(0, $tongCombo - $discount);
-                    }
-                }
-
-                // Tạo booking cho combo
-                $comboBooking = DatVe::create([
-                    'id_nguoi_dung' => $userId,
-                    'id_suat_chieu' => $showtime->id,
-                    'trang_thai' => $trangThai,
-                    'tong_tien' => $finalComboPrice,
-                    'id_khuyen_mai' => $promotionId,
-                    'phuong_thuc_thanh_toan' => $phuongThucDB,
-                    'expires_at' => $expiresAt,
-                    'ghi_chu_noi_bo' => $request->notes,
+            // Tạo chi tiết combo
+            // ✅ ĐÚNG: Sử dụng bookingId đã ép kiểu
+            foreach ($comboDetails as $detail) {
+                ChiTietCombo::create([
+                    'id_dat_ve' => $bookingId,
+                    'id_combo' => (int)$detail['id'],
+                    'so_luong' => (int)$detail['so_luong'],
+                    'gia_ap_dung' => (float)$detail['gia'],
                 ]);
-
-                // Tạo chi tiết combo
-                foreach ($comboDetails as $detail) {
-                    ChiTietCombo::create([
-                        'id_dat_ve' => $comboBooking->id,
-                        'id_combo' => $detail['id'],
-                        'so_luong' => $detail['so_luong'],
-                        'gia_ap_dung' => $detail['gia'],
-                    ]);
-                }
-
-                // Tạo thanh toán cho combo
-                $paymentStatus = ($paymentMethod === 'online') ? 0 : 1;
-                $paymentMethodName = $paymentMethod === 'online' ? 'VNPAY' : ($paymentMethod === 'cash' ? 'Tiền mặt' : 'Offline');
-                
-                ThanhToan::create([
-                    'id_dat_ve' => $comboBooking->id,
-                    'so_tien' => $finalComboPrice,
-                    'phuong_thuc' => $paymentMethodName,
-                    'trang_thai' => $paymentStatus,
-                    'thoi_gian' => $paymentStatus === 1 ? now() : null,
-                ]);
-
-                $createdBookings[] = $comboBooking;
             }
 
-            // Lấy booking đầu tiên để tương thích với code cũ
-            $booking = $createdBookings[0] ?? null;
+            // Tạo chi tiết đồ ăn
+            // ✅ ĐÚNG: Sử dụng bookingId đã ép kiểu
+            foreach ($foodDetails as $detail) {
+                \App\Models\ChiTietFood::create([
+                    'id_dat_ve' => $bookingId,
+                    'food_id' => (int)$detail['id'],
+                    'quantity' => (int)$detail['quantity'],
+                    'price' => (float)$detail['price'],
+                ]);
+            }
+
+            // Tạo thanh toán
+            // ✅ ĐÚNG: Sử dụng bookingId đã ép kiểu
+            $paymentMethodName = $paymentMethod === 'cash' ? 'Tiền mặt' : ($paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Offline');
+            
+            ThanhToan::create([
+                'id_dat_ve' => $bookingId,
+                'so_tien' => (float)$tongTien,
+                'phuong_thuc' => (string)$paymentMethodName,
+                'trang_thai' => (int)$paymentStatus,
+                'thoi_gian' => $paymentStatus === 1 ? now() : null,
+            ]);
 
             // Cập nhật ShowtimeSeat nếu có (chỉ khi đã thanh toán)
-            // Áp dụng cho tất cả các booking ghế
-            if ($trangThai === 1 && Schema::hasTable('suat_chieu_ghe')) {
+            // ✅ ĐÚNG: Sử dụng showtimeIdInt đã ép kiểu
+            if ($paymentStatus === 1 && Schema::hasTable('suat_chieu_ghe')) {
+                $showtime = SuatChieu::find($showtimeIdInt);
+                $thoiGianKetThuc = $showtime ? $showtime->thoi_gian_ket_thuc : now()->addDays(1);
+                
                 foreach ($selectedSeatIds as $seatId) {
-                    ShowtimeSeat::updateOrCreate(
-                        [
-                            'id_suat_chieu' => $showtime->id,
-                            'id_ghe' => $seatId,
-                        ],
-                        [
-                            'status' => 'booked',
-                            'hold_expires_at' => null,
-                        ]
-                    );
+                    $seatIdInt = (int)$seatId;
+                    
+                    // Kiểm tra record đã tồn tại chưa
+                    $existing = ShowtimeSeat::where('id_suat_chieu', $showtimeIdInt)
+                        ->where('id_ghe', $seatIdInt)
+                        ->first();
+                    
+                    if ($existing) {
+                        // Nếu đã tồn tại, chỉ cập nhật trạng thái (không động đến thoi_gian_het_han)
+                        $existing->update(['trang_thai' => 'booked']);
+                    } else {
+                        // Nếu chưa tồn tại, tạo mới với thoi_gian_het_han hợp lệ
+                        ShowtimeSeat::create([
+                            'id_suat_chieu' => $showtimeIdInt,
+                            'id_ghe' => $seatIdInt,
+                            'trang_thai' => 'booked',
+                            'thoi_gian_giu' => now(),
+                            'thoi_gian_het_han' => $thoiGianKetThuc,
+                            'gia_giu' => 0,
+                        ]);
+                    }
                 }
             }
 
             // Cập nhật thống kê thành viên (chỉ khi đã thanh toán)
-            if ($trangThai === 1 && $userId) {
-                $this->updateMemberStats($userId);
+            if ($paymentStatus === 1 && $userId) {
+                $this->updateMemberStats((int)$userId);
             }
 
-            // Trừ kho đồ ăn khi thanh toán thành công (áp dụng cho tất cả booking có đồ ăn)
-            if ($trangThai === 1) {
+            // Trừ kho đồ ăn khi thanh toán thành công (chỉ khi đã thanh toán)
+            // ✅ ĐÚNG: Sử dụng decrement() method của Laravel, không dùng DB::raw()
+            if ($paymentStatus === 1 && !empty($foodDetails)) {
                 try {
-                    foreach ($createdBookings as $bookingItem) {
-                        $foodOrders = \App\Models\ChiTietFood::where('id_dat_ve', $bookingItem->id)->get();
-                        foreach ($foodOrders as $foodOrder) {
-                            $food = \App\Models\Food::find($foodOrder->food_id);
-                            if ($food) {
-                                $food->decrement('stock', $foodOrder->quantity);
-                            }
+                    foreach ($foodDetails as $detail) {
+                        $foodId = (int)($detail['id'] ?? 0);
+                        $quantity = (int)($detail['quantity'] ?? 0);
+                        
+                        if ($foodId > 0 && $quantity > 0) {
+                            // ✅ ĐÚNG: decrement() tự động xử lý, không cần DB::raw()
+                            \App\Models\Food::where('id', $foodId)->decrement('stock', $quantity);
                         }
                     }
                 } catch (\Exception $e) {
                     Log::error("Lỗi trừ kho đồ ăn sau thanh toán: " . $e->getMessage());
+                    throw $e; // Re-throw để rollback transaction
                 }
             }
 
             DB::commit();
 
-            // Nếu thanh toán online, chuyển đến VNPay
-            if ($paymentMethod === 'online') {
-                $vnpUrl = app(\App\Http\Controllers\PaymentController::class)->createVnpayUrl($booking->id, $tongTien);
-                return redirect()->away($vnpUrl);
+            // Nếu là QR payment, redirect đến trang QR payment
+            if ($isQrPayment) {
+                return redirect()->route('admin.bookings.qr-payment', $bookingId)
+                    ->with('info', 'Vui lòng thanh toán bằng mã QR.');
             }
 
-            // Nếu thanh toán offline/cash, chuyển đến trang "Vé của tôi"
-            return redirect()->route('admin.bookings.my-bookings')
+            // Đặt vé tại quầy đã thanh toán ngay, chuyển đến trang danh sách đặt vé
+            return redirect()->route('admin.bookings.index')
                 ->with('success', 'Đặt vé thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Staff booking error: ' . $e->getMessage());
             return back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Hiển thị trang thanh toán QR cho admin bookings
+     * GET /admin/bookings/{bookingId}/qr-payment
+     */
+    public function showQrPayment($bookingId)
+    {
+        try {
+            $booking = DatVe::with([
+                'nguoiDung',
+                'suatChieu.phim',
+                'suatChieu.phongChieu',
+                'chiTietDatVe.ghe',
+                'thanhToan'
+            ])->findOrFail($bookingId);
+            
+            // Kiểm tra quyền
+            $user = Auth::user();
+            if (!$user || !in_array(optional($user->vaiTro)->ten, ['admin', 'staff'])) {
+                abort(403, 'Bạn không có quyền truy cập.');
+            }
+            
+            // Kiểm tra đã thanh toán chưa
+            if ($booking->trang_thai == 1) {
+                return redirect()->route('admin.bookings.show', $bookingId)
+                    ->with('info', 'Vé đã được thanh toán.');
+            }
+            
+            // Tạo mã QR fake (mã đơn hàng + timestamp)
+            $qrCode = 'QR' . str_pad($bookingId, 6, '0', STR_PAD_LEFT) . '-' . time();
+            
+            return view('admin.bookings.qr-payment', compact('booking', 'qrCode'));
+        } catch (\Exception $e) {
+            Log::error('QuanLyDatVe showQrPayment error: ' . $e->getMessage());
+            return redirect()->route('admin.bookings.index')
+                ->with('error', 'Không tìm thấy đơn hàng.');
+        }
+    }
+
+    /**
+     * Xác nhận thanh toán QR
+     * POST /admin/bookings/{bookingId}/qr-payment/confirm
+     */
+    public function confirmQrPayment(Request $request, $bookingId)
+    {
+        $request->validate([
+            'booking_id' => 'required|integer|exists:dat_ve,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+            
+            $booking = DatVe::with(['chiTietFood', 'chiTietDatVe'])->findOrFail($bookingId);
+            
+            if ($booking->trang_thai == 1) {
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Vé đã được thanh toán',
+                ]);
+            }
+            
+            // Cập nhật trạng thái booking
+            $booking->update(['trang_thai' => 1]); // SOLD
+            
+            // Cập nhật thanh toán
+            $payment = ThanhToan::where('id_dat_ve', $booking->id)->first();
+            if ($payment) {
+                $payment->update([
+                    'trang_thai' => 1,
+                    'thoi_gian' => now(),
+                ]);
+            }
+            
+            // Trừ kho đồ ăn (nếu chưa trừ)
+            foreach ($booking->chiTietFood as $foodDetail) {
+                \App\Models\Food::where('id', $foodDetail->food_id)
+                    ->decrement('stock', $foodDetail->quantity);
+            }
+            
+            // Cập nhật ShowtimeSeat
+            if (Schema::hasTable('suat_chieu_ghe')) {
+                $seatIds = $booking->chiTietDatVe->pluck('id_ghe')->toArray();
+                $showtime = $booking->suatChieu;
+                $thoiGianKetThuc = $showtime ? $showtime->thoi_gian_ket_thuc : now()->addDays(1);
+                
+                foreach ($seatIds as $seatId) {
+                    // Kiểm tra record đã tồn tại chưa
+                    $existing = ShowtimeSeat::where('id_suat_chieu', $booking->id_suat_chieu)
+                        ->where('id_ghe', $seatId)
+                        ->first();
+                    
+                    if ($existing) {
+                        // Nếu đã tồn tại, chỉ cập nhật trạng thái (không động đến thoi_gian_het_han)
+                        $existing->update(['trang_thai' => 'booked']);
+                    } else {
+                        // Nếu chưa tồn tại, tạo mới với thoi_gian_het_han hợp lệ
+                        ShowtimeSeat::create([
+                            'id_suat_chieu' => $booking->id_suat_chieu,
+                            'id_ghe' => $seatId,
+                            'trang_thai' => 'booked',
+                            'thoi_gian_giu' => now(),
+                            'thoi_gian_het_han' => $thoiGianKetThuc,
+                            'gia_giu' => 0,
+                        ]);
+                    }
+                }
+            }
+            
+            // Cập nhật thống kê thành viên
+            if ($booking->id_nguoi_dung) {
+                $this->updateMemberStats($booking->id_nguoi_dung);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Xác nhận thanh toán thành công',
+                'redirect_url' => route('admin.bookings.show', $booking->id),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('QuanLyDatVe confirmQrPayment error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi xác nhận thanh toán: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

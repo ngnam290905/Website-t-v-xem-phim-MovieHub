@@ -159,6 +159,9 @@ Route::middleware('auth')->middleware('block.admin.staff')->group(function () {
     // Continue to payment from seat selection
     Route::post('/booking/continue', [App\Http\Controllers\BookingController::class, 'continueToPayment'])->name('booking.continue');
     Route::get('/booking/payment', [App\Http\Controllers\BookingController::class, 'showPaymentPage'])->name('booking.payment');
+    
+    // Cancel pending booking
+    Route::post('/booking/{bookingId}/cancel', [App\Http\Controllers\BookingController::class, 'cancelPendingBooking'])->name('booking.cancel');
 });
 
 // Legacy booking routes - Redirect to new booking flow
@@ -341,6 +344,8 @@ Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStat
         });
         
         // Các route cụ thể phải đặt TRƯỚC route '/{id}' để tránh nuốt đường dẫn
+        Route::get('/{bookingId}/qr-payment', [QuanLyDatVeController::class, 'showQrPayment'])->name('qr-payment');
+        Route::post('/{bookingId}/qr-payment/confirm', [QuanLyDatVeController::class, 'confirmQrPayment'])->name('qr-payment.confirm');
         Route::put('/{id}', [QuanLyDatVeController::class, 'update'])->name('update');
 // Route::post('/{id}/cancel', [QuanLyDatVeController::class, 'cancel'])->name('cancel'); // disabled
         Route::post('/{id}/confirm', [QuanLyDatVeController::class, 'confirm'])->name('confirm');
@@ -352,6 +357,21 @@ Route::patch('seats/{ghe}/status', [PhongChieuController::class, 'updateSeatStat
 
     // API lấy bản đồ ghế theo suất chiếu
     Route::get('showtimes/{suatChieu}/seats', [QuanLyDatVeController::class, 'seatsByShowtime'])->name('showtimes.seats');
+
+    // BOX OFFICE - Đặt vé tại quầy
+    Route::prefix('box-office')->name('box-office.')->group(function () {
+        Route::get('/', [App\Http\Controllers\BoxOfficeController::class, 'index'])->name('index');
+        Route::get('/movies', [App\Http\Controllers\BoxOfficeController::class, 'getMovies'])->name('movies');
+        Route::get('/showtimes', [App\Http\Controllers\BoxOfficeController::class, 'getShowtimes'])->name('showtimes');
+        Route::get('/showtimes/{id}/seats', [App\Http\Controllers\BoxOfficeController::class, 'getSeats'])->name('seats');
+        Route::post('/seat-hold', [App\Http\Controllers\BoxOfficeController::class, 'holdSeat'])->name('seat-hold');
+        Route::get('/foods', [App\Http\Controllers\BoxOfficeController::class, 'getFoods'])->name('foods');
+        Route::post('/orders', [App\Http\Controllers\BoxOfficeController::class, 'createOrder'])->name('orders');
+        Route::get('/qr-payment/{bookingId}', [App\Http\Controllers\BoxOfficeController::class, 'showQrPayment'])->name('qr-payment');
+        Route::post('/payments/confirm', [App\Http\Controllers\BoxOfficeController::class, 'confirmPayment'])->name('payments.confirm');
+        Route::get('/tickets/{bookingId}/print', [App\Http\Controllers\BoxOfficeController::class, 'printTicket'])->name('tickets.print');
+        Route::post('/tickets/{bookingId}/send', [App\Http\Controllers\BoxOfficeController::class, 'sendTicket'])->name('tickets.send');
+    });
 
     // KHUYẾN MẠI
     // Đặt nhóm Admin (tạo/sửa/xóa) TRƯỚC để tránh 'show' nuốt '/create'
@@ -412,21 +432,15 @@ Route::get('/', [ScanController::class, 'index'])->name('index');
 // BÁO CÁO - CHỈ ADMIN
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');
         Route::get('/revenue', [ReportController::class, 'revenue'])->name('revenue');
-        Route::get('/top-movies', [ReportController::class, 'topMovies'])->name('top-movies');
-        Route::get('/top-customers', [ReportController::class, 'topCustomers'])->name('top-customers');
-        Route::get('/member-revenue', [ReportController::class, 'memberRevenue'])->name('member-revenue');
-        Route::get('/popular-movies-showtimes', [ReportController::class, 'popularMoviesAndShowtimes'])->name('popular-movies-showtimes');
-        Route::get('/movies-showtimes-data', [ReportController::class, 'moviesAndShowtimesData'])->name('movies-showtimes-data');
-        Route::get('/bookings-data', [ReportController::class, 'bookingsData'])->name('bookings-data');
-        Route::get('/hot-movies', [AdminReportController::class, 'hotMoviesReport'])->name('hot-movies');
-        Route::get('/peak-booking-hours', [AdminReportController::class, 'peakBookingHoursReport'])->name('peak-booking-hours');
-        
-        // Thống kê theo phim
-        Route::get('/movies-dashboard', [AdminReportController::class, 'moviesStatisticsDashboard'])->name('movies-dashboard');
-        Route::get('/movies/{movie}/statistics', [AdminReportController::class, 'movieStatistics'])->name('movie-statistics');
+        Route::get('/movies', [ReportController::class, 'movies'])->name('movies');
+        Route::get('/showtimes', [ReportController::class, 'showtimes'])->name('showtimes');
+        Route::get('/seats', [ReportController::class, 'seats'])->name('seats');
+        Route::get('/foods', [ReportController::class, 'foods'])->name('foods');
+        Route::get('/payments', [ReportController::class, 'payments'])->name('payments');
+        Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export-excel');
+        Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export-pdf');
     });
 });
 

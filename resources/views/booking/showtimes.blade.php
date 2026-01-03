@@ -138,41 +138,10 @@
                     </h3>
                     
                     <div id="ticketInfo" class="space-y-4">
-                        <!-- Movie -->
+                        <!-- Showtime - Chỉ hiển thị giờ chiếu -->
                         <div>
-                            <p class="text-xs text-[#a6a6b0] mb-1">🎬 Phim</p>
-                            <p class="text-white font-semibold" id="ticketMovie">{{ $movie->ten_phim }}</p>
-                        </div>
-                        
-                        <!-- Date -->
-                        <div>
-                            <p class="text-xs text-[#a6a6b0] mb-1">📅 Ngày chiếu</p>
-                            <p class="text-white font-semibold" id="ticketDate">--</p>
-                        </div>
-                        
-                        <!-- Showtime -->
-                        <div>
-                            <p class="text-xs text-[#a6a6b0] mb-1">⏰ Suất chiếu</p>
-                            <p class="text-white font-semibold" id="ticketShowtime">--</p>
-                        </div>
-                        
-                        <!-- Room -->
-                        <div>
-                            <p class="text-xs text-[#a6a6b0] mb-1">🎭 Phòng chiếu</p>
-                            <p class="text-white font-semibold" id="ticketRoom">--</p>
-                        </div>
-                        
-                        <!-- Seats -->
-                        <div>
-                            <p class="text-xs text-[#a6a6b0] mb-1">🪑 Ghế</p>
-                            <p class="text-white font-semibold" id="ticketSeats">--</p>
-                        </div>
-                        
-                        <div class="border-t border-[#262833] pt-4 mt-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm text-[#a6a6b0]">Tổng tiền</span>
-                                <span class="text-2xl font-bold text-yellow-400" id="ticketTotal">0 đ</span>
-                            </div>
+                            <p class="text-xs text-[#a6a6b0] mb-1">⏰ Giờ chiếu</p>
+                            <p class="text-white font-semibold text-xl" id="ticketShowtime">--</p>
                         </div>
                         
                         <a href="#" id="continueBtn" 
@@ -365,32 +334,8 @@ async function loadShowtimes(date) {
                 showtimeCard.disabled = isDisabled;
                 
                 showtimeCard.innerHTML = `
-                    <div class="flex items-start justify-between mb-3">
-                        <div>
-                            <div class="text-3xl font-bold text-white mb-1">${showtime.time}</div>
-                            <div class="text-sm text-[#a6a6b0]">Kết thúc: ${showtime.end_time}</div>
-                        </div>
-                        <div class="text-right">
-                            ${statusIcon}
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-door-open text-[#F53003]"></i>
-                            <span class="text-white font-semibold">${showtime.room_name}</span>
-                            <span class="px-2 py-0.5 bg-[#F53003]/20 text-[#F53003] rounded text-xs">${showtime.room_type}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-chair text-[#F53003]"></i>
-                            <span class="text-[#a6a6b0]">Ghế trống: <span class="text-white font-semibold">${showtime.available_seats}</span></span>
-                        </div>
-                        <div class="flex items-center gap-2 text-sm">
-                            <i class="fas fa-tags text-[#F53003]"></i>
-                            <span class="text-[#a6a6b0]">Từ <span class="text-[#F53003] font-bold">${showtime.formatted_price}</span></span>
-                        </div>
-                        <div class="mt-3 pt-3 border-t border-[#262833]">
-                            <span class="text-xs text-[#a6a6b0]">${statusText}</span>
-                        </div>
+                    <div class="flex items-center justify-center">
+                        <div class="text-4xl font-bold text-white">${showtime.time}</div>
                     </div>
                 `;
                 
@@ -417,12 +362,8 @@ async function loadShowtimes(date) {
 function selectShowtime(showtime, event) {
     currentSelectedShowtime = showtime;
     
-    // Update ticket info
-    document.getElementById('ticketDate').textContent = showtime.date.split('-').reverse().join('/');
+    // Chỉ cập nhật giờ chiếu
     document.getElementById('ticketShowtime').textContent = showtime.time;
-    document.getElementById('ticketRoom').textContent = `${showtime.room_name} - ${showtime.room_type}`;
-    document.getElementById('ticketSeats').textContent = 'Chưa chọn';
-    document.getElementById('ticketTotal').textContent = showtime.formatted_price;
     
     // Show continue button
     const continueBtn = document.getElementById('continueBtn');

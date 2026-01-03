@@ -76,7 +76,7 @@
       </div>
 
       <div class="flex items-center justify-between">
-        <div class="text-xs text-[#a6a6b0]">Giờ hoạt động: 08:00–24:00. Tránh trùng phòng và tự-chồng.</div>
+        <div class="text-xs text-[#a6a6b0]">Giờ hoạt động: 00:00–24:00. Tránh trùng phòng và tự-chồng.</div>
         <div class="flex items-center gap-2">
           <button id="btnGenerate" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"><i class="fas fa-cog mr-2"></i>Tạo đề xuất</button>
           <button id="btnSave" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold" disabled><i class="fas fa-save mr-2"></i>Lưu tất cả</button>
@@ -287,10 +287,10 @@
           }
         }
         
-        // Kiểm tra giờ hoạt động: 8:00 - 24:00
-        const open=8*60, close=24*60;
+        // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
+        const open=0, close=24*60;
         if(sMin < open || sMin >= close) {
-          errs.push('Rạp đang đóng cửa. Giờ hoạt động: 08:00–24:00.');
+          errs.push('Giờ bắt đầu không hợp lệ.');
         }
         if(errs.length){ 
           error.textContent = errs.join('\n');

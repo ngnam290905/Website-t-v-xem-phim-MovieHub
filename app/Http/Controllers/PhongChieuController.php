@@ -6,6 +6,8 @@ use App\Models\PhongChieu;
 use App\Models\Ghe;
 use App\Models\LoaiGhe;
 use App\Models\SuatChieu;
+use App\Models\Phim;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -551,6 +553,92 @@ class PhongChieuController extends Controller
         $locked = $phongChieu->showtimes()->exists();
         
         return view('admin.phong-chieu.manage-seats', compact('phongChieu', 'seatTypes', 'locked'));
+    }
+
+    /**
+     * Create showtimes for selected rooms in a peak-hour window.
+     */
+    public function createPeakHoursShowtimes(Request $request)
+    {
+        $request->validate([
+            'phim_id' => 'required|exists:phim,id',
+            'phong_chieu' => 'required|array|min:1',
+            'phong_chieu.*' => 'integer|exists:phong_chieu,id',
+            'ngay_chieu' => 'required|date',
+            'gio_bat_dau' => 'required|string',
+            'gio_ket_thuc' => 'required|string',
+            'thoi_gian_ngung' => 'required|integer|min:0',
+        ]);
+
+        $phim = Phim::find($request->phim_id);
+        $duration = (int) ($phim->thoi_luong ?? 120);
+
+        $rooms = $request->phong_chieu;
+        $date = $request->ngay_chieu;
+        $start = Carbon::parse("{$date} {$request->gio_bat_dau}");
+        $end = Carbon::parse("{$date} {$request->gio_ket_thuc}");
+        $gap = (int) $request->thoi_gian_ngung;
+
+        if ($start >= $end) {
+            return back()->withErrors(['error' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+        }
+
+        $created = 0;
+        $skipped = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($rooms as $roomId) {
+                $current = $start->copy();
+                while (true) {
+                    $showEnd = $current->copy()->addMinutes($duration);
+                    if ($showEnd->gt($end)) break;
+
+                    // Check for overlapping existing showtime in same room
+                    $overlap = SuatChieu::where('id_phong', $roomId)
+                        ->where(function($q) use ($current, $showEnd) {
+                            $q->whereBetween('thoi_gian_bat_dau', [$current, $showEnd->subSecond()])
+                              ->orWhere(function($q2) use ($current, $showEnd) {
+                                  $q2->where('thoi_gian_bat_dau', '<', $current)
+                                     ->where('thoi_gian_ket_thuc', '>', $current);
+                              });
+                        })->exists();
+
+                    if ($overlap) {
+                        $skipped++;
+                    } else {
+                        SuatChieu::create([
+                            'id_phim' => $phim->id,
+                            'id_phong' => $roomId,
+                            'thoi_gian_bat_dau' => $current->toDateTimeString(),
+                            'thoi_gian_ket_thuc' => $showEnd->toDateTimeString(),
+                            'trang_thai' => 1,
+                        ]);
+                        $created++;
+                    }
+
+                    // Move to next slot
+                    $current = $showEnd->copy()->addMinutes($gap);
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('admin.phong-chieu.peak-hours')
+                ->with('success', "Hoàn tất: tạo {$created} suất chiếu, bỏ qua {$skipped} suất do trùng/xung đột.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Có lỗi khi tạo suất chiếu: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Show peak hours configuration form
+     */
+    public function showPeakHoursConfig()
+    {
+        $phims = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])->get();
+        $phongChieus = PhongChieu::all();
+        return view('admin.phong-chieu.peak-hours', compact('phims', 'phongChieus'));
     }
 
     /**
