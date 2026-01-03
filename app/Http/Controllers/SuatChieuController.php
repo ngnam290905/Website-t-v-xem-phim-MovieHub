@@ -19,7 +19,7 @@ class SuatChieuController extends Controller
      */
     public function index(Request $request)
     {
-        $query = SuatChieu::with(['phim', 'phongChieu'])
+        $query = SuatChieu::with(['phim', 'phongChieu', 'datVe.chiTietDatVe'])
             ->whereHas('phongChieu', function($q) {
                 $q->where('trang_thai', 1);
             });
