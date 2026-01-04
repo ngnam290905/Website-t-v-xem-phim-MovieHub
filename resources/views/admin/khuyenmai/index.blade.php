@@ -155,9 +155,35 @@
 					<div>{{ $end->format('d/m/Y') }}</div>
 					<div class="text-xs text-gray-400">{{ $end->format('H:i') }}</div>
 				</td>
-				<td class="px-4 py-2">{{ $km->gia_tri_giam }}</td>
-				<td class="px-4 py-2">{{ $km->gia_tri_giam_toi_da ?? '-' }}</td>
-				<td class="px-4 py-2">{{ $km->dieu_kien }}</td>
+				<td class="px-4 py-2">
+					@if($km->loai_giam === 'phantram')
+						{{ number_format($km->gia_tri_giam, 0, ',', '.') }}%
+					@else
+						{{ number_format($km->gia_tri_giam, 0, ',', '.') }} VNĐ
+					@endif
+				</td>
+				<td class="px-4 py-2">
+					@if($km->gia_tri_giam_toi_da)
+						{{ number_format($km->gia_tri_giam_toi_da, 0, ',', '.') }} VNĐ
+					@else
+						-
+					@endif
+				</td>
+				<td class="px-4 py-2">
+					@if($km->dieu_kien)
+						@php
+							preg_match('/(\d+)/', $km->dieu_kien, $matches);
+							$amount = isset($matches[1]) ? $matches[1] : null;
+						@endphp
+						@if($amount)
+							Từ {{ number_format($amount, 0, ',', '.') }} VNĐ
+						@else
+							{{ $km->dieu_kien }}
+						@endif
+					@else
+						Không có điều kiện
+					@endif
+				</td>
 				<td class="px-4 py-2">{{ $km->trang_thai ? 'Kích hoạt' : 'Ẩn' }}</td>
 				<td class="px-4 py-2">
 					<div class="flex justify-center gap-1.5">
