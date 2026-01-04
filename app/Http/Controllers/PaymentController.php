@@ -9,7 +9,9 @@ use App\Models\ChiTietDatVe;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use App\Services\SeatHoldService;
+use App\Mail\PaymentSuccessMail;
 
 class PaymentController extends Controller
 {
@@ -19,16 +21,51 @@ class PaymentController extends Controller
     public function createVnpayUrl($orderId, $amount)
     {
         $vnp_Url = env('VNP_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
-        $vnp_ReturnUrl = env('VNP_RETURN_URL', route('payment.vnpay_return'));
         $vnp_TmnCode = env('VNP_TMN_CODE');
         $vnp_HashSecret = env('VNP_HASH_SECRET');
+        
+        // Validate required config
+        if (empty($vnp_TmnCode) || empty($vnp_HashSecret)) {
+            Log::error('VNPAY: Missing required configuration', [
+                'has_tmn_code' => !empty($vnp_TmnCode),
+                'has_hash_secret' => !empty($vnp_HashSecret)
+            ]);
+            throw new \Exception('VNPAY configuration is missing. Please check .env file.');
+        }
+        
+        // Get return URL - ensure it's absolute URL
+        $vnp_ReturnUrl = env('VNP_RETURN_URL');
+        if (empty($vnp_ReturnUrl)) {
+            $vnp_ReturnUrl = route('payment.vnpay_return');
+        }
+        // Ensure absolute URL
+        if (!filter_var($vnp_ReturnUrl, FILTER_VALIDATE_URL)) {
+            $vnp_ReturnUrl = url($vnp_ReturnUrl);
+        }
 
+        // Clean order ID and create TxnRef
         $vnp_TxnRef = $orderId . "_" . time(); 
+        
+        // Clean OrderInfo - remove Vietnamese characters and special chars for VNPay compatibility
         $vnp_OrderInfo = "Thanh toan ve xem phim #" . $orderId;
+        $vnp_OrderInfo = preg_replace('/[^\x20-\x7E]/', '', $vnp_OrderInfo); // Only ASCII
+        $vnp_OrderInfo = mb_substr($vnp_OrderInfo, 0, 255); // Max 255 chars
+        
         $vnp_OrderType = "billpayment";
-        $vnp_Amount = $amount * 100;
+        
+        // Ensure amount is integer and positive
+        $vnp_Amount = (int)($amount * 100);
+        if ($vnp_Amount <= 0) {
+            throw new \Exception('Số tiền thanh toán không hợp lệ!');
+        }
+        
         $vnp_Locale = "vn";
+        
+        // Get IP address - handle localhost case
         $vnp_IpAddr = request()->ip();
+        if (empty($vnp_IpAddr) || $vnp_IpAddr === '::1' || $vnp_IpAddr === '127.0.0.1') {
+            $vnp_IpAddr = '127.0.0.1';
+        }
 
         $inputData = array(
             "vnp_Version" => "2.1.0",
@@ -59,10 +96,16 @@ class PaymentController extends Controller
             $query .= urlencode($key) . "=" . urlencode($value) . '&';
         }
 
+        // Remove trailing & from query
+        $query = rtrim($query, '&');
+        
+        // Build URL with query string
         $vnp_Url = $vnp_Url . "?" . $query;
-        if (isset($vnp_HashSecret)) {
-            $vnpSecureHash =   hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-            $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+        
+        // Add secure hash
+        if (!empty($vnp_HashSecret)) {
+            $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+            $vnp_Url .= '&vnp_SecureHash=' . $vnpSecureHash;
         }
 
         return $vnp_Url;
@@ -73,49 +116,75 @@ class PaymentController extends Controller
      */
     public function vnpayReturn(Request $request)
     {
-        $vnp_HashSecret = env('VNP_HASH_SECRET');
-        $inputData = array();
-        
-        // Lấy toàn bộ tham số trả về
-        foreach ($request->all() as $key => $value) {
-            if (substr($key, 0, 4) == "vnp_") {
-                $inputData[$key] = $value;
+        try {
+            Log::info('VNPay Return Callback', ['request_data' => $request->all()]);
+            
+            $vnp_HashSecret = env('VNP_HASH_SECRET');
+            
+            if (empty($vnp_HashSecret)) {
+                Log::error('VNPay: Hash secret is missing');
+                return redirect()->route('home')->with('error', 'Cấu hình thanh toán không hợp lệ!');
             }
-        }
-        
-        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
-        unset($inputData['vnp_SecureHash']);
-        ksort($inputData);
-        
-        $i = 0;
-        $hashdata = "";
-        foreach ($inputData as $key => $value) {
-            if ($i == 1) {
-                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
-            } else {
-                $hashdata .= urlencode($key) . "=" . urlencode($value);
-                $i = 1;
+            
+            $inputData = array();
+            
+            // Lấy toàn bộ tham số trả về
+            foreach ($request->all() as $key => $value) {
+                if (substr($key, 0, 4) == "vnp_") {
+                    $inputData[$key] = $value;
+                }
             }
-        }
+            
+            if (empty($inputData)) {
+                Log::error('VNPay: No vnp_ parameters received');
+                return redirect()->route('home')->with('error', 'Không nhận được dữ liệu từ cổng thanh toán!');
+            }
+            
+            $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+            unset($inputData['vnp_SecureHash']);
+            ksort($inputData);
+            
+            $i = 0;
+            $hashdata = "";
+            foreach ($inputData as $key => $value) {
+                if ($i == 1) {
+                    $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+                } else {
+                    $hashdata .= urlencode($key) . "=" . urlencode($value);
+                    $i = 1;
+                }
+            }
 
-        $secureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
-        
-        // Lấy ID booking từ TxnRef (Ví dụ: 431_1766136978 -> lấy 431)
-        $txnRef = $request->vnp_TxnRef;
-        $parts = explode('_', $txnRef);
-        $bookingId = $parts[0];
+            $secureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+            
+            // Lấy ID booking từ TxnRef (Ví dụ: 431_1766136978 -> lấy 431)
+            $txnRef = $request->vnp_TxnRef ?? '';
+            
+            if (empty($txnRef)) {
+                Log::error('VNPay: TxnRef is missing');
+                return redirect()->route('home')->with('error', 'Mã giao dịch không hợp lệ!');
+            }
+            
+            $parts = explode('_', $txnRef);
+            $bookingId = $parts[0] ?? null;
 
-        // Tìm đơn hàng
-        $booking = DatVe::find($bookingId);
+            if (empty($bookingId)) {
+                Log::error('VNPay: Cannot extract booking ID from TxnRef', ['txn_ref' => $txnRef]);
+                return redirect()->route('home')->with('error', 'Mã đơn hàng không hợp lệ!');
+            }
 
-        if (!$booking) {
-            return redirect()->route('home')->with('error', 'Đơn hàng không tồn tại');
-        }
+            // Tìm đơn hàng
+            $booking = DatVe::find($bookingId);
 
-        // 1. Kiểm tra chữ ký bảo mật
-        if ($secureHash == $vnp_SecureHash) {
-            // 2. Kiểm tra mã lỗi (00 là thành công)
-            if ($request->vnp_ResponseCode == '00') {
+            if (!$booking) {
+                Log::error('VNPay: Booking not found', ['booking_id' => $bookingId]);
+                return redirect()->route('home')->with('error', 'Đơn hàng không tồn tại');
+            }
+
+            // 1. Kiểm tra chữ ký bảo mật
+            if ($secureHash == $vnp_SecureHash) {
+                // 2. Kiểm tra mã lỗi (00 là thành công)
+                if ($request->vnp_ResponseCode == '00') {
                 
                 // === [LOGIC TỰ ĐỘNG XÁC NHẬN] ===
                 DB::transaction(function () use ($booking) {
@@ -194,6 +263,33 @@ class PaymentController extends Controller
                     }
                 });
 
+                // Gửi email xác nhận thanh toán
+                try {
+                    $booking->refresh();
+                    $booking->load(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo', 'chiTietFood', 'thanhToan']);
+                    $userEmail = $booking->nguoiDung->email ?? null;
+                    
+                    if ($userEmail) {
+                        $paymentMethod = $booking->thanhToan->phuong_thuc ?? 'VNPay Online';
+                        
+                        $paymentData = [
+                            'transaction_id' => request()->vnp_TransactionNo ?? null,
+                            'payment_method' => $paymentMethod,
+                            'paid_at' => now(),
+                        ];
+                        
+                        Mail::to($userEmail)->send(new PaymentSuccessMail($booking, $paymentData));
+                        Log::info('Payment success email sent', ['booking_id' => $booking->id, 'email' => $userEmail]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to send payment success email', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Không throw exception để không ảnh hưởng đến flow thanh toán
+                }
+
                 // Chuyển hướng về trang chi tiết vé
                 return redirect()->route('booking.ticket.detail', ['id' => $booking->id])
                     ->with('success', 'Thanh toán thành công! Vé của bạn đã được xác nhận tự động.');
@@ -220,11 +316,24 @@ class PaymentController extends Controller
                     Log::error('Lỗi xóa booking khi thanh toán thất bại: ' . $e->getMessage());
                 }
                 
-                return redirect()->route('home')
-                    ->with('error', 'Giao dịch không thành công hoặc đã bị hủy. Vé đã được hủy tự động.');
+                    return redirect()->route('home')
+                        ->with('error', 'Giao dịch không thành công hoặc đã bị hủy. Vé đã được hủy tự động.');
+                }
+            } else {
+                Log::warning('VNPay: Invalid secure hash', [
+                    'booking_id' => $bookingId,
+                    'expected' => $secureHash,
+                    'received' => $vnp_SecureHash
+                ]);
+                return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
             }
-        } else {
-            return redirect()->route('home')->with('error', 'Chữ ký bảo mật không hợp lệ!');
+        } catch (\Exception $e) {
+            Log::error('VNPay Return Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return redirect()->route('home')->with('error', 'Đã xảy ra lỗi khi xử lý thanh toán. Vui lòng liên hệ hỗ trợ.');
         }
     }
 }

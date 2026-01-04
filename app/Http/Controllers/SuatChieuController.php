@@ -282,6 +282,16 @@ class SuatChieuController extends Controller
      */
     public function edit(SuatChieu $suatChieu)
     {
+        $now = \Carbon\Carbon::now();
+        
+        // Kiểm tra nếu suất chiếu đang chiếu thì không cho phép chỉnh sửa
+        if ($suatChieu->thoi_gian_bat_dau && $suatChieu->thoi_gian_ket_thuc) {
+            if ($now->gte($suatChieu->thoi_gian_bat_dau) && $now->lte($suatChieu->thoi_gian_ket_thuc)) {
+                return redirect()->route('admin.suat-chieu.show', $suatChieu)
+                    ->withErrors(['error' => 'Suất chiếu đang chiếu, không thể chỉnh sửa.']);
+            }
+        }
+        
         // Kiểm tra nếu suất chiếu đã kết thúc thì không cho phép chỉnh sửa
         if ($suatChieu->thoi_gian_ket_thuc && $suatChieu->thoi_gian_ket_thuc->isPast()) {
             return redirect()->route('admin.suat-chieu.show', $suatChieu)
@@ -299,6 +309,15 @@ class SuatChieuController extends Controller
      */
     public function update(Request $request, SuatChieu $suatChieu)
     {
+        $now = \Carbon\Carbon::now();
+        
+        // Bảo vệ backend: Kiểm tra nếu suất chiếu đang chiếu thì không cho phép cập nhật
+        if ($suatChieu->thoi_gian_bat_dau && $suatChieu->thoi_gian_ket_thuc) {
+            if ($now->gte($suatChieu->thoi_gian_bat_dau) && $now->lte($suatChieu->thoi_gian_ket_thuc)) {
+                return back()->withErrors(['error' => 'Suất chiếu đang chiếu, không thể chỉnh sửa.'])->withInput();
+            }
+        }
+        
         // Bảo vệ backend: Kiểm tra nếu suất chiếu đã kết thúc thì không cho phép cập nhật
         if ($suatChieu->thoi_gian_ket_thuc && $suatChieu->thoi_gian_ket_thuc->isPast()) {
             return back()->withErrors(['error' => 'Suất chiếu đã kết thúc, không thể chỉnh sửa.'])->withInput();
@@ -429,6 +448,15 @@ class SuatChieuController extends Controller
      */
     public function destroy(SuatChieu $suatChieu)
     {
+        $now = \Carbon\Carbon::now();
+        
+        // Kiểm tra nếu suất chiếu đang chiếu thì không cho phép xóa
+        if ($suatChieu->thoi_gian_bat_dau && $suatChieu->thoi_gian_ket_thuc) {
+            if ($now->gte($suatChieu->thoi_gian_bat_dau) && $now->lte($suatChieu->thoi_gian_ket_thuc)) {
+                return back()->withErrors(['error' => 'Không thể xóa suất chiếu đang chiếu.']);
+            }
+        }
+        
         // Check if there are any bookings for this suat chieu
         if ($suatChieu->datVe()->exists()) {
             return back()->withErrors(['error' => 'Không thể xóa suất chiếu đã có vé đặt.']);
@@ -452,12 +480,21 @@ class SuatChieuController extends Controller
             
             if ($force) {
                 // Xóa tất cả suất chiếu kể cả có booking (nguy hiểm)
-                // Xóa các booking liên quan trước
+                // Nhưng vẫn bảo vệ các suất chiếu đang chiếu
+                $now = \Carbon\Carbon::now();
                 $showtimes = SuatChieu::all();
                 $deletedCount = 0;
-                $skippedCount = 0;
+                $skippedOngoingCount = 0;
                 
                 foreach ($showtimes as $showtime) {
+                    // Kiểm tra nếu suất chiếu đang chiếu thì bỏ qua
+                    if ($showtime->thoi_gian_bat_dau && $showtime->thoi_gian_ket_thuc) {
+                        if ($now->gte($showtime->thoi_gian_bat_dau) && $now->lte($showtime->thoi_gian_ket_thuc)) {
+                            $skippedOngoingCount++;
+                            continue;
+                        }
+                    }
+                    
                     // Xóa các booking liên quan
                     $bookings = DatVe::where('id_suat_chieu', $showtime->id)->get();
                     foreach ($bookings as $booking) {
@@ -475,28 +512,55 @@ class SuatChieuController extends Controller
                 
                 DB::commit();
                 
+                $message = "Đã xóa {$deletedCount} suất chiếu (bao gồm cả các suất có booking)";
+                if ($skippedOngoingCount > 0) {
+                    $message .= ". Đã bỏ qua {$skippedOngoingCount} suất chiếu đang chiếu";
+                }
+                $message .= ".";
+                
                 return redirect()->route('admin.suat-chieu.index')
-                    ->with('success', "Đã xóa tất cả {$deletedCount} suất chiếu (bao gồm cả các suất có booking).");
+                    ->with('success', $message);
             } else {
-                // Chỉ xóa các suất chiếu chưa có booking (an toàn)
+                // Chỉ xóa các suất chiếu chưa có booking và không đang chiếu (an toàn)
+                $now = \Carbon\Carbon::now();
                 $showtimesWithoutBookings = SuatChieu::doesntHave('datVe')->get();
-                $deletedCount = $showtimesWithoutBookings->count();
+                $deletedCount = 0;
+                $skippedOngoingCount = 0;
                 
                 foreach ($showtimesWithoutBookings as $showtime) {
+                    // Kiểm tra nếu suất chiếu đang chiếu thì bỏ qua
+                    if ($showtime->thoi_gian_bat_dau && $showtime->thoi_gian_ket_thuc) {
+                        if ($now->gte($showtime->thoi_gian_bat_dau) && $now->lte($showtime->thoi_gian_ket_thuc)) {
+                            $skippedOngoingCount++;
+                            continue;
+                        }
+                    }
+                    
                     $showtime->delete();
+                    $deletedCount++;
                 }
                 
                 $totalShowtimes = SuatChieu::count();
                 
                 DB::commit();
                 
+                $message = '';
                 if ($deletedCount > 0) {
-                    return redirect()->route('admin.suat-chieu.index')
-                        ->with('success', "Đã xóa {$deletedCount} suất chiếu chưa có booking. Còn lại {$totalShowtimes} suất chiếu có booking.");
+                    $message = "Đã xóa {$deletedCount} suất chiếu chưa có booking";
+                    if ($skippedOngoingCount > 0) {
+                        $message .= ". Đã bỏ qua {$skippedOngoingCount} suất chiếu đang chiếu";
+                    }
+                    $message .= ". Còn lại {$totalShowtimes} suất chiếu.";
                 } else {
-                    return redirect()->route('admin.suat-chieu.index')
-                        ->with('info', 'Không có suất chiếu nào để xóa (tất cả đều có booking).');
+                    if ($skippedOngoingCount > 0) {
+                        $message = "Không có suất chiếu nào để xóa. Đã bỏ qua {$skippedOngoingCount} suất chiếu đang chiếu.";
+                    } else {
+                        $message = 'Không có suất chiếu nào để xóa (tất cả đều có booking).';
+                    }
                 }
+                
+                return redirect()->route('admin.suat-chieu.index')
+                    ->with($deletedCount > 0 ? 'success' : 'info', $message);
             }
         } catch (\Exception $e) {
             DB::rollBack();

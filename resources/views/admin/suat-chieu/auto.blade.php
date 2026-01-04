@@ -61,7 +61,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs font-medium text-[#a6a6b0] mb-1">Thời lượng phim (phút)</label>
-          <input type="number" id="duration" min="60" step="5" placeholder="Lấy theo phim hoặc nhập" class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white">
+          <input type="number" id="duration" min="60" step="5" placeholder="Lấy theo phim" readonly class="w-full px-3 py-2 bg-[#1a1d24] border border-[#262833] rounded-lg text-white cursor-not-allowed opacity-75">
         </div>
         <div class="flex items-end">
           <label class="inline-flex items-center gap-2 text-sm text-[#a6a6b0]">
@@ -136,22 +136,6 @@
             durEl.value=d;
             // Đảm bảo thời lượng không nhỏ hơn thời lượng phim
             durEl.min = d;
-          }
-        }
-      });
-      
-      // Validate duration khi người dùng nhập
-      durEl.addEventListener('change', function() {
-        const opt = movieSel.selectedOptions[0];
-        if (opt && this.value) {
-          const movieDuration = parseInt(opt.dataset.duration || '');
-          const inputDuration = parseInt(this.value || '0');
-          if (movieDuration && inputDuration < movieDuration) {
-            error.textContent = `Thời lượng suất chiếu (${inputDuration} phút) không thể nhỏ hơn thời lượng phim (${movieDuration} phút).`;
-            error.classList.remove('hidden');
-            this.value = movieDuration;
-          } else {
-            error.classList.add('hidden');
           }
         }
       });

@@ -61,6 +61,15 @@
         </div>
         <!-- Form đăng nhập -->
         <div class="form-container rounded-xl p-8">
+            @if (session('status'))
+                <div class="mb-6 p-4 bg-green-500 bg-opacity-20 border border-green-400 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-400 mt-1 mr-3"></i>
+                        <p class="text-green-200">{{ session('status') }}</p>
+                    </div>
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-6 p-4 bg-red-500 bg-opacity-20 border border-red-400 rounded-lg">
                     <div class="flex items-start">
@@ -105,27 +114,21 @@
                            placeholder="Nhập mật khẩu">
                 </div>
 
-                <!-- Xác nhận mật khẩu -->
-                <div>
-                    <label class="block text-white text-sm font-medium mb-2">
-                        <i class="fas fa-lock mr-2"></i>Xác nhận mật khẩu
-                    </label>
-                    <input type="password" 
-                           name="password_confirmation" 
-                           required
-                           class="w-full px-4 py-3 bg-[#1b1e28] border border-[#262833] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#F53003] focus:border-transparent transition duration-300"
-                           placeholder="Nhập lại mật khẩu">
-                </div>
-
-                <!-- Ghi nhớ đăng nhập -->
-                <div class="flex items-center">
-                    <input type="checkbox" 
-                           name="remember" 
-                           id="remember"
-                           class="w-4 h-4 text-[#F53003] bg-[#1b1e28] border-[#262833] rounded focus:ring-[#F53003] focus:ring-2">
-                    <label for="remember" class="ml-2 text-sm text-gray-300">
-                        Ghi nhớ đăng nhập
-                    </label>
+                <!-- Ghi nhớ đăng nhập và Quên mật khẩu -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input type="checkbox" 
+                               name="remember" 
+                               id="remember"
+                               class="w-4 h-4 text-[#F53003] bg-[#1b1e28] border-[#262833] rounded focus:ring-[#F53003] focus:ring-2">
+                        <label for="remember" class="ml-2 text-sm text-gray-300">
+                            Ghi nhớ đăng nhập
+                        </label>
+                    </div>
+                    <a href="{{ route('password.request') }}" 
+                       class="text-sm text-[#F53003] hover:text-[#e02a00] transition duration-300">
+                        Quên mật khẩu?
+                    </a>
                 </div>
 
                 <!-- Nút đăng nhập -->

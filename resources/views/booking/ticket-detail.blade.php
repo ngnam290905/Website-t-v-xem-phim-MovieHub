@@ -575,27 +575,11 @@
                     @endif
                 </div>
                 <div class="flex gap-3">
-                    @if($isPaid)
-                        @if(isset($isPrinted) && $isPrinted)
-                            <button 
-                                disabled
-                                class="px-6 py-3 bg-gray-600 text-gray-400 rounded-lg font-semibold cursor-not-allowed flex items-center gap-2 print-hidden"
-                            >
-                                <i class="fas fa-print"></i>
-                                <span>Đã in</span>
-                            </button>
-                        @else
-                            <button 
-                                id="print-ticket-btn"
-                                onclick="printTicket({{ $booking->id }})"
-                                class="px-6 py-3 bg-gradient-to-r from-[#0077c8] to-[#0099e6] text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-[#0077c8]/50 transition-all flex items-center gap-2 print-hidden"
-                            >
-                                <i class="fas fa-print"></i>
-                                <span>In vé</span>
-                            </button>
-                        @endif
-                    @endif
-                    
+                    {{-- Chức năng in vé đã được chuyển sang phần quản trị --}}
+                    <p class="text-[#a6a6b0] text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Vui lòng liên hệ quầy để in vé
+                    </p>
                 </div>
             </div>
         </div>
@@ -605,66 +589,8 @@
 <!-- QR Code Library -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-let isPrinting = false;
-
-async function printTicket(bookingId) {
-    if (isPrinting) {
-        return;
-    }
-
-    const printBtn = document.getElementById('print-ticket-btn');
-    if (!printBtn || printBtn.disabled) {
-        // Vé đã được in rồi, chỉ cho phép xem
-        window.print();
-        return;
-    }
-
-    isPrinting = true;
-    printBtn.disabled = true;
-    printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang xử lý...</span>';
-
-    try {
-        // Gọi API để đánh dấu đã in
-        const response = await fetch(`/tickets/${bookingId}/mark-printed`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Đánh dấu thành công, tiến hành in
-            printBtn.innerHTML = '<i class="fas fa-check"></i> <span>Đã in</span>';
-            printBtn.classList.remove('bg-gradient-to-r', 'from-[#0077c8]', 'to-[#0099e6]', 'hover:shadow-lg', 'hover:shadow-[#0077c8]/50');
-            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
-            
-            // In vé
-            setTimeout(() => {
-                window.print();
-            }, 500);
-        } else {
-            // Vé đã được in rồi
-            alert('Vé này đã được in rồi. Thời gian in: ' + (data.printed_at || 'N/A'));
-            printBtn.disabled = true;
-            printBtn.innerHTML = '<i class="fas fa-print"></i> <span>Đã in</span>';
-            printBtn.classList.remove('bg-gradient-to-r', 'from-[#0077c8]', 'to-[#0099e6]', 'hover:shadow-lg', 'hover:shadow-[#0077c8]/50');
-            printBtn.classList.add('bg-gray-600', 'text-gray-400', 'cursor-not-allowed');
-        }
-    } catch (error) {
-        console.error('Error marking ticket as printed:', error);
-        // Vẫn cho phép in nếu API lỗi (fallback)
-        alert('Có lỗi xảy ra, nhưng vẫn có thể in vé.');
-        window.print();
-        printBtn.disabled = false;
-        printBtn.innerHTML = '<i class="fas fa-print"></i> <span>In vé</span>';
-    } finally {
-        isPrinting = false;
-    }
-}
+// Chức năng in vé đã được chuyển sang phần quản trị
+// Function printTicket đã bị loại bỏ
 
 function cancelTicket(bookingId) {
     if (confirm('Bạn có chắc chắn muốn hủy vé này? Hành động này không thể hoàn tác.')) {

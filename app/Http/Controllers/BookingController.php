@@ -18,8 +18,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 use App\Http\Controllers\PaymentController;
+use App\Mail\BookingConfirmationMail;
 
 class BookingController extends Controller
 {
@@ -2058,6 +2060,29 @@ class BookingController extends Controller
 
                 // Commit transaction bên ngoài (DB::transaction() đã commit transaction bên trong)
                 DB::commit();
+                
+                // Gửi email xác nhận đặt vé ngay lập tức
+                try {
+                    $booking->refresh();
+                    $booking->load(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo', 'chiTietFood']);
+                    $userEmail = $booking->nguoiDung->email ?? null;
+                    
+                    if ($userEmail) {
+                        Mail::to($userEmail)->send(new BookingConfirmationMail($booking));
+                        Log::info('Booking confirmation email sent', [
+                            'booking_id' => $booking->id,
+                            'email' => $userEmail,
+                            'payment_method' => $paymentMethod
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to send booking confirmation email', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Không throw exception để không ảnh hưởng đến flow đặt vé
+                }
                 
                 // Nếu thanh toán online, tạo URL VNPAY và redirect
                 if ($paymentMethod === 'online') {

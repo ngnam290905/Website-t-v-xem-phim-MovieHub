@@ -115,25 +115,44 @@
                 <a href="{{ route('admin.movies.show', $movie) }}" class="btn-table-action btn-table-view" title="Xem chi tiết">
                   <i class="fas fa-eye text-xs"></i>
                 </a>
-                @php $roleName = optional(auth()->user()->vaiTro)->ten; @endphp
+                @php 
+                  $roleName = optional(auth()->user()->vaiTro)->ten;
+                  $coSuatChieuTuongLai = $movie->co_suat_chieu_tuong_lai;
+                @endphp
                 @if(auth()->user() && in_array($roleName, ['admin','staff','Nhân viên','nhan vien','NV','nv','Nhan vien']))
-                  <a href="{{ route('admin.movies.edit', $movie) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
-                    <i class="fas fa-edit text-xs"></i>
-                  </a>
-                  <form action="{{ route('admin.movies.toggle-status', $movie) }}" method="POST" onsubmit="return confirm('Đổi trạng thái phim này?')">
-                    @csrf
-                    @method('PATCH')
-                    <button type="submit" class="btn-table-action bg-purple-600 hover:bg-purple-700" title="Đổi trạng thái">
-                      <i class="fas fa-sync text-xs"></i>
-                    </button>
-                  </form>
-                  <form action="{{ route('admin.movies.destroy', $movie) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phim này?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-table-action btn-table-delete" title="Xóa">
+                  @if($coSuatChieuTuongLai)
+                    <span class="btn-table-action bg-gray-600 cursor-not-allowed opacity-50" title="Không thể chỉnh sửa phim đang chiếu">
+                      <i class="fas fa-edit text-xs"></i>
+                    </span>
+                    <form action="{{ route('admin.movies.toggle-status', $movie) }}" method="POST" onsubmit="return confirm('Đổi trạng thái phim này?')">
+                      @csrf
+                      @method('PATCH')
+                      <button type="submit" class="btn-table-action bg-purple-600 hover:bg-purple-700" title="Đổi trạng thái">
+                        <i class="fas fa-sync text-xs"></i>
+                      </button>
+                    </form>
+                    <span class="btn-table-action bg-gray-600 cursor-not-allowed opacity-50" title="Không thể xóa phim đang chiếu">
                       <i class="fas fa-trash text-xs"></i>
-                    </button>
-                  </form>
+                    </span>
+                  @else
+                    <a href="{{ route('admin.movies.edit', $movie) }}" class="btn-table-action btn-table-edit" title="Chỉnh sửa">
+                      <i class="fas fa-edit text-xs"></i>
+                    </a>
+                    <form action="{{ route('admin.movies.toggle-status', $movie) }}" method="POST" onsubmit="return confirm('Đổi trạng thái phim này?')">
+                      @csrf
+                      @method('PATCH')
+                      <button type="submit" class="btn-table-action bg-purple-600 hover:bg-purple-700" title="Đổi trạng thái">
+                        <i class="fas fa-sync text-xs"></i>
+                      </button>
+                    </form>
+                    <form action="{{ route('admin.movies.destroy', $movie) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phim này?')">
+                      @csrf
+                      @method('DELETE')
+                      <button type="submit" class="btn-table-action btn-table-delete" title="Xóa">
+                        <i class="fas fa-trash text-xs"></i>
+                      </button>
+                    </form>
+                  @endif
                 @endif
               </div>
             </div>

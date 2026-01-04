@@ -14,8 +14,20 @@ class BookingFlowController extends Controller
      */
     public function index()
     {
-        $movies = Phim::where('trang_thai', 'dang_chieu')
-            ->orderBy('ngay_khoi_chieu', 'desc')
+        // Get movies that are currently showing or coming soon, and have available showtimes
+        $now = now();
+        
+        $movies = Phim::whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
+            ->whereHas('suatChieu', function($query) use ($now) {
+                $query->where('trang_thai', 1) // Only active showtimes
+                    ->where('thoi_gian_ket_thuc', '>', $now) // Showtimes that haven't ended
+                    ->whereHas('phongChieu', function($q) {
+                        $q->where('trang_thai', 1); // Only showtimes in active rooms
+                    });
+            })
+            ->orderByRaw("FIELD(trang_thai, 'dang_chieu','sap_chieu')") // Show currently showing movies first
+            ->orderByDesc('diem_danh_gia')
+            ->orderByDesc('ngay_khoi_chieu')
             ->get();
 
         return view('booking.index', compact('movies'));
@@ -28,9 +40,10 @@ class BookingFlowController extends Controller
     {
         $movie = Phim::findOrFail($movieId);
 
-        if ($movie->trang_thai !== 'dang_chieu') {
+        // Allow both currently showing and coming soon movies
+        if (!in_array($movie->trang_thai, ['dang_chieu', 'sap_chieu'])) {
             return redirect()->route('booking.index')
-                ->with('error', 'Phim này không còn đang chiếu.');
+                ->with('error', 'Phim này hiện không có thể đặt vé.');
         }
 
         $selectedDate = request()->get('date', now()->format('Y-m-d'));

@@ -15,6 +15,7 @@ use App\Models\Phim;
 use App\Models\NguoiDung;
 use App\Models\ThanhToan;
 use App\Mail\TicketMail;
+use App\Mail\PaymentSuccessMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1248,6 +1249,33 @@ class QuanLyDatVeController extends Controller
             }
             
             DB::commit();
+            
+            // Gửi email xác nhận thanh toán
+            try {
+                $booking->refresh();
+                $booking->load(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo', 'chiTietFood', 'thanhToan']);
+                $userEmail = $booking->nguoiDung->email ?? null;
+                
+                if ($userEmail) {
+                    $paymentMethod = $payment->phuong_thuc ?? 'Chuyển khoản QR';
+                    
+                    $paymentData = [
+                        'transaction_id' => $payment->ma_giao_dich ?? null,
+                        'payment_method' => $paymentMethod,
+                        'paid_at' => now(),
+                    ];
+                    
+                    Mail::to($userEmail)->send(new PaymentSuccessMail($booking, $paymentData));
+                    Log::info('Payment success email sent (QR)', ['booking_id' => $booking->id, 'email' => $userEmail]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to send payment success email (QR)', [
+                    'booking_id' => $booking->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Không throw exception để không ảnh hưởng đến flow thanh toán
+            }
             
             return response()->json([
                 'success' => true,

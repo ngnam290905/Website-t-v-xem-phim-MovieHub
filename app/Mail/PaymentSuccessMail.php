@@ -23,7 +23,8 @@ class PaymentSuccessMail extends Mailable
     public function build()
     {
         $movieName = $this->booking->suatChieu->phim->ten_phim ?? 'Vé xem phim';
-        return $this->subject("✅ Thanh toán thành công - {$movieName}")
+        return $this->from(config('mail.from.address'), config('mail.from.name', 'MovieHub'))
+                    ->subject("✅ Thanh toán thành công - {$movieName}")
                     ->view('emails.payment-success');
     }
 }
