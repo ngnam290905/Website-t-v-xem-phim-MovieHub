@@ -211,9 +211,9 @@
                 'Accept': 'application/json'
               },
               body: JSON.stringify({
+                movie_id: r.movieId,
                 room_id: r.roomId,
-                start_time: r.startISO,
-                end_time: r.endISO
+                start_time: r.startISO
               })
             });
             

@@ -760,6 +760,13 @@ class BookingController extends Controller
                     ->with('error', 'Thông tin suất chiếu không hợp lệ.');
             }
 
+            // Phòng mới tạo có thể chưa được cấu hình ghế.
+            // Không hiển thị VIP/ghế đôi mặc định; chỉ hiển thị khi đã có ghế theo phòng.
+            if (!$room->seats()->exists()) {
+                return redirect()->route('booking.index')
+                    ->with('error', 'Phòng chiếu chưa được cấu hình ghế. Vui lòng chọn suất chiếu khác hoặc liên hệ quản trị viên.');
+            }
+
             // Get combos, foods and promotions
             $combos = Combo::where('trang_thai', 1)->get();
             try {

@@ -574,8 +574,8 @@
 
         function loadShowtimes() {
             const movieId = document.getElementById('movie_id').value;
-            // Luôn lấy ngày hôm nay cho đặt vé tại quầy
-            const today = new Date().toISOString().split('T')[0];
+            // Luôn lấy ngày từ input (local) để tránh lệch ngày do UTC (toISOString)
+            const today = document.getElementById('show_date')?.value || new Date().toLocaleDateString('en-CA');
             const select = document.getElementById('showtime_id');
 
             if (!movieId) {

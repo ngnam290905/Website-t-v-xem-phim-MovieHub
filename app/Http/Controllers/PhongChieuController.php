@@ -86,6 +86,7 @@ class PhongChieuController extends Controller
             'cols' => 'required|integer|min:1|max:30',
             'description' => 'nullable|string|max:1000',
             'status' => 'required|string|in:active,inactive',
+            'seat_type' => 'nullable|string|in:normal,vip,couple',
             // Advanced seat type blocks (optional)
             'seat_blocks' => 'nullable|string',
         ]);
@@ -101,35 +102,40 @@ class PhongChieuController extends Controller
                 'status' => $request->status,
             ]);
 
-            // Generate seats (default type)
-            $this->createSeatsForRoom($phongChieu, $request->rows, $request->cols, $request->get('seat_type', 'normal'));
+            // Tạo ghế ngay khi tạo phòng theo cấu hình admin.
+            // VIP/COUPLE chỉ xuất hiện nếu admin chọn seat_type hoặc cấu hình seat_blocks.
+            $this->createSeatsForRoom(
+                $phongChieu,
+                (int) $request->rows,
+                (int) $request->cols,
+                $request->get('seat_type', 'normal')
+            );
 
-            // Apply advanced seat type blocks, if provided
+            // Apply advanced seat type blocks (if provided)
             if ($request->filled('seat_blocks')) {
-                $blocksJson = $request->string('seat_blocks');
+                $blocksJson = (string) $request->string('seat_blocks');
                 try {
-                    $blocks = json_decode((string) $blocksJson, true, 512, JSON_THROW_ON_ERROR);
+                    $blocks = json_decode($blocksJson, true, 512, JSON_THROW_ON_ERROR);
                 } catch (\Throwable $e) {
                     $blocks = [];
                 }
 
                 if (is_array($blocks)) {
                     foreach ($blocks as $block) {
-                        // Expected keys: row_from, row_to, col_from, col_to, id_loai
                         $rowFrom = max(1, (int)($block['row_from'] ?? 0));
                         $rowTo   = max($rowFrom, (int)($block['row_to'] ?? 0));
                         $colFrom = max(1, (int)($block['col_from'] ?? 0));
                         $colTo   = max($colFrom, (int)($block['col_to'] ?? 0));
                         $typeId  = (int)($block['id_loai'] ?? 0);
 
-                        if ($rowFrom <= 0 || $colFrom <= 0 || $typeId <= 0) {
+                        if ($typeId <= 0) {
                             continue;
                         }
-                        // Clamp to room bounds
-                        $rowTo = min($rowTo, (int)$request->rows);
-                        $colTo = min($colTo, (int)$request->cols);
 
-                        // Build seat codes for the rectangle and update in bulk
+                        // Clamp to room bounds
+                        $rowTo = min($rowTo, (int) $request->rows);
+                        $colTo = min($colTo, (int) $request->cols);
+
                         $codes = [];
                         for ($r = $rowFrom; $r <= $rowTo; $r++) {
                             $rowLabel = chr(64 + $r);
@@ -137,6 +143,7 @@ class PhongChieuController extends Controller
                                 $codes[] = $rowLabel . $c;
                             }
                         }
+
                         if (!empty($codes)) {
                             Ghe::where('id_phong', $phongChieu->id)
                                 ->whereIn('so_ghe', $codes)
@@ -497,42 +504,25 @@ class PhongChieuController extends Controller
         $coupleTypeId = $coupleSeatType ? $coupleSeatType->id : ($normalSeatType ? $normalSeatType->id : 1);
         
         $seats = [];
-        
-        // Cấu trúc ghế: mỗi hàng có 19 ghế, hàng L có 16 ghế đôi
-        // Ghế VIP: D3-D16 và J3-J16
-        // Hàng L: ghế đôi từ L1-L16
-        
+
+        // Xác định loại ghế mặc định theo lựa chọn admin.
+        // Lưu ý: KHÔNG hardcode ghế VIP/ghế đôi theo hàng/cột. VIP/COUPLE chỉ xuất hiện
+        // khi admin cấu hình qua seat_blocks hoặc trang quản lý ghế.
+        $defaultTypeKey = strtolower((string) $defaultType);
+        $defaultTypeId = match ($defaultTypeKey) {
+            'vip' => $vipTypeId,
+            'couple', 'doi', 'đôi' => $coupleTypeId,
+            default => $normalTypeId,
+        };
+
         for ($row = 1; $row <= $rows; $row++) {
-            $rowLetter = chr(64 + $row); // A, B, C, D, ...
-            
-            // Xác định số ghế cho hàng này
-            // Hàng L (row 12) chỉ có 16 ghế đôi
-            $maxCols = ($rowLetter === 'L') ? 16 : $cols;
-            
-            for ($col = 1; $col <= $maxCols; $col++) {
-                $seatCode = $rowLetter . $col; // A1, A2, D3, D16, J3, J16, L1, L16...
-                
-                // Xác định loại ghế
-                $seatTypeId = $normalTypeId; // Mặc định là ghế thường
-                
-                // Hàng L: tất cả là ghế đôi
-                if ($rowLetter === 'L') {
-                    $seatTypeId = $coupleTypeId;
-                }
-                // Hàng D (row 4): ghế 3-16 là VIP
-                elseif ($rowLetter === 'D' && $col >= 3 && $col <= 16) {
-                    $seatTypeId = $vipTypeId;
-                }
-                // Hàng J (row 10): ghế 3-16 là VIP
-                elseif ($rowLetter === 'J' && $col >= 3 && $col <= 16) {
-                    $seatTypeId = $vipTypeId;
-                }
-                
+            $rowLetter = chr(64 + $row); // A, B, C, ...
+            for ($col = 1; $col <= $cols; $col++) {
                 $seats[] = [
                     'id_phong' => $phongChieu->id,
-                    'id_loai' => $seatTypeId,
+                    'id_loai' => $defaultTypeId,
                     'so_hang' => $row,
-                    'so_ghe' => $seatCode,
+                    'so_ghe' => $rowLetter . $col,
                     'trang_thai' => 1,
                 ];
             }

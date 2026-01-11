@@ -16,6 +16,12 @@
                 </button>
             @else
                 @if($ticket->checked_in)
+                    <a
+                        href="{{ route('admin.scan.print-multiple', ['id' => $ticket->id]) }}"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition print-hidden"
+                    >
+                        <i class="fas fa-external-link-alt mr-2"></i>Trang in vé
+                    </a>
                     <button 
                         id="print-ticket-btn"
                         onclick="printTicket({{ $ticket->id }})"

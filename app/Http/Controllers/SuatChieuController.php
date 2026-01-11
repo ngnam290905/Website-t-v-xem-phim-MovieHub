@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\DB;
 
 class SuatChieuController extends Controller
 {
+    private const CLEANING_TIME = 15;
+
     /**
      * Display a listing of the resource.
      */
@@ -151,12 +153,18 @@ class SuatChieuController extends Controller
             'movie_id' => 'required|exists:phim,id',
             'room_id' => 'required|exists:phong_chieu,id',
             'start_time' => 'required|date|after:now',
-            'end_time' => 'required|date|after:start_time',
+            'end_time' => 'nullable|date|after:start_time',
         ]);
+
+        $phim = Phim::find($request->movie_id);
+        if (!$phim || !$phim->do_dai) {
+            return back()->withErrors(['movie_id' => 'Không tìm thấy thời lượng phim để tính giờ kết thúc.'])->withInput();
+        }
 
         // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
         $startTime = \Carbon\Carbon::parse($request->start_time);
-        $endTime = \Carbon\Carbon::parse($request->end_time);
+        $endTime = $startTime->copy()->addMinutes($phim->do_dai);
+        $endTimeWithCleaning = $endTime->copy()->addMinutes(self::CLEANING_TIME);
         $now = \Carbon\Carbon::now();
         
         // Kiểm tra start_time không được trong quá khứ
@@ -165,8 +173,8 @@ class SuatChieuController extends Controller
             return back()->withErrors(['start_time' => 'Không thể tạo suất chiếu vào thời gian quá khứ.'])->withInput();
         }
         $startHour = $startTime->hour;
-        $endHour = $endTime->hour;
-        $endMinute = $endTime->minute;
+        $endHour = $endTimeWithCleaning->hour;
+        $endMinute = $endTimeWithCleaning->minute;
         
         // Kiểm tra giờ bắt đầu: cho phép từ 00:00 đến 23:59 (bất kỳ giờ nào trong ngày)
         // Bỏ giới hạn 8:00 để cho phép suất chiếu ban đêm từ 00:00 trở đi
@@ -177,7 +185,7 @@ class SuatChieuController extends Controller
         // Kiểm tra giờ kết thúc: 
         // - Nếu cùng ngày: cho phép từ 00:00 đến 23:59 hoặc kết thúc đúng 00:00 ngày hôm sau
         // - Nếu khác ngày: cho phép kết thúc từ 00:00 trở đi
-        $isSameDay = $endTime->format('Y-m-d') == $startTime->format('Y-m-d');
+        $isSameDay = $endTimeWithCleaning->format('Y-m-d') == $startTime->format('Y-m-d');
         
         if ($isSameDay) {
             // Cùng ngày: giờ kết thúc phải từ 00:00 đến 23:59 hoặc đúng 00:00 ngày hôm sau
@@ -189,20 +197,11 @@ class SuatChieuController extends Controller
             // Không cần kiểm tra gì thêm vì đã validate end_time > start_time
         }
 
-        // Kiểm tra thời lượng suất chiếu phải >= thời lượng phim
-        $phim = Phim::find($request->movie_id);
-        if ($phim && $phim->do_dai) {
-            $durationMinutes = $startTime->diffInMinutes($endTime);
-            if ($durationMinutes < $phim->do_dai) {
-                return back()->withErrors(['end_time' => "Thời gian suất chiếu ({$durationMinutes} phút) không thể nhỏ hơn thời lượng phim ({$phim->do_dai} phút)."])->withInput();
-            }
-        }
-
         // Check for time conflicts - kiểm tra overlap giữa 2 khoảng thời gian
         // Trước tiên kiểm tra trùng hoàn toàn (cùng ngày, cùng phòng, cùng thời gian)
         $exactDuplicate = SuatChieu::where('id_phong', $request->room_id)
             ->where('thoi_gian_bat_dau', $request->start_time)
-            ->where('thoi_gian_ket_thuc', $request->end_time)
+            ->where('thoi_gian_ket_thuc', $endTime)
             ->with('phim')
             ->first();
         
@@ -216,23 +215,25 @@ class SuatChieuController extends Controller
             ])->withInput();
         }
         
-        // Kiểm tra tất cả các trường hợp trùng (overlap):
-        // 1. Suất mới nằm hoàn toàn trong suất cũ: oldStart <= newStart && oldEnd >= newEnd
-        // 2. Suất mới bao trùm suất cũ: newStart <= oldStart && newEnd >= oldEnd
-        // 3. Suất mới bắt đầu khi suất cũ chưa kết thúc: newStart < oldEnd && newStart >= oldStart
-        // 4. Suất mới kết thúc khi suất cũ đã bắt đầu: newEnd > oldStart && newEnd <= oldEnd
-        // 5. Hai suất chiếu chạm nhau: oldEnd == newStart || newEnd == oldStart
-        // Logic tổng quát: Overlap nếu: oldStart <= newEnd && oldEnd >= newStart
+        // Kiểm tra overlap (tính cả thời gian dọn phòng 15p sau suất cũ)
+        // Cho phép suất mới bắt đầu đúng lúc oldEnd + CLEANING_TIME
+        // Overlap nếu: oldStart < newEndWithCleaning && (oldEnd + CLEANING_TIME) > newStart
         $conflict = SuatChieu::where('id_phong', $request->room_id)
-            ->where('thoi_gian_bat_dau', '<=', $request->end_time)
-            ->where('thoi_gian_ket_thuc', '>=', $request->start_time)
+            ->where('thoi_gian_bat_dau', '<', $endTimeWithCleaning)
+            ->whereRaw(
+                "DATE_ADD(thoi_gian_ket_thuc, INTERVAL " . self::CLEANING_TIME . " MINUTE) > ?",
+                [$request->start_time]
+            )
             ->exists();
 
         if ($conflict) {
             // Lấy thông tin suất chiếu bị trùng để hiển thị chi tiết
             $conflictingShowtime = SuatChieu::where('id_phong', $request->room_id)
-                ->where('thoi_gian_bat_dau', '<=', $request->end_time)
-                ->where('thoi_gian_ket_thuc', '>=', $request->start_time)
+                ->where('thoi_gian_bat_dau', '<', $endTimeWithCleaning)
+                ->whereRaw(
+                    "DATE_ADD(thoi_gian_ket_thuc, INTERVAL " . self::CLEANING_TIME . " MINUTE) > ?",
+                    [$request->start_time]
+                )
                 ->with('phim')
                 ->first();
             
@@ -254,7 +255,7 @@ class SuatChieuController extends Controller
             'id_phim' => $request->movie_id,
             'id_phong' => $request->room_id,
             'thoi_gian_bat_dau' => $request->start_time,
-            'thoi_gian_ket_thuc' => $request->end_time,
+            'thoi_gian_ket_thuc' => $endTime,
             'trang_thai' => 1
         ]);
 
@@ -334,13 +335,19 @@ class SuatChieuController extends Controller
             'movie_id' => 'required|exists:phim,id',
             'room_id' => 'required|exists:phong_chieu,id',
             'start_time' => 'required|date',
-            'end_time' => 'required|date|after:start_time',
+            'end_time' => 'nullable|date|after:start_time',
             'status' => 'string|in:coming,ongoing,finished'
         ]);
 
+        $phim = Phim::find($request->movie_id);
+        if (!$phim || !$phim->do_dai) {
+            return back()->withErrors(['movie_id' => 'Không tìm thấy thời lượng phim để tính giờ kết thúc.'])->withInput();
+        }
+
         // Kiểm tra giờ hoạt động: 00:00 - 24:00 (cho phép suất chiếu ban đêm)
         $startTime = \Carbon\Carbon::parse($request->start_time);
-        $endTime = \Carbon\Carbon::parse($request->end_time);
+        $endTime = $startTime->copy()->addMinutes($phim->do_dai);
+        $endTimeWithCleaning = $endTime->copy()->addMinutes(self::CLEANING_TIME);
         $now = \Carbon\Carbon::now();
         
         // Kiểm tra start_time không được trong quá khứ
@@ -350,8 +357,8 @@ class SuatChieuController extends Controller
         }
         
         $startHour = $startTime->hour;
-        $endHour = $endTime->hour;
-        $endMinute = $endTime->minute;
+        $endHour = $endTimeWithCleaning->hour;
+        $endMinute = $endTimeWithCleaning->minute;
         
         // Kiểm tra giờ bắt đầu: cho phép từ 00:00 đến 23:59 (bất kỳ giờ nào trong ngày)
         // Bỏ giới hạn 8:00 để cho phép suất chiếu ban đêm từ 00:00 trở đi
@@ -360,7 +367,7 @@ class SuatChieuController extends Controller
         }
         
         // Kiểm tra giờ kết thúc
-        $isSameDay = $endTime->format('Y-m-d') == $startTime->format('Y-m-d');
+        $isSameDay = $endTimeWithCleaning->format('Y-m-d') == $startTime->format('Y-m-d');
         
         if ($isSameDay) {
             // Cùng ngày: giờ kết thúc phải từ 00:00 đến 23:59 hoặc đúng 00:00 ngày hôm sau
@@ -372,21 +379,12 @@ class SuatChieuController extends Controller
             // Không cần kiểm tra gì thêm vì đã validate end_time > start_time
         }
 
-        // Kiểm tra thời lượng suất chiếu phải >= thời lượng phim
-        $phim = Phim::find($request->movie_id);
-        if ($phim && $phim->do_dai) {
-            $durationMinutes = $startTime->diffInMinutes($endTime);
-            if ($durationMinutes < $phim->do_dai) {
-                return back()->withErrors(['end_time' => "Thời gian suất chiếu ({$durationMinutes} phút) không thể nhỏ hơn thời lượng phim ({$phim->do_dai} phút)."])->withInput();
-            }
-        }
-
         // Check for time conflicts (excluding current suat chieu)
         // Trước tiên kiểm tra trùng hoàn toàn (cùng ngày, cùng phòng, cùng thời gian)
         $exactDuplicate = SuatChieu::where('id_phong', $request->room_id)
             ->where('id', '!=', $suatChieu->id)
             ->where('thoi_gian_bat_dau', $request->start_time)
-            ->where('thoi_gian_ket_thuc', $request->end_time)
+            ->where('thoi_gian_ket_thuc', $endTime)
             ->with('phim')
             ->first();
         
@@ -400,20 +398,27 @@ class SuatChieuController extends Controller
             ])->withInput();
         }
         
-        // Kiểm tra tất cả các trường hợp trùng (overlap), bao gồm cả chạm nhau
-        // Overlap nếu: oldStart <= newEnd && oldEnd >= newStart
+        // Kiểm tra overlap (tính cả thời gian dọn phòng 15p sau suất cũ)
+        // Cho phép suất mới bắt đầu đúng lúc oldEnd + CLEANING_TIME
+        // Overlap nếu: oldStart < newEndWithCleaning && (oldEnd + CLEANING_TIME) > newStart
         $conflict = SuatChieu::where('id_phong', $request->room_id)
             ->where('id', '!=', $suatChieu->id)
-            ->where('thoi_gian_bat_dau', '<=', $request->end_time)
-            ->where('thoi_gian_ket_thuc', '>=', $request->start_time)
+            ->where('thoi_gian_bat_dau', '<', $endTimeWithCleaning)
+            ->whereRaw(
+                "DATE_ADD(thoi_gian_ket_thuc, INTERVAL " . self::CLEANING_TIME . " MINUTE) > ?",
+                [$request->start_time]
+            )
             ->exists();
 
         if ($conflict) {
             // Lấy thông tin suất chiếu bị trùng để hiển thị chi tiết
             $conflictingShowtime = SuatChieu::where('id_phong', $request->room_id)
                 ->where('id', '!=', $suatChieu->id)
-                ->where('thoi_gian_bat_dau', '<=', $request->end_time)
-                ->where('thoi_gian_ket_thuc', '>=', $request->start_time)
+                ->where('thoi_gian_bat_dau', '<', $endTimeWithCleaning)
+                ->whereRaw(
+                    "DATE_ADD(thoi_gian_ket_thuc, INTERVAL " . self::CLEANING_TIME . " MINUTE) > ?",
+                    [$request->start_time]
+                )
                 ->with('phim')
                 ->first();
             
@@ -435,7 +440,7 @@ class SuatChieuController extends Controller
             'id_phim' => $request->movie_id,
             'id_phong' => $request->room_id,
             'thoi_gian_bat_dau' => $request->start_time,
-            'thoi_gian_ket_thuc' => $request->end_time,
+            'thoi_gian_ket_thuc' => $endTime,
             'trang_thai' => 1
         ]);
 
@@ -613,16 +618,29 @@ class SuatChieuController extends Controller
     {
         $request->validate([
             'room_id' => 'required|exists:phong_chieu,id',
+            'movie_id' => 'required|exists:phim,id',
             'start_time' => 'required|date',
-            'end_time' => 'required|date',
+            'end_time' => 'nullable|date',
         ]);
 
         $startTime = \Carbon\Carbon::parse($request->start_time);
 
+        $phim = Phim::find($request->movie_id);
+        if (!$phim || !$phim->do_dai) {
+            return response()->json([
+                'has_conflict' => true,
+                'conflict_type' => 'missing_duration',
+                'message' => 'Không tìm thấy thời lượng phim để tính giờ kết thúc.'
+            ], 422);
+        }
+
+        $endTime = $startTime->copy()->addMinutes($phim->do_dai);
+        $endTimeWithCleaning = $endTime->copy()->addMinutes(self::CLEANING_TIME);
+
         // Kiểm tra trùng hoàn toàn
         $exactDuplicate = SuatChieu::where('id_phong', $request->room_id)
             ->where('thoi_gian_bat_dau', $request->start_time)
-            ->where('thoi_gian_ket_thuc', $request->end_time)
+            ->where('thoi_gian_ket_thuc', $endTime)
             ->with('phim')
             ->first();
         
@@ -640,10 +658,14 @@ class SuatChieuController extends Controller
             ]);
         }
 
-        // Kiểm tra overlap
+        // Kiểm tra overlap (tính cả thời gian dọn phòng 15p sau suất cũ)
+        // Overlap nếu: oldStart < newEndWithCleaning && (oldEnd + CLEANING_TIME) > newStart
         $conflictingShowtime = SuatChieu::where('id_phong', $request->room_id)
-            ->where('thoi_gian_bat_dau', '<=', $request->end_time)
-            ->where('thoi_gian_ket_thuc', '>=', $request->start_time)
+            ->where('thoi_gian_bat_dau', '<', $endTimeWithCleaning)
+            ->whereRaw(
+                "DATE_ADD(thoi_gian_ket_thuc, INTERVAL " . self::CLEANING_TIME . " MINUTE) > ?",
+                [$request->start_time]
+            )
             ->with('phim')
             ->first();
 
@@ -675,7 +697,7 @@ class SuatChieuController extends Controller
         try {
             $newSuatChieu = $suatChieu->replicate();
             $newSuatChieu->thoi_gian_bat_dau = now()->addDay(); // Set to tomorrow
-            $newSuatChieu->thoi_gian_ket_thuc = now()->addDay()->addMinutes($suatChieu->phim->do_dai ?? 120);
+            $newSuatChieu->thoi_gian_ket_thuc = now()->addDay()->addMinutes(($suatChieu->phim->do_dai ?? 120));
             $newSuatChieu->trang_thai = 1;
             $newSuatChieu->save();
 

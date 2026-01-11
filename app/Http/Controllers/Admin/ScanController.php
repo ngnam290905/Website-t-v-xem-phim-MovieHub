@@ -282,6 +282,16 @@ class ScanController extends Controller
             ->where('trang_thai', 1)
             ->get();
 
+        // Chỉ cho phép in 1 lần
+        $alreadyPrinted = $tickets->filter(function ($t) {
+            return (bool) ($t->da_in ?? false);
+        });
+        if ($alreadyPrinted->isNotEmpty()) {
+            $first = $alreadyPrinted->first();
+            $printedAt = $first->thoi_gian_in ? $first->thoi_gian_in->format('d/m/Y H:i:s') : 'N/A';
+            return redirect()->back()->with('error', 'Vé này đã được in trước đó (' . $printedAt . '). Không thể in lại.');
+        }
+
         // Build per-seat printable items
         $printItems = [];
         foreach ($tickets as $ticket) {
@@ -294,7 +304,46 @@ class ScanController extends Controller
             }
         }
 
-        return view('admin.scan.print-multiple', compact('printItems'));
+        // Build per-combo printable items (each combo line = one separate voucher)
+        $comboPrintItems = [];
+        foreach ($tickets as $ticket) {
+            foreach (($ticket->chiTietCombo ?? collect()) as $comboDetail) {
+                $combo = $comboDetail->combo;
+                $comboName = $combo->ten ?? $combo->ten_combo ?? 'Combo';
+                $qty = max(1, (int)($comboDetail->so_luong ?? 1));
+                $unit = (float)($comboDetail->gia_ap_dung ?? ($combo->gia ?? 0));
+                $comboPrintItems[] = [
+                    'booking' => $ticket,
+                    'combo' => $combo,
+                    'name' => $comboName,
+                    'qty' => $qty,
+                    'unit_price' => $unit,
+                    'total' => $unit * $qty,
+                ];
+            }
+        }
+
+        // Build per-food printable items (each food line = one separate voucher)
+        $foodPrintItems = [];
+        foreach ($tickets as $ticket) {
+            foreach (($ticket->chiTietFood ?? collect()) as $foodDetail) {
+                $food = $foodDetail->food;
+                $foodName = $food->name ?? 'Đồ ăn';
+                $qty = max(1, (int)($foodDetail->quantity ?? 1));
+                $unit = (float)($foodDetail->price ?? ($food->price ?? 0));
+                $foodPrintItems[] = [
+                    'booking' => $ticket,
+                    'food' => $food,
+                    'name' => $foodName,
+                    'qty' => $qty,
+                    'unit_price' => $unit,
+                    'total' => $unit * $qty,
+                ];
+            }
+        }
+
+        $bookings = $tickets;
+        return view('admin.scan.print-multiple', compact('printItems', 'comboPrintItems', 'foodPrintItems', 'bookings'));
     }
 
     /**
@@ -309,6 +358,18 @@ class ScanController extends Controller
 
         if (empty($ids)) {
             return response()->json(['success' => false, 'message' => 'Không có vé để đánh dấu.'], 400);
+        }
+
+        // Chặn đánh dấu lại nếu đã in
+        $alreadyPrinted = DatVe::whereIn('id', $ids)
+            ->where('da_in', 1)
+            ->first();
+        if ($alreadyPrinted) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vé này đã được in trước đó. Không thể in lại.',
+                'printed_at' => $alreadyPrinted->thoi_gian_in ? $alreadyPrinted->thoi_gian_in->format('d/m/Y H:i:s') : null,
+            ], 400);
         }
 
         $now = now();

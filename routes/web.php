@@ -427,6 +427,10 @@ Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::post('/confirm', [ScanController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/mark-printed', [ScanController::class, 'markAsPrinted'])->name('mark-printed');
         Route::get('/{id}/client-print', [ScanController::class, 'clientPrintView'])->name('client_print');
+
+        // Print multiple tickets page (one seat = one printed ticket)
+        Route::get('/print-multiple', [ScanController::class, 'printMultiple'])->name('print-multiple');
+        Route::post('/print-multiple/mark-printed', [ScanController::class, 'markMultiplePrinted'])->name('mark-multiple-printed');
     });
 });
 
@@ -444,17 +448,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export-pdf');
     });
 
-    // Admin scan/print (admin UI)
-    Route::prefix('scan')->name('scan.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Admin\ScanController::class, 'index'])->name('index');
-        Route::get('/{id}', [App\Http\Controllers\Admin\ScanController::class, 'show'])->whereNumber('id')->name('show');
-        Route::post('/check', [App\Http\Controllers\Admin\ScanController::class, 'check'])->name('check');
-        Route::post('/confirm', [App\Http\Controllers\Admin\ScanController::class, 'confirm'])->name('confirm');
-        Route::post('/{id}/mark-printed', [App\Http\Controllers\Admin\ScanController::class, 'markAsPrinted'])->name('mark-printed');
-        // Print multiple tickets page (one seat = one printed ticket)
-        Route::get('/print-multiple', [App\Http\Controllers\Admin\ScanController::class, 'printMultiple'])->name('print-multiple');
-        Route::post('/print-multiple/mark-printed', [App\Http\Controllers\Admin\ScanController::class, 'markMultiplePrinted'])->name('mark-multiple-printed');
-    });
+    // (moved scan/print routes to admin+staff group above)
 });
 
 // ==================== STAFF ROUTES REMOVED ====================
