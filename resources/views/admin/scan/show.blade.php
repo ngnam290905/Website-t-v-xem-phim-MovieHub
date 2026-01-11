@@ -15,13 +15,23 @@
                     <i class="fas fa-print mr-2"></i>Đã in ({{ $ticket->thoi_gian_in ? $ticket->thoi_gian_in->format('d/m/Y H:i') : 'N/A' }})
                 </button>
             @else
-                <button 
-                    id="print-ticket-btn"
-                    onclick="printTicket({{ $ticket->id }})"
-                    class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
-                >
-                    <i class="fas fa-print mr-2"></i>In vé
-                </button>
+                @if($ticket->checked_in)
+                    <button 
+                        id="print-ticket-btn"
+                        onclick="printTicket({{ $ticket->id }})"
+                        class="px-4 py-2 bg-[#F53003] hover:bg-[#ff4d4d] text-white rounded-lg transition print-hidden"
+                    >
+                        <i class="fas fa-print mr-2"></i>In vé
+                    </button>
+                @else
+                    <button 
+                        disabled
+                        title="Chỉ in được sau khi quét mã"
+                        class="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg cursor-not-allowed print-hidden"
+                    >
+                        <i class="fas fa-print mr-2"></i>In vé
+                    </button>
+                @endif
             @endif
         <a 
             href="{{ route('admin.scan.index') }}" 

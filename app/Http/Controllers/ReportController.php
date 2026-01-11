@@ -34,7 +34,7 @@ class ReportController extends Controller
 
         // Tổng doanh thu (vé + combo + đồ ăn)
         $seatSub = DB::table('chi_tiet_dat_ve')
-            ->select('id_dat_ve', DB::raw('SUM(gia) as seat_total'))
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
             ->groupBy('id_dat_ve');
         
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
@@ -101,7 +101,7 @@ class ReportController extends Controller
         $dateRange = $this->getDateRange($period, $startDate, $endDate);
 
         $seatSub = DB::table('chi_tiet_dat_ve')
-            ->select('id_dat_ve', DB::raw('SUM(gia) as seat_total'))
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
             ->groupBy('id_dat_ve');
         
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
@@ -172,19 +172,23 @@ class ReportController extends Controller
         $dateRange = $this->getDateRange($period, $startDate, $endDate);
 
         $seatSub = DB::table('chi_tiet_dat_ve')
-            ->select('id_dat_ve', DB::raw('SUM(gia) as seat_total'))
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
             ->groupBy('id_dat_ve');
         
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong,1)) as combo_total'))
             ->groupBy('id_dat_ve');
 
+        $ticketsSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('COUNT(*) as tickets_count'))
+            ->groupBy('id_dat_ve');
+
         $moviesData = DB::table('phim')
             ->join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
             ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
-            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
             ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','dat_ve.id'); })
+            ->leftJoinSub($ticketsSub, 't', function($j){ $j->on('t.id_dat_ve','=','dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']])
             ->select(
@@ -192,7 +196,7 @@ class ReportController extends Controller
                 'phim.ten_phim',
                 'phim.poster',
                 DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total_revenue'),
-                DB::raw('COUNT(DISTINCT chi_tiet_dat_ve.id) as total_tickets'),
+                DB::raw('COALESCE(SUM(t.tickets_count), 0) as total_tickets'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings')
             )
             ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster')
@@ -554,7 +558,7 @@ class ReportController extends Controller
     private function getRevenueByMonth()
     {
         $seatSub = DB::table('chi_tiet_dat_ve')
-            ->select('id_dat_ve', DB::raw('SUM(gia) as seat_total'))
+            ->select('id_dat_ve', DB::raw('SUM(COALESCE(gia_ve, gia)) as seat_total'))
             ->groupBy('id_dat_ve');
         
         $comboSub = DB::table('chi_tiet_dat_ve_combo')

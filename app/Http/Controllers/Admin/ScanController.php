@@ -252,4 +252,79 @@ class ScanController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Xác nhận thành công']);
     }
+
+    /**
+     * Show print page for multiple tickets. Each seat becomes a separate printable ticket.
+     * Accepts query param `ids` as comma-separated booking IDs or repeated `ids[]`.
+     */
+    public function printMultiple(Request $request)
+    {
+        $ids = $request->input('ids');
+        if (is_string($ids) && strpos($ids, ',') !== false) {
+            $ids = array_filter(array_map('trim', explode(',', $ids)));
+        }
+
+        if (is_null($ids)) {
+            $single = $request->input('id');
+            if ($single) $ids = [$single];
+        }
+
+        $ids = (array) $ids;
+        $ids = array_map('intval', $ids);
+        $ids = array_filter($ids);
+
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'Vui lòng chọn ít nhất 1 vé để in.');
+        }
+
+        $tickets = DatVe::with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'chiTietFood.food', 'nguoiDung', 'thanhToan', 'khuyenMai'])
+            ->whereIn('id', $ids)
+            ->where('trang_thai', 1)
+            ->get();
+
+        // Build per-seat printable items
+        $printItems = [];
+        foreach ($tickets as $ticket) {
+            foreach ($ticket->chiTietDatVe as $detail) {
+                $printItems[] = [
+                    'booking' => $ticket,
+                    'seat' => isset($detail->ghe->so_ghe) ? $detail->ghe->so_ghe : 'N/A',
+                    'price' => $detail->gia ?? ($detail->gia_ve ?? 0),
+                ];
+            }
+        }
+
+        return view('admin.scan.print-multiple', compact('printItems'));
+    }
+
+    /**
+     * Mark multiple tickets as printed (POST).
+     * Accepts `ids[]` array of booking ids.
+     */
+    public function markMultiplePrinted(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        $ids = array_map('intval', (array)$ids);
+        $ids = array_filter($ids);
+
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'Không có vé để đánh dấu.'], 400);
+        }
+
+        $now = now();
+        DB::table('dat_ve')->whereIn('id', $ids)->update(['da_in' => 1, 'thoi_gian_in' => $now]);
+
+        return response()->json(['success' => true, 'message' => 'Đã đánh dấu các vé là đã in', 'count' => count($ids)]);
+    }
+
+    /**
+     * Render the client ticket detail view inside admin (adminMode=true)
+     */
+    public function clientPrintView($id)
+    {
+        $booking = DatVe::with(['suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe.loaiGhe', 'chiTietCombo.combo', 'chiTietFood.food', 'nguoiDung', 'thanhToan', 'khuyenMai'])
+            ->findOrFail($id);
+
+        return view('booking.ticket-detail', ['booking' => $booking, 'adminMode' => true]);
+    }
 }

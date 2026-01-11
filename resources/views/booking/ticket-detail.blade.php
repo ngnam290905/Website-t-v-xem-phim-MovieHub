@@ -1,4 +1,5 @@
-@extends('layouts.main')
+@php $__useAdminLayout = isset($adminMode) && $adminMode === true; @endphp
+@extends($__useAdminLayout ? 'admin.layout' : 'layouts.main')
 
 @section('title', 'Chi tiết vé - MovieHub')
 
