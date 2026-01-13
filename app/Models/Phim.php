@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class Phim extends Model
 {
@@ -189,6 +190,17 @@ class Phim extends Model
             ->where('suat_chieu.id_phim', $this->id)
             ->where('thanh_toan.trang_thai', 1)
             ->count();
+    }
+
+    /**
+     * Kiểm tra phim có suất chiếu trong tương lai (đang chiếu)
+     */
+    public function getCoSuatChieuTuongLaiAttribute()
+    {
+        return $this->suatChieu()
+            ->where('thoi_gian_ket_thuc', '>', Carbon::now())
+            ->where('trang_thai', 1)
+            ->exists();
     }
 
 }

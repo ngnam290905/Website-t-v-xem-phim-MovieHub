@@ -180,13 +180,17 @@ class AdminReportController extends Controller
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
             ->groupBy('id_dat_ve');
+
+        $ticketsSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('COUNT(*) as tickets_count'))
+            ->groupBy('id_dat_ve');
         
         $revenueByMovie = DB::table('phim')
             ->join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
             ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
             ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
-            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->leftJoinSub($ticketsSub, 't', function($j) { $j->on('t.id_dat_ve', '=', 'dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
                 return $q->whereBetween('dat_ve.created_at', [$startDate, $endDate]);
@@ -211,8 +215,8 @@ class AdminReportController extends Controller
                 'phim.ten_phim',
                 'phim.poster',
                 DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as total_revenue'),
-                DB::raw('COUNT(chi_tiet_dat_ve.id) as total_tickets'),
-                DB::raw('AVG(COALESCE(chi_tiet_dat_ve.gia_ve, chi_tiet_dat_ve.gia)) as avg_ticket_price')
+                DB::raw('COALESCE(SUM(t.tickets_count), 0) as total_tickets'),
+                DB::raw('CASE WHEN COALESCE(SUM(t.tickets_count), 0) > 0 THEN COALESCE(SUM(s.seat_total), 0) / COALESCE(SUM(t.tickets_count), 0) ELSE 0 END as avg_ticket_price')
             )
             ->groupBy('phim.id', 'phim.ten_phim', 'phim.poster')
             ->orderBy('total_revenue', 'desc')
@@ -226,11 +230,15 @@ class AdminReportController extends Controller
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong, 1)) as combo_total'))
             ->groupBy('id_dat_ve');
+
+        $ticketsSub = DB::table('chi_tiet_dat_ve')
+            ->select('id_dat_ve', DB::raw('COUNT(*) as tickets_count'))
+            ->groupBy('id_dat_ve');
         
         $revenueByDay = DB::table('dat_ve')
             ->leftJoinSub($seatSub, 's', function($j) { $j->on('s.id_dat_ve', '=', 'dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j) { $j->on('c.id_dat_ve', '=', 'dat_ve.id'); })
-            ->leftJoin('chi_tiet_dat_ve', 'dat_ve.id', '=', 'chi_tiet_dat_ve.id_dat_ve')
+            ->leftJoinSub($ticketsSub, 't', function($j) { $j->on('t.id_dat_ve', '=', 'dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->when($startDate && $endDate, function($q) use ($startDate, $endDate) {
                 return $q->whereBetween('dat_ve.created_at', [$startDate, $endDate]);
@@ -253,7 +261,7 @@ class AdminReportController extends Controller
             ->select(
                 DB::raw('DATE(dat_ve.created_at) as date'),
                 DB::raw('SUM(COALESCE(s.seat_total, 0) + COALESCE(c.combo_total, 0)) as daily_revenue'),
-                DB::raw('COUNT(chi_tiet_dat_ve.id) as daily_tickets')
+                DB::raw('COALESCE(SUM(t.tickets_count), 0) as daily_tickets')
             )
             ->groupBy('date')
             ->orderBy('date')

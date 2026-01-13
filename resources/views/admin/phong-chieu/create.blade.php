@@ -85,12 +85,10 @@
             <div class="flex items-start gap-3">
               <i class="fas fa-info-circle text-[#F53003] mt-1"></i>
               <div class="text-sm text-[#a6a6b0]">
-                <p class="font-medium text-white mb-1">Cấu trúc ghế tự động:</p>
+                <p class="font-medium text-white mb-1">Lưu ý:</p>
                 <ul class="list-disc list-inside space-y-1 ml-2">
-                  <li>Mỗi hàng có <strong class="text-white">19 ghế</strong> (hàng L: 16 ghế đôi)</li>
-                  <li>Ghế <strong class="text-yellow-400">VIP</strong>: D3-D16 và J3-J16</li>
-                  <li>Hàng <strong class="text-purple-400">L</strong>: 16 ghế đôi (L1-L16)</li>
-                  <li>Các ghế còn lại: ghế thường</li>
+                  <li>Khi tạo phòng mới, hệ thống sẽ <strong class="text-white">tạo ghế theo cấu hình</strong> bạn chọn (loại ghế mặc định và các vùng tuỳ chọn).</li>
+                  <li>Ghế <strong class="text-yellow-400">VIP</strong> / ghế <strong class="text-purple-400">đôi</strong> chỉ xuất hiện nếu bạn chọn <strong class="text-white">Loại ghế mặc định</strong> hoặc thêm <strong class="text-white">Phân vùng loại ghế</strong>.</li>
                 </ul>
               </div>
             </div>

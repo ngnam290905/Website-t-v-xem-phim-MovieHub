@@ -129,7 +129,7 @@
           </div>
           <div class="flex justify-between py-2">
             <span class="font-medium text-[#a6a6b0]">Tỷ lệ sử dụng:</span>
-            <span class="text-blue-400">{{ $phongChieu->showtimes_count > 0 ? round(($phongChieu->seats->where('status', 'unavailable')->count() / $phongChieu->seats_count) * 100, 1) : 0 }}%</span>
+            <span class="text-blue-400">{{ ($phongChieu->seats_count ?? 0) > 0 ? round(($phongChieu->seats->where('status', 'unavailable')->count() / max(1, (int)$phongChieu->seats_count)) * 100, 1) : 0 }}%</span>
           </div>
         </div>
       </div>

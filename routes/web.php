@@ -426,6 +426,11 @@ Route::get('/', [ScanController::class, 'index'])->name('index');
         Route::post('/check', [ScanController::class, 'check'])->name('check');
         Route::post('/confirm', [ScanController::class, 'confirm'])->name('confirm');
         Route::post('/{id}/mark-printed', [ScanController::class, 'markAsPrinted'])->name('mark-printed');
+        Route::get('/{id}/client-print', [ScanController::class, 'clientPrintView'])->name('client_print');
+
+        // Print multiple tickets page (one seat = one printed ticket)
+        Route::get('/print-multiple', [ScanController::class, 'printMultiple'])->name('print-multiple');
+        Route::post('/print-multiple/mark-printed', [ScanController::class, 'markMultiplePrinted'])->name('mark-multiple-printed');
     });
 });
 
@@ -442,6 +447,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
         Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export-excel');
         Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export-pdf');
     });
+
+    // (moved scan/print routes to admin+staff group above)
 });
 
 // ==================== STAFF ROUTES REMOVED ====================

@@ -21,7 +21,8 @@ class BookingConfirmationMail extends Mailable
     public function build()
     {
         $movieName = $this->booking->suatChieu->phim->ten_phim ?? 'Vé xem phim';
-        return $this->subject("Xác nhận đặt vé - {$movieName}")
+        return $this->from(config('mail.from.address'), config('mail.from.name', 'MovieHub'))
+                    ->subject("Xác nhận đặt vé - {$movieName}")
                     ->view('emails.booking-confirmation');
     }
 }

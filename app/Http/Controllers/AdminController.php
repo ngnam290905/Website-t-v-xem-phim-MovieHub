@@ -55,17 +55,34 @@ class AdminController extends Controller
         // Both admin and staff use the same dashboard
         $user = Auth::user();
         
-        // Thống kê doanh thu
-        $todayRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        // Thống kê doanh thu - Tính cả vé và combo
+        $todaySeatRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereDate('dat_ve.created_at', Carbon::today())
             ->sum('chi_tiet_dat_ve.gia');
+        
+        $todayComboRevenue = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereDate('dat_ve.created_at', Carbon::today())
+            ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)'));
+        
+        $todayRevenue = $todaySeatRevenue + $todayComboRevenue;
 
-        $monthRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        $monthSeatRevenue = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereMonth('dat_ve.created_at', Carbon::now()->month)
             ->whereYear('dat_ve.created_at', Carbon::now()->year)
             ->sum('chi_tiet_dat_ve.gia');
+        
+        $monthComboRevenue = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereMonth('dat_ve.created_at', Carbon::now()->month)
+            ->whereYear('dat_ve.created_at', Carbon::now()->year)
+            ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)'));
+        
+        $monthRevenue = $monthSeatRevenue + $monthComboRevenue;
 
         // Thống kê số lượng
         $totalMovies = Phim::where('trang_thai', 1)->count();
@@ -110,21 +127,33 @@ class AdminController extends Controller
             ->limit(5)
             ->get();
 
-        // Doanh thu theo tháng (12 tháng gần nhất)
-        $revenueByMonth = ChiTietDatVe::join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
+        // Doanh thu theo tháng (12 tháng gần nhất) - Tính cả vé và combo
+        $revenueByMonth = DB::table('chi_tiet_dat_ve')
+            ->join('dat_ve', 'chi_tiet_dat_ve.id_dat_ve', '=', 'dat_ve.id')
             ->select(
                 DB::raw('YEAR(dat_ve.created_at) as year'),
                 DB::raw('MONTH(dat_ve.created_at) as month'),
-                DB::raw('SUM(chi_tiet_dat_ve.gia) as total')
+                DB::raw('SUM(chi_tiet_dat_ve.gia) as seat_total')
             )
             ->where('dat_ve.trang_thai', 1)
             ->where('dat_ve.created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
             ->groupBy('year', 'month')
-            ->orderBy('year', 'asc')
-            ->orderBy('month', 'asc')
+            ->get();
+        
+        // Combo revenue by month
+        $comboByMonth = DB::table('chi_tiet_dat_ve_combo')
+            ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
+            ->select(
+                DB::raw('YEAR(dat_ve.created_at) as year'),
+                DB::raw('MONTH(dat_ve.created_at) as month'),
+                DB::raw('SUM(chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong, 1)) as combo_total')
+            )
+            ->where('dat_ve.trang_thai', 1)
+            ->where('dat_ve.created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
+            ->groupBy('year', 'month')
             ->get();
 
-        // Format dữ liệu cho biểu đồ
+        // Format dữ liệu cho biểu đồ - Tính cả vé và combo
         $revenueLabels = [];
         $revenueData = [];
         
@@ -132,11 +161,16 @@ class AdminController extends Controller
             $date = Carbon::now()->subMonths($i);
             $revenueLabels[] = $date->format('m/Y');
             
-            $revenue = $revenueByMonth->first(function ($item) use ($date) {
+            $seatRevenue = $revenueByMonth->first(function ($item) use ($date) {
                 return $item->year == $date->year && $item->month == $date->month;
             });
             
-            $revenueData[] = $revenue ? $revenue->total : 0;
+            $comboRevenue = $comboByMonth->first(function ($item) use ($date) {
+                return $item->year == $date->year && $item->month == $date->month;
+            });
+            
+            $total = ($seatRevenue ? $seatRevenue->seat_total : 0) + ($comboRevenue ? $comboRevenue->combo_total : 0);
+            $revenueData[] = $total;
         }
 
         return view('admin.dashboard', compact(
