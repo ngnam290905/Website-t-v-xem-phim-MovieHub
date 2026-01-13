@@ -32,9 +32,27 @@
             $storedTotal = $booking->tong_tien ?? null;
             $comboSum = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); });
             $foodSum = $foodItems->sum(function($f){ return (float)$f->price * max(1,(int)$f->quantity); });
-            $seatSum = (float) $booking->chiTietDatVe->sum('gia');
-            $computedTotal = isset($computedTotal) ? $computedTotal : (float) ($seatSum + $comboSum + $foodSum - $promoDiscount);
-            $displayTotal = is_numeric($paidTotal) && $paidTotal > 0 ? (float)$paidTotal : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)max(0,$computedTotal));
+            // Recompute seat sum by seat type to ensure Couple=200,000/seat
+            $seatSum = 0;
+            foreach ($booking->chiTietDatVe as $detail) {
+                // Thu thập tên loại ghế từ cả hai quan hệ có thể tồn tại: loaiGhe và seatType
+                $typeStrings = [];
+                $typeStrings[] = $detail->ghe->loaiGhe->ten_loai ?? '';
+                $typeStrings[] = $detail->ghe->seatType->ten_loai ?? '';
+                $type = strtolower(trim(implode(' ', array_filter($typeStrings))));
+
+                if (str_contains($type, 'vip')) {
+                    $seatSum += 150000;
+                } elseif (str_contains($type, 'đôi') || str_contains($type, 'doi') || str_contains($type, 'couple')) {
+                    $seatSum += 200000;
+                } else {
+                    $seatSum += 100000;
+                }
+            }
+            // Luôn tính lại tổng tiền dựa trên seatSum/comboSum/foodSum vừa tính
+            $computedTotal = (float) max(0, $seatSum + $comboSum + $foodSum - $promoDiscount);
+            // Luôn hiển thị tổng đã tính lại để đảm bảo khớp quy tắc giá ghế đôi = 200,000/ghế
+            $displayTotal = (float) max(0, $computedTotal);
             
             $statusMap = [
                 0 => ['label' => 'Đang xử lý', 'bg' => 'bg-yellow-500/20', 'text' => 'text-yellow-400', 'border' => 'border-yellow-500/50', 'icon' => 'clock'],

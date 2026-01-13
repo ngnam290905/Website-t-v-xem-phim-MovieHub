@@ -16,7 +16,7 @@
     </div>
   @endif
 
-  <form action="{{ route('admin.combos.store') }}" method="POST" class="space-y-4">
+  <form action="{{ route('admin.combos.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
     @csrf
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -27,6 +27,14 @@
       <div>
         <label class="block mb-1 text-sm text-gray-300">Ảnh (URL)</label>
         <input type="text" name="anh" value="{{ old('anh') }}" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block mb-1 text-sm text-gray-300">Hoặc tải ảnh lên (file)</label>
+        <input type="file" name="image" accept="image/*" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
+        <p class="text-xs text-gray-400 mt-1">Ưu tiên ảnh tải lên nếu chọn file; nếu không, hệ thống dùng URL ở trên.</p>
       </div>
     </div>
 

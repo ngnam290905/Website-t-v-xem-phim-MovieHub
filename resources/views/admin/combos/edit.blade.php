@@ -16,7 +16,7 @@
     </div>
   @endif
 
-  <form action="{{ route('admin.combos.update', $combo) }}" method="POST" class="space-y-4">
+  <form action="{{ route('admin.combos.update', $combo) }}" method="POST" enctype="multipart/form-data" class="space-y-4">
     @csrf
     @method('PUT')
 
@@ -25,9 +25,21 @@
         <label class="block mb-1 text-sm text-gray-300">Tên combo<span class="text-red-500">*</span></label>
         <input type="text" name="ten" value="{{ old('ten', $combo->ten) }}" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" required />
       </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label class="block mb-1 text-sm text-gray-300">Ảnh (URL)</label>
-        <input type="text" name="anh" value="{{ old('anh', $combo->anh) }}" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
+        <label class="block mb-1 text-sm text-gray-300">Hoặc tải ảnh lên (file)</label>
+        <input type="file" name="image" accept="image/*" class="w-full bg-[#1d202a] border border-[#262833] rounded p-2 text-sm text-gray-200" />
+        <p class="text-xs text-gray-400 mt-1">Nếu chọn file, hệ thống sẽ sử dụng ảnh tải lên và thay thế ảnh hiện tại.</p>
+      </div>
+      <div class="flex items-end">
+        <div>
+          <label class="block mb-1 text-sm text-gray-300">Ảnh hiện tại (xem trước)</label>
+          <div class="w-28 h-28 rounded-lg overflow-hidden border border-[#262833] bg-[#1d202a] flex items-center justify-center">
+            <img src="{{ $combo->image_url }}" alt="{{ $combo->ten }}" class="w-full h-full object-cover"/>
+          </div>
+        </div>
       </div>
     </div>
 

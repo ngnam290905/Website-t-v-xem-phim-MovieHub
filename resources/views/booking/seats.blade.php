@@ -520,8 +520,8 @@
                   <div class="flex items-start gap-4 mb-4">
                     <!-- Combo Image -->
                     <div class="w-20 h-20 rounded-xl bg-gradient-to-br from-[#FF784E] to-[#FFB25E] flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
-                      @if($combo->hinh_anh ?? false)
-                        <img src="{{ $combo->hinh_anh }}" alt="{{ $combo->ten }}" class="w-full h-full object-cover">
+                      @if($combo->image_url ?? false)
+                        <img src="{{ $combo->image_url }}" alt="{{ $combo->ten }}" class="w-full h-full object-cover">
                       @else
                         <div class="flex flex-col items-center justify-center text-white">
                           <i class="fas fa-box text-2xl mb-1"></i>

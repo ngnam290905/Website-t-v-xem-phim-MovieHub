@@ -40,14 +40,18 @@ class ReportController extends Controller
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong,1)) as combo_total'))
             ->groupBy('id_dat_ve');
+        $foodSub = DB::table('chi_tiet_dat_ve_food')
+            ->select('id_dat_ve', DB::raw('SUM(price * quantity) as food_total'))
+            ->groupBy('id_dat_ve');
 
         $query = DB::table('dat_ve')
             ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','dat_ve.id'); })
+            ->leftJoinSub($foodSub, 'f', function($j){ $j->on('f.id_dat_ve','=','dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']]);
 
-        $totalRevenue = $query->select(DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total'))
+        $totalRevenue = $query->select(DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0) + COALESCE(f.food_total,0)) as total'))
             ->value('total') ?? 0;
 
         // Số vé bán
@@ -66,12 +70,18 @@ class ReportController extends Controller
         
         $occupancyRate = $totalSeats > 0 ? round(($occupiedSeats / $totalSeats) * 100, 2) : 0;
 
-        // Doanh thu đồ ăn
-        $foodRevenue = DB::table('chi_tiet_dat_ve_combo')
+        // Doanh thu đồ ăn (combo + đồ ăn lẻ)
+        $comboRevenue = DB::table('chi_tiet_dat_ve_combo')
             ->join('dat_ve', 'chi_tiet_dat_ve_combo.id_dat_ve', '=', 'dat_ve.id')
             ->where('dat_ve.trang_thai', 1)
             ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']])
             ->sum(DB::raw('chi_tiet_dat_ve_combo.gia_ap_dung * COALESCE(chi_tiet_dat_ve_combo.so_luong,1)'));
+        $singleFoodRevenue = DB::table('chi_tiet_dat_ve_food')
+            ->join('dat_ve', 'chi_tiet_dat_ve_food.id_dat_ve', '=', 'dat_ve.id')
+            ->where('dat_ve.trang_thai', 1)
+            ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']])
+            ->sum(DB::raw('chi_tiet_dat_ve_food.price * chi_tiet_dat_ve_food.quantity'));
+        $foodRevenue = $comboRevenue + $singleFoodRevenue;
 
         // Doanh thu theo tháng (12 tháng gần nhất)
         $revenueByMonth = $this->getRevenueByMonth();
@@ -107,10 +117,14 @@ class ReportController extends Controller
         $comboSub = DB::table('chi_tiet_dat_ve_combo')
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong,1)) as combo_total'))
             ->groupBy('id_dat_ve');
+        $foodSub = DB::table('chi_tiet_dat_ve_food')
+            ->select('id_dat_ve', DB::raw('SUM(price * quantity) as food_total'))
+            ->groupBy('id_dat_ve');
 
         $query = DB::table('dat_ve')
             ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','dat_ve.id'); })
+            ->leftJoinSub($foodSub, 'f', function($j){ $j->on('f.id_dat_ve','=','dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']]);
 
@@ -119,7 +133,7 @@ class ReportController extends Controller
                 DB::raw('YEAR(dat_ve.created_at) as year'),
                 DB::raw('MONTH(dat_ve.created_at) as month'),
                 DB::raw('DATE_FORMAT(dat_ve.created_at, "%Y-%m-01") as date'),
-                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total_revenue'),
+                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0) + COALESCE(f.food_total,0)) as total_revenue'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as booking_count')
             )
             ->groupBy('year', 'month', DB::raw('DATE_FORMAT(dat_ve.created_at, "%Y-%m-01")'))
@@ -129,7 +143,7 @@ class ReportController extends Controller
         } else {
             $revenueData = $query->select(
                 DB::raw('DATE(dat_ve.created_at) as date'),
-                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total_revenue'),
+                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0) + COALESCE(f.food_total,0)) as total_revenue'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as booking_count')
             )
             ->groupBy(DB::raw('DATE(dat_ve.created_at)'))
@@ -183,11 +197,17 @@ class ReportController extends Controller
             ->select('id_dat_ve', DB::raw('COUNT(*) as tickets_count'))
             ->groupBy('id_dat_ve');
 
+        // Thêm đồ ăn lẻ
+        $foodSub = DB::table('chi_tiet_dat_ve_food')
+            ->select('id_dat_ve', DB::raw('SUM(price * quantity) as food_total'))
+            ->groupBy('id_dat_ve');
+
         $moviesData = DB::table('phim')
             ->join('suat_chieu', 'phim.id', '=', 'suat_chieu.id_phim')
             ->join('dat_ve', 'suat_chieu.id', '=', 'dat_ve.id_suat_chieu')
             ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','dat_ve.id'); })
+            ->leftJoinSub($foodSub, 'f', function($j){ $j->on('f.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($ticketsSub, 't', function($j){ $j->on('t.id_dat_ve','=','dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->whereBetween('dat_ve.created_at', [$dateRange['start'], $dateRange['end']])
@@ -195,7 +215,7 @@ class ReportController extends Controller
                 'phim.id',
                 'phim.ten_phim',
                 'phim.poster',
-                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total_revenue'),
+                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0) + COALESCE(f.food_total,0)) as total_revenue'),
                 DB::raw('COALESCE(SUM(t.tickets_count), 0) as total_tickets'),
                 DB::raw('COUNT(DISTINCT dat_ve.id) as total_bookings')
             )
@@ -565,17 +585,23 @@ class ReportController extends Controller
             ->select('id_dat_ve', DB::raw('SUM(gia_ap_dung * COALESCE(so_luong,1)) as combo_total'))
             ->groupBy('id_dat_ve');
 
+        // Thêm doanh thu đồ ăn lẻ
+        $foodSub = DB::table('chi_tiet_dat_ve_food')
+            ->select('id_dat_ve', DB::raw('SUM(price * quantity) as food_total'))
+            ->groupBy('id_dat_ve');
+
         // Lấy dữ liệu 12 tháng gần nhất
         $revenueData = DB::table('dat_ve')
             ->leftJoinSub($seatSub, 's', function($j){ $j->on('s.id_dat_ve','=','dat_ve.id'); })
             ->leftJoinSub($comboSub, 'c', function($j){ $j->on('c.id_dat_ve','=','dat_ve.id'); })
+            ->leftJoinSub($foodSub, 'f', function($j){ $j->on('f.id_dat_ve','=','dat_ve.id'); })
             ->where('dat_ve.trang_thai', 1)
             ->where('dat_ve.created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
             ->select(
                 DB::raw('YEAR(dat_ve.created_at) as year'),
                 DB::raw('MONTH(dat_ve.created_at) as month'),
                 DB::raw('DATE_FORMAT(dat_ve.created_at, "%Y-%m-01") as date'),
-                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0)) as total_revenue')
+                DB::raw('SUM(COALESCE(s.seat_total,0) + COALESCE(c.combo_total,0) + COALESCE(f.food_total,0)) as total_revenue')
             )
             ->groupBy('year', 'month', DB::raw('DATE_FORMAT(dat_ve.created_at, "%Y-%m-01")'))
             ->orderBy('year')

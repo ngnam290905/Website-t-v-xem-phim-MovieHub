@@ -11,7 +11,21 @@
     <p><strong>Mô tả:</strong> {{ $combo->mo_ta ?? '—' }}</p>
     <p><strong>Giá:</strong> {{ number_format($combo->gia, 0) }}đ</p>
     <p><strong>Giá gốc:</strong> {{ $combo->gia_goc ? number_format($combo->gia_goc,0).'đ' : '—' }}</p>
-    <p><strong>Ảnh:</strong> {!! $combo->anh ? '<a class="text-blue-400 underline" href="'.e($combo->anh).'" target="_blank">Mở ảnh</a>' : '—' !!}</p>
+    <div>
+      <strong>Ảnh:</strong>
+      @if($combo->image_url)
+        <div class="mt-2 w-32 h-32 rounded-lg overflow-hidden border border-[#262833] bg-[#1d202a]">
+          <img src="{{ $combo->image_url }}" alt="{{ $combo->ten }}" class="w-full h-full object-cover"/>
+        </div>
+        @if($combo->anh)
+          <div class="mt-1">
+            <a class="text-blue-400 underline" href="{{ $combo->anh }}" target="_blank">Mở ảnh gốc</a>
+          </div>
+        @endif
+      @else
+        —
+      @endif
+    </div>
     <p><strong>Nổi bật:</strong> {!! $combo->combo_noi_bat ? '<span class="text-amber-300">YES</span>' : '<span class="text-gray-400">NO</span>' !!}</p>
     <p><strong>Số lượng tối đa:</strong> {{ $combo->so_luong_toi_da ?? '—' }}</p>
     <p><strong>Yêu cầu ít nhất vé:</strong> {{ $combo->yeu_cau_it_nhat_ve ?? '—' }}</p>

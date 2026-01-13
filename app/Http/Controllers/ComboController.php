@@ -34,6 +34,11 @@ class ComboController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedData($request);
+        // Handle image upload (optional): if file provided, store it and map to 'anh'
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('combos', 'public');
+            $data['anh'] = $path;
+        }
         $data['created_by'] = Auth::id();
         Combo::create($data);
         return redirect()->route('admin.combos.index')->with('success', 'Tạo combo thành công.');
@@ -52,6 +57,16 @@ class ComboController extends Controller
     public function update(Request $request, Combo $combo)
     {
         $data = $this->validatedData($request);
+        // Handle image upload (optional): delete old then store new, map to 'anh'
+        if ($request->hasFile('image')) {
+            try {
+                if ($combo->anh && \Illuminate\Support\Facades\Storage::disk('public')->exists($combo->anh)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($combo->anh);
+                }
+            } catch (\Throwable $e) { /* ignore file delete errors */ }
+            $path = $request->file('image')->store('combos', 'public');
+            $data['anh'] = $path;
+        }
         $data['updated_by'] = Auth::id();
         $combo->update($data);
         return redirect()->route('admin.combos.index')->with('success', 'Cập nhật combo thành công.');
@@ -79,7 +94,9 @@ class ComboController extends Controller
             'mo_ta' => 'nullable|string',
             'gia' => 'required|numeric|min:0',
             'gia_goc' => 'nullable|numeric|min:0',
+            // Either provide an image URL in 'anh' or upload a file in 'image'
             'anh' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'combo_noi_bat' => 'nullable|boolean',
             'so_luong_toi_da' => 'nullable|integer|min:1',
             'yeu_cau_it_nhat_ve' => 'nullable|integer|min:1',

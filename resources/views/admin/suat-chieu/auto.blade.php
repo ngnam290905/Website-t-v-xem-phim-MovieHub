@@ -111,6 +111,7 @@
     function addMin(d, m){ const x=new Date(d.getTime()); x.setMinutes(x.getMinutes()+m); return x; }
     function fmtDateISO(d){ const y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'); return `${y}-${mo}-${da}`; }
     function fmtHM(d){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+    function fmtLocalISO(d){ const y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'), hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0'); return `${y}-${mo}-${da} ${hh}:${mm}:${ss}`; }
 
     document.addEventListener('DOMContentLoaded', function(){
       const movieSel=document.getElementById('autoMovie');
@@ -337,7 +338,7 @@
             }
             rows.push({ movieId, movieName, roomId, roomName,
               dateISO: fmtDateISO(d), dateVN: fmtDateISO(d).split('-').reverse().join('/'),
-              startISO: s.toISOString(), endISO: e.toISOString(), startHM: fmtHM(s), endHM: fmtHM(e), 
+              startISO: fmtLocalISO(s), endISO: fmtLocalISO(e), startHM: fmtHM(s), endHM: fmtHM(e), 
               conflict: item.conflict, conflictReason: conflictReason });
           });
         }

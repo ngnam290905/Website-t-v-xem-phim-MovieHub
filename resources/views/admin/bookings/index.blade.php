@@ -222,10 +222,35 @@
                                     @php
                                         // Tính tổng tiền để hiển thị: ưu tiên thanhToan->so_tien, sau đó tong_tien, cuối cùng là tính toán
                                         $comboItems = $booking->chiTietCombo ?? collect();
+                                        $foodItems = $booking->chiTietFood ?? collect();
                                         $promo = $booking->khuyenMai ?? null;
-                                        $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong); });
-                                        $seatTotal = (float) ($booking->chiTietDatVe ? $booking->chiTietDatVe->sum('gia') : 0);
-                                        $subtotal = $seatTotal + $comboTotal;
+
+                                        // Tổng Combo
+                                        $comboTotal = $comboItems->sum(function($i){
+                                            return (float)$i->gia_ap_dung * max(1, (int)$i->so_luong);
+                                        });
+
+                                        // Tổng Đồ ăn
+                                        $foodTotal = $foodItems->sum(function($f){
+                                            return (float)($f->price ?? 0) * max(1, (int)($f->quantity ?? 1));
+                                        });
+
+                                        // Tổng Ghế: tính lại theo loại ghế để đảm bảo ghế đôi = 200,000/ghế
+                                        $seatTotal = 0;
+                                        if ($booking->chiTietDatVe) {
+                                            foreach ($booking->chiTietDatVe as $detail) {
+                                                $loai = strtolower($detail->ghe->loaiGhe->ten_loai ?? '');
+                                                if (str_contains($loai, 'vip')) {
+                                                    $seatTotal += 150000;
+                                                } elseif (str_contains($loai, 'đôi') || str_contains($loai, 'doi') || str_contains($loai, 'couple')) {
+                                                    $seatTotal += 200000;
+                                                } else {
+                                                    $seatTotal += 100000;
+                                                }
+                                            }
+                                        }
+
+                                        $subtotal = $seatTotal + $comboTotal + $foodTotal;
                                         $promoDiscount = 0;
                                         if ($promo) {
                                             $type = strtolower($promo->loai_giam);
@@ -234,11 +259,8 @@
                                             else { $promoDiscount = ($val >= 1000) ? $val : $val * 1000; }
                                         }
                                         $calculated = max(0, $subtotal - $promoDiscount);
-                                        $paidTotal = optional($booking->thanhToan)->so_tien;
-                                        $storedTotal = $booking->tong_tien ?? null;
-                                        $displayTotal = is_numeric($paidTotal) && $paidTotal > 0
-                                            ? (float)$paidTotal
-                                            : (is_numeric($storedTotal) && $storedTotal > 0 ? (float)$storedTotal : (float)$calculated);
+                                        // Luôn ưu tiên hiển thị tổng đã tính lại để đồng bộ với trang chi tiết & vé
+                                        $displayTotal = (float)$calculated;
                                     @endphp
                                     <div class="font-bold text-green-400 whitespace-nowrap">
                                         {{ number_format($displayTotal, 0) }} đ

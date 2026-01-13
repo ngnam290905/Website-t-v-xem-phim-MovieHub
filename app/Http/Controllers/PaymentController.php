@@ -53,6 +53,50 @@ class PaymentController extends Controller
         
         $vnp_OrderType = "billpayment";
         
+        // Ensure amount is correct by cross-checking with DB (safety net)
+        try {
+            $booking = DatVe::with(['chiTietDatVe', 'chiTietCombo'])->find($orderId);
+            if ($booking) {
+                $seatSum = (int) $booking->chiTietDatVe->sum('gia');
+                $comboSum = (int) ($booking->chiTietCombo->sum(function($c){ return (int)$c->so_luong * (int)$c->gia_ap_dung; }) ?? 0);
+                $detailTotal = $seatSum + $comboSum; // subtotal before discounts
+                $dbTotal = (int) ($booking->tong_tien ?? 0); // total after discounts
+                $originalAmount = (int) $amount;
+
+                if ($dbTotal > 0) {
+                    // Ưu tiên tổng đã áp dụng khuyến mãi lưu trong booking
+                    $final = max($originalAmount, $dbTotal);
+                    if ($final !== $originalAmount) {
+                        Log::warning('VNPay amount adjusted (prefer booking total)', [
+                            'booking_id' => $orderId,
+                            'from' => $originalAmount,
+                            'db_total' => $dbTotal,
+                            'detail_total' => $detailTotal,
+                            'to' => $final
+                        ]);
+                    }
+                } else {
+                    // Khi chưa có tổng trong booking, fallback về tổng chi tiết
+                    $final = max($originalAmount, $detailTotal);
+                    if ($final !== $originalAmount) {
+                        Log::warning('VNPay amount adjusted (fallback detail total)', [
+                            'booking_id' => $orderId,
+                            'from' => $originalAmount,
+                            'db_total' => $dbTotal,
+                            'detail_total' => $detailTotal,
+                            'to' => $final
+                        ]);
+                    }
+                }
+                $amount = $final;
+            }
+        } catch (\Throwable $e) {
+            Log::error('VNPay amount cross-check failed', [
+                'booking_id' => $orderId,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Ensure amount is integer and positive
         $vnp_Amount = (int)($amount * 100);
         if ($vnp_Amount <= 0) {

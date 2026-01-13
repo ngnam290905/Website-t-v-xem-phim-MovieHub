@@ -43,6 +43,7 @@
       <thead class="bg-[#1b1e28] text-gray-300 uppercase text-xs">
         <tr>
           <th class="px-4 py-3">ID</th>
+          <th class="px-4 py-3">Ảnh</th>
           <th class="px-4 py-3">Tên</th>
           <th class="px-4 py-3">Giá</th>
           <th class="px-4 py-3">Giá gốc</th>
@@ -56,6 +57,11 @@
         @forelse($combos as $combo)
         <tr class="hover:bg-[#1b1e28]/70">
           <td class="px-4 py-3">#{{ $combo->id }}</td>
+          <td class="px-4 py-3">
+            <div class="w-11 h-11 rounded-lg overflow-hidden border border-[#262833] bg-[#1d202a]">
+              <img src="{{ $combo->image_url }}" alt="{{ $combo->ten }}" class="w-full h-full object-cover"/>
+            </div>
+          </td>
           <td class="px-4 py-3">{{ $combo->ten }}</td>
           <td class="px-4 py-3">{{ number_format($combo->gia, 0) }}đ</td>
           <td class="px-4 py-3">{{ $combo->gia_goc ? number_format($combo->gia_goc,0).'đ' : '—' }}</td>
@@ -101,7 +107,7 @@
           </td>
         </tr>
         @empty
-          <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Chưa có combo nào.</td></tr>
+          <tr><td colspan="9" class="px-4 py-6 text-center text-gray-400">Chưa có combo nào.</td></tr>
         @endforelse
       </tbody>
     </table>

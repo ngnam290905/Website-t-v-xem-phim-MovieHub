@@ -4,6 +4,37 @@
 
 @section('content')
 <div class="space-y-6">
+    @php
+        // Tính lại tổng tiền cho trang Scan chi tiết
+        $comboItems = $ticket->chiTietCombo ?? collect();
+        $foodItems  = $ticket->chiTietFood ?? collect();
+        $promo      = $ticket->khuyenMai ?? null;
+
+        // Tổng Combo & Đồ ăn
+        $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); });
+        $foodTotal  = $foodItems->sum(function($f){ return (float)($f->price ?? 0) * max(1,(int)($f->quantity ?? 1)); });
+
+        // Tổng Ghế theo loại ghế
+        $seatTotal = 0;
+        foreach (($ticket->chiTietDatVe ?? collect()) as $detail) {
+            $types = [];
+            $types[] = $detail->ghe->loaiGhe->ten_loai ?? '';
+            $types[] = $detail->ghe->seatType->ten_loai ?? '';
+            $type = strtolower(trim(implode(' ', array_filter($types))));
+            if (str_contains($type, 'vip')) $seatTotal += 150000;
+            elseif (str_contains($type, 'đôi') || str_contains($type, 'doi') || str_contains($type, 'couple')) $seatTotal += 200000;
+            else $seatTotal += 100000;
+        }
+
+        $subtotal = $seatTotal + $comboTotal + $foodTotal;
+        $discount = 0;
+        if ($promo) {
+            $ptype = strtolower($promo->loai_giam);
+            $pval  = (float)$promo->gia_tri_giam;
+            $discount = ($ptype === 'phantram') ? round($subtotal * ($pval/100)) : (($pval >= 1000) ? $pval : $pval * 1000);
+        }
+        $displayTotal = max(0, $subtotal - $discount);
+    @endphp
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">Chi tiết vé #{{ $ticket->id }}</h1>
         <div class="flex gap-2">
@@ -72,7 +103,7 @@
                 <div class="flex justify-between">
                     <span class="text-[#a6a6b0]">Tổng tiền:</span>
                     <span class="text-white font-semibold text-lg">
-                        {{ number_format($ticket->tong_tien ?? 0, 0, ',', '.') }} đ
+                        {{ number_format($displayTotal, 0, ',', '.') }} đ
                     </span>
                 </div>
                 <div class="flex justify-between">
@@ -149,13 +180,19 @@
                             <span class="text-white font-semibold">{{ $seat['seat'] }}</span>
                             <span class="text-[#a6a6b0] text-sm ml-2">({{ $seat['type'] }})</span>
                         </div>
-                        <span class="text-white">{{ number_format($seat['price'], 0, ',', '.') }} đ</span>
+                        @php
+                            $typeStr = strtolower($seat['type'] ?? '');
+                            if (str_contains($typeStr, 'vip')) $priceDisplay = 150000;
+                            elseif (str_contains($typeStr, 'đôi') || str_contains($typeStr, 'doi') || str_contains($typeStr, 'couple')) $priceDisplay = 200000;
+                            else $priceDisplay = 100000;
+                        @endphp
+                        <span class="text-white">{{ number_format($priceDisplay, 0, ',', '.') }} đ</span>
                     </div>
                 @endforeach
                 <div class="pt-2 border-t border-[#262833] flex justify-between">
                     <span class="text-[#a6a6b0]">Tổng ghế:</span>
                     <span class="text-white font-semibold">
-                        {{ number_format($seats->sum('price'), 0, ',', '.') }} đ
+                        {{ number_format($seatTotal, 0, ',', '.') }} đ
                     </span>
                 </div>
             </div>

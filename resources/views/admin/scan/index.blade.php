@@ -335,7 +335,36 @@
                                 {{ $ticket->suatChieu->thoi_gian_bat_dau ? $ticket->suatChieu->thoi_gian_bat_dau->format('d/m/Y H:i') : 'N/A' }}
                             </td>
                             <td class="text-white font-semibold">
-                                {{ number_format($ticket->tong_tien ?? 0, 0, ',', '.') }} đ
+                                @php
+                                    // Tính lại tổng để hiển thị đúng (ghế đôi = 200,000/ghế)
+                                    $comboItems = $ticket->chiTietCombo ?? collect();
+                                    $foodItems  = $ticket->chiTietFood ?? collect();
+                                    $promo      = $ticket->khuyenMai ?? null;
+
+                                    $comboTotal = $comboItems->sum(function($i){ return (float)$i->gia_ap_dung * max(1,(int)$i->so_luong); });
+                                    $foodTotal  = $foodItems->sum(function($f){ return (float)($f->price ?? 0) * max(1,(int)($f->quantity ?? 1)); });
+
+                                    $seatTotal = 0;
+                                    foreach (($ticket->chiTietDatVe ?? collect()) as $detail) {
+                                        $types = [];
+                                        $types[] = $detail->ghe->loaiGhe->ten_loai ?? '';
+                                        $types[] = $detail->ghe->seatType->ten_loai ?? '';
+                                        $type = strtolower(trim(implode(' ', array_filter($types))));
+                                        if (str_contains($type, 'vip')) $seatTotal += 150000;
+                                        elseif (str_contains($type, 'đôi') || str_contains($type, 'doi') || str_contains($type, 'couple')) $seatTotal += 200000;
+                                        else $seatTotal += 100000;
+                                    }
+
+                                    $subtotal = $seatTotal + $comboTotal + $foodTotal;
+                                    $discount = 0;
+                                    if ($promo) {
+                                        $type = strtolower($promo->loai_giam);
+                                        $val  = (float)$promo->gia_tri_giam;
+                                        $discount = ($type === 'phantram') ? round($subtotal * ($val/100)) : (($val >= 1000) ? $val : $val * 1000);
+                                    }
+                                    $displayTotal = max(0, $subtotal - $discount);
+                                @endphp
+                                {{ number_format($displayTotal, 0, ',', '.') }} đ
                             </td>
                             <td>
                                 @if($ticket->checked_in)

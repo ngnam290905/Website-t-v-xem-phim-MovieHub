@@ -1683,6 +1683,14 @@ class BookingController extends Controller
                 'showtime' => $requestData['showtime'] ?? null,
                 'seats' => $requestData['seats'] ?? [],
             ]);
+            // Debug incoming seats for couple-seat auto-select scenarios
+            try {
+                if (!empty($requestData['seats'])) {
+                    Log::info('Booking incoming seats (raw)', [
+                        'seats_raw' => $requestData['seats']
+                    ]);
+                }
+            } catch (\Throwable $e) {}
 
             // Check authentication
             if (!Auth::check()) {
@@ -1882,19 +1890,83 @@ class BookingController extends Controller
 
             // --- 3. CALCULATE TOTAL & SAVE DATA ---
 
-            $seatTotal = 0;
-            foreach ($data['seats'] as $seat) {
-                if (strpos($seat, '-') !== false) {
-                    $seatTotal += 200000;
+            // Build a debug-normalized list of seat codes (ranges/commas expanded)
+            $debugNormalizedSeats = [];
+            foreach ($data['seats'] as $s) {
+                $s = trim($s);
+                if ($s === '') continue;
+                if (strpos($s, '-') !== false) {
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $s, $m)) {
+                        $rowL = strtoupper($m[1]);
+                        for ($c=(int)$m[2]; $c<=(int)$m[3]; $c++) $debugNormalizedSeats[] = $rowL.$c;
+                    }
+                } elseif (strpos($s, ',') !== false) {
+                    foreach (array_filter(array_map('trim', explode(',', $s))) as $p) $debugNormalizedSeats[] = strtoupper($p);
                 } else {
-                    $row = substr($seat, 0, 1);
-                    $col = substr($seat, 1);
-                    $seatObj = Ghe::where('id_phong', $showtime->id_phong)->where('so_ghe', $row . $col)->first();
-                    // CẬP NHẬT GIÁ
-                    if ($seatObj && $this->isVipSeat($seatObj)) {
-                        $seatTotal += 150000; // VIP
-                    } else {
-                        $seatTotal += 100000; // Thường
+                    $debugNormalizedSeats[] = strtoupper($s);
+                }
+            }
+            if (!empty($debugNormalizedSeats)) {
+                Log::info('Booking seats normalized (simple expand only)', [
+                    'normalized' => $debugNormalizedSeats,
+                    'count' => count($debugNormalizedSeats)
+                ]);
+            }
+
+            $seatTotal = 0;
+            $addedCodes = [];
+            foreach ($data['seats'] as $seat) {
+                $seat = trim($seat);
+                if ($seat === '') continue;
+
+                // Chuẩn hóa danh sách mã ghế cần tính tiền: hỗ trợ dạng "L13-14", "L13, L14", hoặc đơn lẻ
+                $codesToResolve = [];
+                if (strpos($seat, '-') !== false) {
+                    if (preg_match('/^([A-Z])(?:\s*)(\d+)-(\d+)$/i', $seat, $matches)) {
+                        $row = strtoupper($matches[1]);
+                        $col1 = (int)$matches[2];
+                        $col2 = (int)$matches[3];
+                        for ($c = $col1; $c <= $col2; $c++) {
+                            $codesToResolve[] = $row . $c;
+                        }
+                    }
+                } elseif (strpos($seat, ',') !== false) {
+                    $parts = array_filter(array_map('trim', explode(',', $seat)));
+                    foreach ($parts as $p) $codesToResolve[] = strtoupper($p);
+                } else {
+                    $codesToResolve[] = strtoupper($seat);
+                }
+
+                foreach ($codesToResolve as $finalCode) {
+                    // Tính giá theo loại ghế thực tế trong DB để đồng bộ với UI và chi tiết vé
+                    $row = substr($finalCode, 0, 1);
+                    $number = substr($finalCode, 1);
+                    $seatObj = Ghe::where('id_phong', $showtime->id_phong)
+                        ->where('so_ghe', $row . $number)
+                        ->with('loaiGhe')
+                        ->first();
+                    if ($seatObj) {
+                        $codeKey = strtoupper($row.$number);
+                        if (!in_array($codeKey, $addedCodes, true)) {
+                            $addedCodes[] = $codeKey;
+                        }
+                        if ($this->isCoupleSeat($seatObj)) {
+                            $seatTotal += 200000; // Ghế đôi (tính theo từng ghế)
+                            if (!empty($seatObj->pair_id)) {
+                                $pairSeat = \App\Models\Ghe::find($seatObj->pair_id);
+                                if ($pairSeat) {
+                                    $pairCode = strtoupper($pairSeat->so_ghe);
+                                    if (!in_array($pairCode, $addedCodes, true)) {
+                                        $addedCodes[] = $pairCode;
+                                        $seatTotal += 200000;
+                                    }
+                                }
+                            }
+                        } elseif ($this->isVipSeat($seatObj)) {
+                            $seatTotal += 150000; // VIP
+                        } else {
+                            $seatTotal += 100000; // Thường
+                        }
                     }
                 }
             }
@@ -1920,16 +1992,31 @@ class BookingController extends Controller
                         $minDigits = preg_replace('/\D+/', '', (string)$promotion->dieu_kien);
                         if ($minDigits !== '') $min = (float)$minDigits;
                     }
+                    $applied = false;
                     if ($subtotal >= $min) {
                         if ($promotion->loai_giam === 'phantram') {
                             $discount = round($subtotal * ((float)$promotion->gia_tri_giam / 100));
+                            $applied = true;
                         } else {
                             $val = (float)$promotion->gia_tri_giam;
                             $fixed = $val >= 1000 ? $val : $val * 1000;
                             $discount = round($fixed);
+                            $applied = true;
                         }
                         if ($discount > $subtotal) $discount = $subtotal;
                     }
+                    \Log::info('Promotion calculation', [
+                        'promotion_id' => $promotionId,
+                        'type' => $promotion->loai_giam,
+                        'value' => $promotion->gia_tri_giam,
+                        'condition_raw' => $promotion->dieu_kien,
+                        'min_threshold' => $min,
+                        'subtotal' => $subtotal,
+                        'applied' => $applied,
+                        'discount' => $discount,
+                        'seat_total' => $seatTotal,
+                        'combo_total' => $comboTotal
+                    ]);
                 }
             }
 
@@ -2013,6 +2100,8 @@ class BookingController extends Controller
                             $codesToSave[] = strtoupper($seatCode);
                         }
 
+                        $savedCodes = [];
+                        $toSaveSet = [];
                         foreach ($codesToSave as $code) {
                             $row = substr($code, 0, 1);
                             $number = substr($code, 1);
@@ -2023,12 +2112,39 @@ class BookingController extends Controller
                             if ($seat) {
                                 // Determine price (CẬP NHẬT GIÁ MỚI)
                                 $price = $this->isCoupleSeat($seat) ? 200000 : ($this->isVipSeat($seat) ? 150000 : 100000);
-                                ChiTietDatVe::create([
-                                    'id_dat_ve' => $booking->id,
-                                    'id_ghe' => $seat->id,
-                                    'gia' => $price
-                                ]);
+                                $key = strtoupper($row.$number);
+                                if (!isset($toSaveSet[$key])) {
+                                    ChiTietDatVe::create([
+                                        'id_dat_ve' => $booking->id,
+                                        'id_ghe' => $seat->id,
+                                        'gia' => $price
+                                    ]);
+                                    $toSaveSet[$key] = true;
+                                    $savedCodes[] = $key;
+                                }
+                                if ($this->isCoupleSeat($seat) && !empty($seat->pair_id)) {
+                                    $pairSeat = \App\Models\Ghe::find($seat->pair_id);
+                                    if ($pairSeat) {
+                                        $pcode = strtoupper($pairSeat->so_ghe);
+                                        if (!isset($toSaveSet[$pcode])) {
+                                            ChiTietDatVe::create([
+                                                'id_dat_ve' => $booking->id,
+                                                'id_ghe' => $pairSeat->id,
+                                                'gia' => 200000
+                                            ]);
+                                            $toSaveSet[$pcode] = true;
+                                            $savedCodes[] = $pcode;
+                                        }
+                                    }
+                                }
                             }
+                        }
+                        if (!empty($savedCodes)) {
+                            Log::info('Booking saved seat details chunk', [
+                                'booking_id' => $booking->id,
+                                'codes' => $savedCodes,
+                                'count' => count($savedCodes)
+                            ]);
                         }
                     }
 
@@ -2067,6 +2183,67 @@ class BookingController extends Controller
 
                 // Commit transaction bên ngoài (DB::transaction() đã commit transaction bên trong)
                 DB::commit();
+
+                // Đồng bộ lại tổng tiền từ chi tiết đã lưu và TÍNH LẠI khuyến mãi để đảm bảo đúng
+                try {
+                    $computedSeat = \App\Models\ChiTietDatVe::where('id_dat_ve', $booking->id)->sum('gia');
+                    $computedCombo = \App\Models\ChiTietCombo::where('id_dat_ve', $booking->id)
+                        ->selectRaw('COALESCE(SUM(so_luong * gia_ap_dung),0) as total')->value('total') ?? 0;
+                    $reSubtotal = (int)$computedSeat + (int)$computedCombo;
+
+                    // Tính lại discount dựa trên promotionId nếu có
+                    $reDiscount = 0;
+                    if (!empty($promotionId)) {
+                        $promotion = \App\Models\KhuyenMai::find($promotionId);
+                        if ($promotion) {
+                            $min = 0;
+                            if (!empty($promotion->dieu_kien)) {
+                                $minDigits = preg_replace('/\D+/', '', (string)$promotion->dieu_kien);
+                                if ($minDigits !== '') $min = (float)$minDigits;
+                            }
+                            $applied = false;
+                            if ($reSubtotal >= $min) {
+                                if ($promotion->loai_giam === 'phantram') {
+                                    $reDiscount = round($reSubtotal * ((float)$promotion->gia_tri_giam / 100));
+                                    $applied = true;
+                                } else {
+                                    $val = (float)$promotion->gia_tri_giam;
+                                    $fixed = $val >= 1000 ? $val : $val * 1000;
+                                    $reDiscount = round($fixed);
+                                    $applied = true;
+                                }
+                                if ($reDiscount > $reSubtotal) $reDiscount = $reSubtotal;
+                            }
+                            Log::info('Post-save promotion recompute', [
+                                'booking_id' => $booking->id,
+                                'promotion_id' => $promotionId,
+                                'subtotal' => $reSubtotal,
+                                'discount' => $reDiscount,
+                                'applied' => $applied ?? false
+                            ]);
+                        }
+                    }
+
+                    $finalTotal = max(0, $reSubtotal - $reDiscount);
+                    if ($finalTotal !== (int)$booking->tong_tien) {
+                        Log::warning('Booking total adjusted from details (recomputed promo)', [
+                            'booking_id' => $booking->id,
+                            'from' => $booking->tong_tien,
+                            'to' => $finalTotal,
+                            'seat_sum' => $computedSeat,
+                            'combo_sum' => $computedCombo,
+                            're_discount' => $reDiscount
+                        ]);
+                        $booking->update(['tong_tien' => $finalTotal]);
+                    }
+                    // Cập nhật biến totalAmount dùng cho VNPay ngay sau đó
+                    $totalAmount = $finalTotal;
+                } catch (\Throwable $e) {
+                    Log::error('Failed to recalc booking total from details', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
                 
                 // Gửi email xác nhận đặt vé ngay lập tức
                 try {
@@ -2093,6 +2270,15 @@ class BookingController extends Controller
                 
                 // Nếu thanh toán online, tạo URL VNPAY và redirect
                 if ($paymentMethod === 'online') {
+                    // Log amount details to verify VNPay amount mapping
+                    Log::info('VNPay Redirect Amount', [
+                        'booking_id'   => $booking->id,
+                        'seat_total'   => $seatTotal,
+                        'combo_total'  => $comboTotal,
+                        'discount'     => $discount ?? 0,
+                        'total_amount' => $totalAmount,
+                        'vnp_amount'   => (int)($totalAmount * 100)
+                    ]);
                     $vnpUrl = app(\App\Http\Controllers\PaymentController::class)->createVnpayUrl($booking->id, $totalAmount);
                     return response()->json([
                         'success' => true,
@@ -2651,27 +2837,8 @@ class BookingController extends Controller
             return redirect()->route('login.form')->with('error', 'Vui lòng đăng nhập để xem vé');
         }
 
-        $bookings = DatVe::with([
-            'suatChieu.phim',
-            'suatChieu.phongChieu',
-            'chiTietDatVe.ghe.loaiGhe',
-            'chiTietCombo.combo',
-            'thanhToan',
-            'nguoiDung'
-        ])
-            ->where('id_nguoi_dung', $userId)
-            ->orderByDesc('created_at')
-            ->paginate(10);
-
-        // Statistics
-        $stats = [
-            'total' => DatVe::where('id_nguoi_dung', $userId)->count(),
-            'paid' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 1)->count(),
-            'pending' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 0)->count(),
-            'cancelled' => DatVe::where('id_nguoi_dung', $userId)->where('trang_thai', 2)->count(),
-        ];
-
-        return view('booking.tickets', compact('bookings', 'stats'));
+        // Redirect to the user bookings page to avoid "View [booking.tickets] not found." errors.
+        return redirect()->route('user.bookings');
     }
 
     /**
