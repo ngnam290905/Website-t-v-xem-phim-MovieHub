@@ -357,6 +357,7 @@
                         <button onclick="updateStatus({{ $suat->id }}, '{{ $suat->status === 'coming' ? 'ongoing' : ($suat->status === 'ongoing' ? 'finished' : 'coming') }}')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                           <i class="fas fa-arrow-right mr-2"></i>Cập nhật trạng thái
                         </button>
+                        
                       </div>
                     </div>
                   </div>
