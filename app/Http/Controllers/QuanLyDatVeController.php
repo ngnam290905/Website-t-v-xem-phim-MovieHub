@@ -15,6 +15,7 @@ use App\Models\Phim;
 use App\Models\NguoiDung;
 use App\Models\ThanhToan;
 use App\Mail\TicketMail;
+use App\Mail\PaymentSuccessMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -701,9 +702,26 @@ class QuanLyDatVeController extends Controller
             abort(403, 'Bạn không có quyền đặt vé.');
         }
         
-        $movies = Phim::where('trang_thai', 'dang_chieu')
-            ->orderBy('ngay_khoi_chieu', 'desc')
+        // BOX OFFICE: ưu tiên phim có suất chiếu hôm nay, nhưng vẫn hiển thị nhiều phim để staff lựa chọn
+        $today = now()->toDateString();
+        $movies = Phim::query()
+            ->whereIn('trang_thai', ['dang_chieu', 'sap_chieu'])
+            ->orderByDesc('ngay_khoi_chieu')
+            ->orderByDesc('id')
             ->get();
+
+        // Đưa các phim có suất chiếu hôm nay lên đầu danh sách (không bỏ phim nào)
+        $moviesWithShowtimesToday = SuatChieu::query()
+            ->where('trang_thai', 1)
+            ->whereDate('thoi_gian_bat_dau', $today)
+            ->where('thoi_gian_ket_thuc', '>', now())
+            ->distinct()
+            ->pluck('id_phim')
+            ->map(fn($id) => (int)$id)
+            ->toArray();
+        $movies = $movies->sortByDesc(function ($m) use ($moviesWithShowtimesToday) {
+            return in_array((int)$m->id, $moviesWithShowtimesToday, true) ? 1 : 0;
+        })->values();
         $combos = Combo::where('trang_thai', 1)->get();
         $foods = \App\Models\Food::where('is_active', 1)->get();
         
@@ -1124,8 +1142,8 @@ class QuanLyDatVeController extends Controller
                     ->with('info', 'Vui lòng thanh toán bằng mã QR.');
             }
 
-            // Đặt vé tại quầy đã thanh toán ngay, chuyển đến trang danh sách đặt vé
-            return redirect()->route('admin.bookings.index')
+            // Đặt vé tại quầy đã thanh toán ngay -> chuyển thẳng sang trang in (1 ghế = 1 vé, phiếu F&B)
+            return redirect()->route('admin.scan.print-multiple', ['id' => $bookingId, 'auto_print' => 1])
                 ->with('success', 'Đặt vé thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1192,6 +1210,7 @@ class QuanLyDatVeController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Vé đã được thanh toán',
+                    'redirect_url' => route('admin.scan.print-multiple', ['id' => $booking->id, 'auto_print' => 1]),
                 ]);
             }
             
@@ -1249,10 +1268,37 @@ class QuanLyDatVeController extends Controller
             
             DB::commit();
             
+            // Gửi email xác nhận thanh toán
+            try {
+                $booking->refresh();
+                $booking->load(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo', 'chiTietFood', 'thanhToan']);
+                $userEmail = $booking->nguoiDung->email ?? null;
+                
+                if ($userEmail) {
+                    $paymentMethod = $payment->phuong_thuc ?? 'Chuyển khoản QR';
+                    
+                    $paymentData = [
+                        'transaction_id' => $payment->ma_giao_dich ?? null,
+                        'payment_method' => $paymentMethod,
+                        'paid_at' => now(),
+                    ];
+                    
+                    Mail::to($userEmail)->send(new PaymentSuccessMail($booking, $paymentData));
+                    Log::info('Payment success email sent (QR)', ['booking_id' => $booking->id, 'email' => $userEmail]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to send payment success email (QR)', [
+                    'booking_id' => $booking->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Không throw exception để không ảnh hưởng đến flow thanh toán
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Xác nhận thanh toán thành công',
-                'redirect_url' => route('admin.bookings.show', $booking->id),
+                'redirect_url' => route('admin.scan.print-multiple', ['id' => $booking->id, 'auto_print' => 1]),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

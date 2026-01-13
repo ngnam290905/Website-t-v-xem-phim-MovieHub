@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\PaymentSuccessMail;
 use Carbon\Carbon;
 
 class BoxOfficeController extends Controller
@@ -512,6 +513,35 @@ class BoxOfficeController extends Controller
             }
             
             DB::commit();
+            
+            // Gửi email xác nhận nếu đã thanh toán thành công (không phải QR)
+            if (!$isQrPayment && $paymentStatus === 1) {
+                try {
+                    $booking->refresh();
+                    $booking->load(['nguoiDung', 'suatChieu.phim', 'suatChieu.phongChieu', 'chiTietDatVe.ghe', 'chiTietCombo', 'chiTietFood', 'thanhToan']);
+                    $userEmail = $booking->nguoiDung->email ?? null;
+                    
+                    if ($userEmail) {
+                        $paymentMethod = $this->getPaymentMethodName($request->payment_method);
+                        
+                        $paymentData = [
+                            'transaction_id' => null,
+                            'payment_method' => $paymentMethod,
+                            'paid_at' => now(),
+                        ];
+                        
+                        Mail::to($userEmail)->send(new PaymentSuccessMail($booking, $paymentData));
+                        Log::info('Payment success email sent (Box Office)', ['booking_id' => $booking->id, 'email' => $userEmail]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to send payment success email (Box Office)', [
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    // Không throw exception để không ảnh hưởng đến flow thanh toán
+                }
+            }
             
             // Nếu là QR payment, redirect đến trang QR
             if ($isQrPayment) {

@@ -641,12 +641,34 @@ class MovieController extends Controller
     
     public function edit(Phim $movie)
     {
+        // Kiểm tra phim có suất chiếu trong tương lai
+        $hasFutureShowtimes = SuatChieu::where('id_phim', $movie->id)
+            ->where('thoi_gian_ket_thuc', '>', Carbon::now())
+            ->where('trang_thai', 1)
+            ->exists();
+
+        if ($hasFutureShowtimes) {
+            return redirect()->route('admin.movies.index')
+                ->with('error', 'Không thể chỉnh sửa phim đang chiếu. Vui lòng hủy hoặc cập nhật các suất chiếu trước.');
+        }
+
         return view('admin.movies.edit', compact('movie'));
     }
 
     
     public function update(Request $request, Phim $movie)
     {
+        // Kiểm tra phim có suất chiếu trong tương lai
+        $hasFutureShowtimes = SuatChieu::where('id_phim', $movie->id)
+            ->where('thoi_gian_ket_thuc', '>', Carbon::now())
+            ->where('trang_thai', 1)
+            ->exists();
+
+        if ($hasFutureShowtimes) {
+            return redirect()->route('admin.movies.index')
+                ->with('error', 'Không thể cập nhật phim đang chiếu. Vui lòng hủy hoặc cập nhật các suất chiếu trước.');
+        }
+
         $validator = Validator::make($request->all(), [
             'ten_phim' => 'required|string|max:255',
             'ten_goc' => 'nullable|string|max:255',
